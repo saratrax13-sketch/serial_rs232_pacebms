@@ -1,7 +1,7 @@
-name: "Pace BMS - Development"
+name: "Pace BMS - Hubble EenoVance"
 description: "Pace BMS RS232 Interface"
-version: "2.0.4"
-slug: "pace_bms_rs232"
+version: "2.0.5"
+slug: "pace_bms_rs232_485"
 url: "https://github.com/saratrax13-sketch/serial_rs485_pacebms"
 init: false
 arch:
@@ -22,7 +22,7 @@ options:
   mqtt_password: "mqtt-users"
   mqtt_ha_discovery: true
   mqtt_ha_discovery_topic: "homeassistant"
-  mqtt_base_topic: "bmspace"
+  mqtt_base_topic: "pacebms"
 
   # ── BMS connection ─────────────────────────────────────────────────────────
   # connection_type: "IP" or "Serial"
