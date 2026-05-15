@@ -1,0 +1,72 @@
+name: "Pace BMS - Development"
+description: "Pace BMS RS232 Interface"
+version: "2.0.4"
+slug: "pace_bms_rs232"
+url: "https://github.com/broubart/pacebms"
+init: false
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+
+uart: true
+usb: true
+
+options:
+  # ── MQTT ──────────────────────────────────────────────────────────────────
+  mqtt_host: "10.0.0.132"
+  mqtt_port: 1883
+  mqtt_user: "mqtt-users"
+  mqtt_password: "mqtt-users"
+  mqtt_ha_discovery: true
+  mqtt_ha_discovery_topic: "homeassistant"
+  mqtt_base_topic: "bmspace"
+
+  # ── BMS connection ─────────────────────────────────────────────────────────
+  # connection_type: "IP" or "Serial"
+  connection_type: "IP"
+  bms_ip: "10.0.0.161"
+  bms_port: 5000
+
+  # Serial port settings (only used when connection_type is "Serial")
+  bms_serial: "/dev/ttyUSB0"
+  bms_baudrate: 9600          # added: explicitly set baud rate for serial
+
+  # ── Polling ────────────────────────────────────────────────────────────────
+  scan_interval: 5            # seconds between full BMS polls
+
+  # ── Debugging ─────────────────────────────────────────────────────────────
+  # 0 = off, 1 = basic, 2 = verbose, 3 = raw frames
+  debug_output: 0
+
+  # ── Parsing tweaks ─────────────────────────────────────────────────────────
+  # force_pack_offset: extra bytes to skip after each pack in analog data.
+  # Set to 0 unless your BMS firmware adds unexpected trailing bytes.
+  force_pack_offset: 0  # deprecated — auto-skip now handles INFOFLAG bytes
+
+  # zero_pad_number_cells / zero_pad_number_packs:
+  # Width for zero-padding topic names, e.g. 2 → cell_01, pack_01.
+  # Set to 0 to disable padding (cell_1, pack_1).
+  zero_pad_number_cells: 2   # cell_01..cell_16 — change to 0 for cell_1 style
+  zero_pad_number_packs: 2
+
+schema:
+  mqtt_host: str
+  mqtt_port: int
+  mqtt_user: str
+  mqtt_password: str
+  mqtt_ha_discovery: bool
+  mqtt_ha_discovery_topic: str
+  mqtt_base_topic: str
+  connection_type: list(IP|Serial)
+  bms_ip: str
+  bms_port: int
+  bms_serial: str
+  bms_baudrate: int
+  scan_interval: int
+  debug_output: int
+  force_pack_offset: "int?"
+  zero_pad_number_cells: "int?"
+  zero_pad_number_packs: "int?"

@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  bmspace:
+    build:
+      context: .
+    restart: unless-stopped
+    privileged: true        # needed for serial/USB device access
+
+    volumes:
+      - ./config.yaml:/workdir/config.yaml:ro   # read-only — container should not modify config
+      - /dev:/dev
+
+    # Optional: override config values without rebuilding the image.
+    # Uncomment and populate if you prefer env vars over config.yaml.
+    # env_file:
+    #   - .env
+
+    # Health check — restarts container if BMS monitor stops responding
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f bms_monitor.py || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
