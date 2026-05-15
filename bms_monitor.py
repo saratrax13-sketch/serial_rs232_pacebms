@@ -1,5 +1,20 @@
-# Cleaned version: pack count is read from the BMS analog response; no expected_packs config is used.
-# Capacity publishes as whole Ah, and SOH is capped at 100%.
+# =============================================================================
+# bms_monitor.py — Pace BMS to MQTT Bridge
+# Version : 2.1.0
+# Changed : 2026-05-16
+# Changes :
+#   - Added direct Telegram notifications (pre-MQTT startup warnings)
+#   - Added BMS startup / shutdown MQTT status topic (pacebms/bms_status)
+#   - Added BMS disconnect / recovery MQTT error topic (pacebms/bms_error)
+#     with retry count and offline duration tracking
+#   - Replaced atexit lambda with proper on_exit() for shutdown notification
+#   - Switched connection_type to Serial by default
+#   - zero_pad_number_packs set to 0 (pack_1 / pack_2 style)
+#   - force_pack_offset deprecated and removed
+#   - Pack count auto-detected from BMS analog response
+#   - Capacity publishes as whole Ah; SOH capped at 100%
+# =============================================================================
+
 import paho.mqtt.client as mqtt
 import socket
 import time

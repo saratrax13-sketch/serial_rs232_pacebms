@@ -1,4 +1,10 @@
-
+# =============================================================================
+# constants.py — Pace BMS Protocol Constants
+# Version : 1.0.0
+# Changed : 2026-05-16
+# Changes :
+#   - Initial version with CID2 command codes and warning/protection state maps
+# =============================================================================
 cid2PackNumber          = b"\x39\x30"       # 0x90
 cid2PackAnalogData      = b"\x34\x32"       # 0x42
 cid2SoftwareVersion     = b"\x43\x31"       # 0xC1

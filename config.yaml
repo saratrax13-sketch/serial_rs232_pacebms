@@ -1,6 +1,6 @@
 name: "Pace BMS - Hubble EenoVance"
 description: "Pace BMS RS232 Interface"
-version: "2.0.10"
+version: "2.0.11"
 slug: "pace_bms_rs232_485"
 url: "https://github.com/saratrax13-sketch/serial_rs485_pacebms"
 init: false
@@ -16,8 +16,8 @@ usb: true
 
 options:
   # ── Telegram direct notifications (used before MQTT is available) ───────────
-  telegram_bot_token: "XXXXXXXX"
-  telegram_chat_id: "XXXXXXX"
+  telegram_bot_token: ""
+  telegram_chat_id: ""
 
   # ── MQTT ──────────────────────────────────────────────────────────────────
   mqtt_host: "192.168.10.15"
