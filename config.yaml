@@ -44,7 +44,7 @@ options:
   # ── Parsing tweaks ─────────────────────────────────────────────────────────
   # force_pack_offset: extra bytes to skip after each pack in analog data.
   # Set to 0 unless your BMS firmware adds unexpected trailing bytes.
-  force_pack_offset: 0  # deprecated — auto-skip now handles INFOFLAG bytes
+#  force_pack_offset: 0  # deprecated — auto-skip now handles INFOFLAG bytes
 
   # zero_pad_number_cells / zero_pad_number_packs:
   # Width for zero-padding topic names, e.g. 2 → cell_01, pack_01.
@@ -67,6 +67,6 @@ schema:
   bms_baudrate: int
   scan_interval: int
   debug_output: int
-  force_pack_offset: "int?"
+#  force_pack_offset: "int?"
   zero_pad_number_cells: "int?"
   zero_pad_number_packs: "int?"
