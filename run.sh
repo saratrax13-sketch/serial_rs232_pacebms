@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-echo "Starting BMS Pace monitor..."
+echo "Starting PaceBMS monitor..."
 
 cd /workdir
 
