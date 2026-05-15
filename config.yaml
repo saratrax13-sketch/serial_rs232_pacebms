@@ -2,7 +2,7 @@ name: "Pace BMS - Development"
 description: "Pace BMS RS232 Interface"
 version: "2.0.4"
 slug: "pace_bms_rs232"
-url: "https://github.com/broubart/pacebms"
+url: "https://github.com/saratrax13-sketch/serial_rs485_pacebms"
 init: false
 arch:
   - aarch64
