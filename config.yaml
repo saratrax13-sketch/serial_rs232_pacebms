@@ -16,8 +16,8 @@ usb: true
 
 options:
   # ── Telegram direct notifications (used before MQTT is available) ───────────
-  telegram_bot_token: "8835294204:AAFRiUwvmkXqFZ0w_SQbNr9ke6y1SMb_BhQ"
-  telegram_chat_id: "624472250"
+  telegram_bot_token: "XXXXXXXX"
+  telegram_chat_id: "XXXXXXX"
 
   # ── MQTT ──────────────────────────────────────────────────────────────────
   mqtt_host: "192.168.10.15"
