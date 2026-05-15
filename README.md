@@ -11,7 +11,7 @@ Connects via **TCP/IP or Serial (USB)**, supports **multiple packs**, and runs a
 - Reads cell voltages, temperatures, current, voltage, SOC, SOH, cycles, and capacity per pack
 - Publishes all data to MQTT with change-detection — only publishes when values change, minimising HA recorder writes
 - Full Home Assistant MQTT Discovery — sensors appear in HA automatically with correct device class and units
-- Supports multiple battery packs (dynamic — no hardcoded cell or pack count)
+- **Supports multiple battery packs (dynamic — no hardcoded cell or pack count)**
 - Availability topic — HA shows the device as unavailable if the monitor stops
 - Runs as an HA addon or standalone Docker container
 - Serial (USB) and TCP/IP connection modes
