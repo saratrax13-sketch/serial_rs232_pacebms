@@ -872,12 +872,38 @@ def main():
     analog_data        = None
     first_analog_ready = False  # guard: discovery must not fire before first analog read
 
+    # ── BMS disconnect tracking ───────────────────────────────────────────────
+    bms_retry_count    = 0
+    bms_disconnect_time = None   # time.time() when BMS first disconnected
+    bms_error_published = False  # guard: only publish error topic once per disconnect
+
     while True:
         try:
             # ── Reconnect BMS if needed ───────────────────────────────────────
             if not bms_connected:
-                log.warning("BMS disconnected — retrying in 5s...")
+                if bms_disconnect_time is None:
+                    bms_disconnect_time = time.time()
+
+                bms_retry_count += 1
+                offline_secs     = int(time.time() - bms_disconnect_time)
+                offline_mins     = offline_secs // 60
+                offline_str      = f"{offline_mins}m {offline_secs % 60}s" if offline_mins else f"{offline_secs}s"
+
+                log.warning("BMS disconnected — retry %d, offline %s, retrying in 5s...",
+                            bms_retry_count, offline_str)
+
                 client.publish(f"{base}/availability", "offline", qos=1, retain=True)
+
+                # Publish error details to MQTT for HA automation to pick up
+                error_payload = json.dumps({
+                    "status":       "disconnected",
+                    "retry_count":  bms_retry_count,
+                    "offline_time": offline_str,
+                    "offline_secs": offline_secs,
+                })
+                client.publish(f"{base}/bms_error", error_payload, qos=1, retain=True)
+                bms_error_published = True
+
                 time.sleep(5)
                 bms, bms_connected = bms_connect(config)
                 last_discovery     = 0.0   # force discovery republish after reconnect
@@ -897,6 +923,23 @@ def main():
             # ── Poll BMS ──────────────────────────────────────────────────────
             success, result = bms_get_analog_data(bms, config)
             if success:
+                # ── BMS recovered — clear error state ────────────────────────
+                if bms_error_published:
+                    offline_secs = int(time.time() - bms_disconnect_time) if bms_disconnect_time else 0
+                    offline_mins = offline_secs // 60
+                    offline_str  = f"{offline_mins}m {offline_secs % 60}s" if offline_mins else f"{offline_secs}s"
+                    recovery_payload = json.dumps({
+                        "status":        "recovered",
+                        "retry_count":   bms_retry_count,
+                        "offline_time":  offline_str,
+                        "offline_secs":  offline_secs,
+                    })
+                    client.publish(f"{base}/bms_error", recovery_payload, qos=1, retain=True)
+                    log.info("BMS recovered after %s (%d retries)", offline_str, bms_retry_count)
+                    bms_error_published  = False
+                    bms_retry_count      = 0
+                    bms_disconnect_time  = None
+
                 analog_data        = result
                 first_analog_ready = True
 
