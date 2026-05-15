@@ -1,6 +1,6 @@
 name: "Pace BMS - Hubble EenoVance"
 description: "Pace BMS RS232 Interface"
-version: "2.0.9"
+version: "2.0.10"
 slug: "pace_bms_rs232_485"
 url: "https://github.com/saratrax13-sketch/serial_rs485_pacebms"
 init: false
@@ -15,6 +15,10 @@ uart: true
 usb: true
 
 options:
+  # ── Telegram direct notifications (used before MQTT is available) ───────────
+  telegram_bot_token: "8835294204:AAFRiUwvmkXqFZ0w_SQbNr9ke6y1SMb_BhQ"
+  telegram_chat_id: "624472250"
+
   # ── MQTT ──────────────────────────────────────────────────────────────────
   mqtt_host: "192.168.10.15"
   mqtt_port: 1883
@@ -50,9 +54,11 @@ options:
   # Width for zero-padding topic names, e.g. 2 → cell_01, pack_01.
   # Set to 0 to disable padding (cell_1, pack_1).
   zero_pad_number_cells: 2   # cell_01..cell_16 — change to 0 for cell_1 style
-  zero_pad_number_packs: 2
+  zero_pad_number_packs: 0
 
 schema:
+  telegram_bot_token: str
+  telegram_chat_id: str
   mqtt_host: str
   mqtt_port: int
   mqtt_user: str

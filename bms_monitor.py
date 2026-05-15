@@ -1,4 +1,4 @@
-# Cleaned version: pack count is read from the BMS analog response; no expected_packs config is used. 11111
+# Cleaned version: pack count is read from the BMS analog response; no expected_packs config is used.
 # Capacity publishes as whole Ah, and SOH is capped at 100%.
 import paho.mqtt.client as mqtt
 import socket
@@ -11,6 +11,7 @@ import atexit
 import sys
 import logging
 import constants
+import urllib.request
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -21,6 +22,22 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s"
 )
 log = logging.getLogger("bmspace")
+
+# ─── Telegram direct notify (used before MQTT is available) ─────────────────
+
+def telegram_notify(config: dict, message: str):
+    token   = config.get('telegram_bot_token', '')
+    chat_id = config.get('telegram_chat_id', '')
+    if not token or not chat_id:
+        return
+    try:
+        url     = f"https://api.telegram.org/bot{token}/sendMessage"
+        payload = json.dumps({"chat_id": chat_id, "text": message}).encode()
+        req     = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+        urllib.request.urlopen(req, timeout=5)
+        log.info("Telegram notification sent")
+    except Exception as e:
+        log.warning("Telegram notify failed: %s", e)
 
 # ─── Protocol constants  (no more magic numbers) ─────────────────────────────
 
@@ -842,11 +859,13 @@ def main():
     bms_version = bms_version if success else "unknown"
     if not success:
         log.warning("Could not retrieve BMS version")
+        telegram_notify(config, "WARNING: Could not retrieve BMS version. BMS may be starting up.")
 
     time.sleep(0.1)
 
     success, bms_sn, pack_sn = bms_get_serial(bms, config)
     if not success:
+        telegram_notify(config, "ERROR: Cannot retrieve BMS serial. Monitor exiting.")
         sys.exit("Cannot retrieve BMS serial — required for HA Discovery. Exiting.")
 
     # ── MQTT (client ID uses bms_sn; will set before connect) ────────────────
