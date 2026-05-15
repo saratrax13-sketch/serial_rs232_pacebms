@@ -52,7 +52,7 @@ pyyaml
 
 1. In Home Assistant go to **Settings → Add-ons → Add-on Store**
 2. Click the three-dot menu → **Repositories**
-3. Add: `https://github.com/broubart/pacebms`
+3. Add: `https://github.com/saratrax13-sketch/serial_rs485_pacebms`
 4. Find **BMS Pace** in the store and click **Install**
 5. Configure via the addon **Configuration** tab (see [Configuration](#configuration) below)
 6. Click **Start**
@@ -60,7 +60,7 @@ pyyaml
 ### Option B — Docker Compose (standalone)
 
 ```bash
-git clone https://github.com/broubart/pacebms.git
+git clone https://github.com/saratrax13-sketch/serial_rs485_pacebms.git
 cd pacebms
 ```
 
@@ -78,7 +78,7 @@ docker compose logs -f
 ### Option C — Direct Python
 
 ```bash
-git clone https://github.com/broubart/pacebms.git
+git clone https://github.com/saratrax13-sketch/serial_rs485_pacebms.git
 cd pacebms
 pip install -r requirements.txt
 python3 bms_monitor.py
