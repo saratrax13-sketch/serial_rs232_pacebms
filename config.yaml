@@ -1,6 +1,6 @@
 name: "Pace BMS - Hubble EenoVance"
 description: "Pace BMS RS232 Interface"
-version: "2.0.6"
+version: "2.0.7"
 slug: "pace_bms_rs232_485"
 url: "https://github.com/saratrax13-sketch/serial_rs485_pacebms"
 init: false
@@ -16,7 +16,7 @@ usb: true
 
 options:
   # ── MQTT ──────────────────────────────────────────────────────────────────
-  mqtt_host: "10.0.0.132"
+  mqtt_host: "192.168.10.15"
   mqtt_port: 1883
   mqtt_user: "mqtt-users"
   mqtt_password: "mqtt-users"
@@ -26,7 +26,7 @@ options:
 
   # ── BMS connection ─────────────────────────────────────────────────────────
   # connection_type: "IP" or "Serial"
-  connection_type: "IP"
+  connection_type: "Serial"
   bms_ip: "10.0.0.161"
   bms_port: 5000
 
