@@ -4,7 +4,10 @@
   <meta charset="utf-8">
   <title>Pace BMS Settings</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/style.css">
+
+  <!-- Important for Home Assistant Ingress:
+       url_for() generates the correct static path inside the Ingress proxy. -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <main>
