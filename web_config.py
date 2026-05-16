@@ -705,6 +705,93 @@ def supervisor_request(path, payload=None, method="POST", timeout=10):
         return False, str(exc)
 
 
+def validate_addon_options(options):
+    """Basic validation for obvious configuration mistakes before saving."""
+    errors = []
+
+    def as_int(key, default=None):
+        try:
+            return int(options.get(key, default))
+        except Exception:
+            return default
+
+    def as_float(key, default=None):
+        try:
+            return float(options.get(key, default))
+        except Exception:
+            return default
+
+    mqtt_host = str(options.get("mqtt_host", "")).strip()
+    if not mqtt_host:
+        errors.append("mqtt_host cannot be blank.")
+
+    mqtt_port = as_int("mqtt_port")
+    if mqtt_port is None or mqtt_port < 1 or mqtt_port > 65535:
+        errors.append("mqtt_port must be between 1 and 65535.")
+
+    connection_type = str(options.get("connection_type", "")).strip().lower()
+    if connection_type == "serial":
+        if not str(options.get("bms_serial", "")).strip():
+            errors.append("bms_serial cannot be blank when connection_type is Serial.")
+    elif connection_type in {"ip", "tcp", "tcp/ip"}:
+        if not str(options.get("bms_ip", "")).strip():
+            errors.append("bms_ip cannot be blank when connection_type is IP/TCP.")
+        bms_port = as_int("bms_port")
+        if bms_port is None or bms_port < 1 or bms_port > 65535:
+            errors.append("bms_port must be between 1 and 65535.")
+    elif connection_type:
+        # Keep this soft but visible because some users may use Home Assistant selector labels.
+        if connection_type not in {"serial", "ip"}:
+            errors.append("connection_type must be Serial or IP.")
+
+    scan_interval = as_float("scan_interval")
+    if scan_interval is None or scan_interval < 1:
+        errors.append("scan_interval must be at least 1 second.")
+
+    notify_retry_count = as_int("notify_retry_count")
+    if notify_retry_count is not None and notify_retry_count < 0:
+        errors.append("notify_retry_count cannot be negative.")
+
+    soc_high = as_float("notify_soc_high_threshold")
+    soc_high_reset = as_float("notify_soc_high_reset")
+    if soc_high is not None and not (0 <= soc_high <= 100):
+        errors.append("notify_soc_high_threshold must be between 0 and 100.")
+    if soc_high_reset is not None and not (0 <= soc_high_reset <= 100):
+        errors.append("notify_soc_high_reset must be between 0 and 100.")
+    if soc_high is not None and soc_high_reset is not None and soc_high_reset >= soc_high:
+        errors.append("notify_soc_high_reset should be lower than notify_soc_high_threshold.")
+
+    soh_threshold = as_float("notify_soh_threshold")
+    if soh_threshold is not None and not (0 <= soh_threshold <= 100):
+        errors.append("notify_soh_threshold must be between 0 and 100.")
+
+    cell_high = as_float("notify_cell_high_warn_voltage")
+    cell_low = as_float("notify_cell_low_warn_voltage")
+    if cell_high is not None and not (3.0 <= cell_high <= 5.0):
+        errors.append("notify_cell_high_warn_voltage looks unusual; expected roughly 3.0 to 5.0 V.")
+    if cell_low is not None and not (1.5 <= cell_low <= 4.0):
+        errors.append("notify_cell_low_warn_voltage looks unusual; expected roughly 1.5 to 4.0 V.")
+    if cell_high is not None and cell_low is not None and cell_low >= cell_high:
+        errors.append("notify_cell_low_warn_voltage must be lower than notify_cell_high_warn_voltage.")
+
+    stale_seconds = as_int("notify_stale_data_seconds")
+    if stale_seconds is not None and stale_seconds < 30:
+        errors.append("notify_stale_data_seconds should be at least 30 seconds.")
+
+    stale_repeat = as_int("notify_stale_data_repeat_seconds")
+    if stale_repeat is not None and stale_repeat < 60:
+        errors.append("notify_stale_data_repeat_seconds should be at least 60 seconds.")
+
+    state_force = as_int("state_force_republish_seconds")
+    warn_force = as_int("warn_force_republish_seconds")
+    if state_force is not None and state_force < 0:
+        errors.append("state_force_republish_seconds cannot be negative.")
+    if warn_force is not None and warn_force < 0:
+        errors.append("warn_force_republish_seconds cannot be negative.")
+
+    return errors
+
+
 def save_addon_options(new_options):
     """Save add-on options through the Supervisor self endpoint.
 
@@ -833,6 +920,13 @@ def route_save_config():
         return render_index("warn", error, active_tab="config")
 
     new_options = build_options_from_form(request.form, options)
+
+    validation_errors = validate_addon_options(new_options)
+    if validation_errors:
+        message = "Configuration was not saved. Please fix: " + " | ".join(validation_errors)
+        append_event("config_save", "Configuration save blocked", message, "warn")
+        return render_index("warn", message, active_tab="config")
+
     ok, message = save_addon_options(new_options)
 
     append_event("config_save", "Configuration save", message, "ok" if ok else "warn")
@@ -840,7 +934,7 @@ def route_save_config():
     if ok:
         return render_index(
             "ok",
-            message + " Restart the add-on for monitor runtime changes to apply.",
+            message + " Restart required for monitor runtime changes to apply.",
             active_tab="config",
         )
 

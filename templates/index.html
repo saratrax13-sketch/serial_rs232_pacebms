@@ -446,6 +446,21 @@
       line-height: 1.5;
     }
 
+    .restart-required {
+      display: none;
+      background: rgba(245, 158, 11, 0.14);
+      border: 1px solid rgba(245, 158, 11, 0.40);
+      color: #fde68a;
+      padding: 12px 14px;
+      border-radius: 14px;
+      margin: 10px 0 14px;
+      font-weight: 800;
+    }
+
+    .restart-required.show {
+      display: block;
+    }
+
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
@@ -695,8 +710,11 @@
         <div class="helper-note">
           This saves Home Assistant add-on configuration only. It does not write to the BMS. Leave password/token fields blank to keep the existing saved value. Restart the add-on after saving changes that affect the monitor runtime.
         </div>
+        <div id="restart-required-banner" class="restart-required">
+          Unsaved changes detected. Save Configuration, then restart the add-on for runtime changes to apply.
+        </div>
 
-        <form method="post" action="save-config">
+        <form id="config-save-form" method="post" action="save-config" onsubmit="return confirmSaveConfig();">
           <section class="grid">
             {% for group_name, items in grouped.items() %}
             <article class="card">
@@ -856,6 +874,45 @@
         if (msg) msg.textContent = "Config YAML selected/copied. If needed, press Ctrl+C.";
       }
     }
+
+  
+    let configDirty = false;
+
+    function markConfigDirty() {
+      configDirty = true;
+      const banner = document.getElementById("restart-required-banner");
+      if (banner) {
+        banner.classList.add("show");
+      }
+    }
+
+    function confirmSaveConfig() {
+      return confirm(
+        "Save these Home Assistant add-on configuration changes?\\n\\n" +
+        "This does not write to the BMS.\\n" +
+        "You should restart the add-on afterwards for runtime changes to apply."
+      );
+    }
+
+    window.addEventListener("beforeunload", function (event) {
+      if (!configDirty) return;
+      event.preventDefault();
+      event.returnValue = "";
+    });
+
+    document.addEventListener("DOMContentLoaded", function () {
+      const form = document.getElementById("config-save-form");
+      if (form) {
+        form.querySelectorAll("input, select, textarea").forEach(function (field) {
+          field.addEventListener("change", markConfigDirty);
+          field.addEventListener("input", markConfigDirty);
+        });
+
+        form.addEventListener("submit", function () {
+          configDirty = false;
+        });
+      }
+    });
 
   </script>
 
