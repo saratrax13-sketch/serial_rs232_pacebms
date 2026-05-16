@@ -409,6 +409,31 @@
     .event-level.warn { color: var(--yellow); }
     .event-level.danger { color: var(--red); }
 
+    .config-helper-textarea {
+      width: 100%;
+      min-height: 360px;
+      resize: vertical;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: rgba(15, 23, 42, 0.82);
+      color: #e5e7eb;
+      padding: 14px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+      line-height: 1.45;
+      white-space: pre;
+    }
+
+    .helper-note {
+      background: rgba(59, 130, 246, 0.10);
+      border: 1px solid rgba(59, 130, 246, 0.26);
+      color: #bfdbfe;
+      padding: 12px 14px;
+      border-radius: 14px;
+      margin: 10px 0 14px;
+      line-height: 1.5;
+    }
+
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
@@ -652,6 +677,20 @@
     </section>
 
     <section class="tab-panel {% if active_tab == 'config' %}active{% endif %}">
+      <section class="card wide-card">
+        <h2>Config Helper</h2>
+        <p>This generates a sanitized YAML view from the current add-on options. It does not save settings and it does not write to the BMS.</p>
+        <div class="helper-note">
+          Sensitive values are replaced with placeholders. Use the Home Assistant add-on Configuration tab to edit and save real settings.
+        </div>
+        <div class="actions">
+          <a class="button-link" href="export-config.yaml">Download YAML</a>
+          <button type="button" onclick="copyConfigYaml()">Copy YAML</button>
+        </div>
+        <textarea id="config-yaml" class="config-helper-textarea" spellcheck="false" readonly>{{ config_yaml }}</textarea>
+        <div id="copy-config-message" class="summary-meta"></div>
+      </section>
+
       <section class="grid">
         {% for group_name, items in grouped.items() %}
         <article class="card">
@@ -765,6 +804,26 @@
         }
       }
     }
+  
+    async function copyConfigYaml() {
+      const area = document.getElementById("config-yaml");
+      const msg = document.getElementById("copy-config-message");
+
+      if (!area) {
+        if (msg) msg.textContent = "Config YAML field not found.";
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(area.value);
+        if (msg) msg.textContent = "Config YAML copied to clipboard.";
+      } catch (err) {
+        area.select();
+        document.execCommand("copy");
+        if (msg) msg.textContent = "Config YAML selected/copied. If needed, press Ctrl+C.";
+      }
+    }
+
   </script>
 
 </body>

@@ -1,13 +1,15 @@
-## 2.1.2 - 2026-05-16
+## 2.1.3 - 2026-05-17
 
 ### Added
-- Added Refresh Status button to the Status tab.
-- Added client-side refresh using the existing `/api/status` endpoint.
-- Added live update of Overall Status, availability, monitor state, stale status, last read timestamps, read ages, layout and BMS serial without a full page reload.
+- Added Config Helper card to the Config tab.
+- Added sanitized YAML output generated from current add-on options.
+- Added Copy YAML button.
+- Added Download YAML button at `/export-config.yaml`.
+- Sensitive values are replaced with placeholders in the generated YAML.
 
 ### Notes
-- This is a web UI convenience release.
-- No Python monitor logic changes were made.
+- This is a safe configuration-helper release.
+- The web UI still does not save configuration directly.
+- Settings must still be changed in the Home Assistant add-on Configuration tab.
 - No BMS protocol changes were made.
 - No BMS write/control commands were added.
-- The add-on remains read-only to the BMS.

@@ -548,6 +548,70 @@ def build_grouped_config(options):
     return grouped
 
 
+def sanitize_config_value(key, value):
+    """Return a safe value for config helper output.
+
+    Sensitive values are replaced with placeholders so screenshots/logs do not
+    accidentally expose secrets. This helper does not save config.
+    """
+    placeholders = {
+        "telegram_bot_token": "YOUR_TELEGRAM_BOT_TOKEN",
+        "telegram_chat_id": "YOUR_TELEGRAM_CHAT_ID",
+        "mqtt_user": "YOUR_MQTT_USER",
+        "mqtt_password": "YOUR_MQTT_PASSWORD",
+    }
+
+    if key in placeholders:
+        return placeholders[key]
+
+    return value
+
+
+def yaml_scalar(value):
+    """Small YAML scalar formatter for simple add-on option values."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+
+    if isinstance(value, int):
+        return str(value)
+
+    if isinstance(value, float):
+        return str(value)
+
+    if value is None:
+        return '""'
+
+    text = str(value)
+    escaped = text.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+def generate_config_yaml(options):
+    """Generate sanitized YAML from current /data/options.json values.
+
+    This is a copy/download helper only. It does not write to Home Assistant
+    and it does not write to the BMS.
+    """
+    lines = [
+        "# Pace BMS add-on configuration helper",
+        "# Generated from current add-on options.",
+        "# Sensitive values are replaced with placeholders.",
+        "# Paste/edit these values in the Home Assistant add-on Configuration tab.",
+        "",
+    ]
+
+    for group_name, keys in GROUPS.items():
+        lines.append(f"# ── {group_name} ─────────────────────────────────────────────")
+        for key in keys:
+            if key not in options:
+                continue
+            value = sanitize_config_value(key, options.get(key))
+            lines.append(f"{key}: {yaml_scalar(value)}")
+        lines.append("")
+
+    return "\n".join(lines).strip() + "\n"
+
+
 def render_index(action_result="", action_message="", active_tab="status"):
     options, error = load_options()
     grouped = build_grouped_config(options)
@@ -566,6 +630,7 @@ def render_index(action_result="", action_message="", active_tab="status"):
         action_result=action_result,
         action_message=action_message,
         active_tab=active_tab,
+        config_yaml=generate_config_yaml(options),
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     )
 
@@ -636,6 +701,21 @@ def route_export_events_csv():
         buffer.getvalue(),
         mimetype="text/csv",
         headers={"Content-Disposition": "attachment; filename=pacebms-events.csv"},
+    )
+
+
+
+@app.route("/export-config.yaml", methods=["GET"])
+def route_export_config_yaml():
+    options, error = load_options()
+    if error:
+        return Response(error, mimetype="text/plain", status=500)
+
+    payload = generate_config_yaml(options)
+    return Response(
+        payload,
+        mimetype="text/yaml",
+        headers={"Content-Disposition": "attachment; filename=pacebms-config-helper.yaml"},
     )
 
 
