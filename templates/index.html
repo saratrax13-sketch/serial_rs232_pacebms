@@ -368,6 +368,42 @@
       font-weight: 800;
     }
 
+    .backup-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .backup-item {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      border-radius: 14px;
+      background: rgba(15, 23, 42, 0.66);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .backup-name {
+      color: #f8fafc;
+      font-weight: 900;
+      word-break: break-word;
+    }
+
+    .backup-meta {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 3px;
+    }
+
+    .backup-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
     .events-list {
       display: grid;
       gap: 10px;
@@ -882,6 +918,38 @@
         <div class="actions">
           <button id="discard-all-button" class="danger-button" type="button" onclick="discardAllConfigChanges()" disabled>Discard All Unsaved Changes</button>
         </div>
+
+        <section class="card wide-card" style="margin-top: 16px; margin-bottom: 16px;">
+          <h2>Configuration Backups</h2>
+          <p>Backups are stored locally in <code>/data/config_backups/</code>. A backup is created before every web config save and before every restore.</p>
+
+          <div class="actions">
+            <form method="post" action="create-config-backup">
+              <button type="submit">Create Backup Now</button>
+            </form>
+          </div>
+
+          {% if config_backups %}
+          <div class="backup-list">
+            {% for backup in config_backups %}
+            <div class="backup-item">
+              <div>
+                <div class="backup-name">{{ backup.filename }}</div>
+                <div class="backup-meta">Created: {{ backup.created }} | Size: {{ backup.size }} bytes</div>
+              </div>
+              <div class="backup-actions">
+                <a class="button-link" href="download-config-backup/{{ backup.filename }}">Download</a>
+                <form method="post" action="restore-config-backup/{{ backup.filename }}" onsubmit="return confirm('Restore this configuration backup? A backup of the current config will be created first. Restart will be required afterwards.');">
+                  <button class="danger-button" type="submit">Restore</button>
+                </form>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p>No configuration backups yet. A backup will be created before the next web config save.</p>
+          {% endif %}
+        </section>
 
         <form id="config-save-form" method="post" action="save-config" onsubmit="return confirmSaveConfig();">
           <section class="grid">

@@ -2,6 +2,7 @@ import csv
 import io
 import json
 import os
+from pathlib import Path
 import time
 import urllib.error
 import urllib.request
@@ -14,6 +15,8 @@ app = Flask(__name__)
 
 OPTIONS_PATH = "/data/options.json"
 EVENT_LOG_PATH = "/data/events.json"
+CONFIG_BACKUP_DIR = "/data/config_backups"
+MAX_CONFIG_BACKUPS = 10
 MAX_EVENT_LOG_ENTRIES = 50
 DEPRECATED_OPTION_KEYS = {"bms_ip", "bms_port"}
 
@@ -120,6 +123,110 @@ def save_events(events):
 
 def clear_events():
     return save_events([])
+
+
+def ensure_config_backup_dir():
+    os.makedirs(CONFIG_BACKUP_DIR, exist_ok=True)
+
+
+def list_config_backups():
+    try:
+        ensure_config_backup_dir()
+        items = []
+        for path in Path(CONFIG_BACKUP_DIR).glob("options-backup-*.json"):
+            try:
+                stat = path.stat()
+                items.append({
+                    "filename": path.name,
+                    "path": str(path),
+                    "size": stat.st_size,
+                    "created_ts": int(stat.st_mtime),
+                    "created": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+                })
+            except Exception:
+                pass
+
+        items.sort(key=lambda item: item["created_ts"], reverse=True)
+        return items[:MAX_CONFIG_BACKUPS]
+    except Exception:
+        return []
+
+
+def create_config_backup(reason="manual"):
+    """Create a local backup of /data/options.json before config changes."""
+    try:
+        ensure_config_backup_dir()
+
+        if not os.path.exists(OPTIONS_PATH):
+            return False, "No options.json found to back up.", ""
+
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        safe_reason = "".join(ch if ch.isalnum() or ch in ("-", "_") else "-" for ch in str(reason).lower())
+        filename = f"options-backup-{timestamp}-{safe_reason}.json"
+        backup_path = os.path.join(CONFIG_BACKUP_DIR, filename)
+
+        with open(OPTIONS_PATH, "r", encoding="utf-8") as src:
+            current = json.load(src)
+
+        with open(backup_path, "w", encoding="utf-8") as dst:
+            json.dump(current, dst, indent=2)
+
+        rotate_config_backups()
+        return True, f"Configuration backup created: {filename}", filename
+    except Exception as exc:
+        return False, f"Could not create configuration backup: {exc}", ""
+
+
+def rotate_config_backups():
+    try:
+        ensure_config_backup_dir()
+        backups = []
+        for path in Path(CONFIG_BACKUP_DIR).glob("options-backup-*.json"):
+            try:
+                backups.append((path.stat().st_mtime, path))
+            except Exception:
+                pass
+
+        backups.sort(reverse=True)
+        for _, path in backups[MAX_CONFIG_BACKUPS:]:
+            try:
+                path.unlink()
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+def safe_backup_path(filename):
+    """Return a safe backup path inside CONFIG_BACKUP_DIR or None."""
+    name = os.path.basename(str(filename or ""))
+    if not name.startswith("options-backup-") or not name.endswith(".json"):
+        return None
+
+    path = os.path.abspath(os.path.join(CONFIG_BACKUP_DIR, name))
+    root = os.path.abspath(CONFIG_BACKUP_DIR)
+    if not path.startswith(root + os.sep):
+        return None
+
+    if not os.path.exists(path):
+        return None
+
+    return path
+
+
+def load_config_backup(filename):
+    path = safe_backup_path(filename)
+    if not path:
+        return None, "Backup file not found or invalid."
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            payload = json.load(f)
+        if not isinstance(payload, dict):
+            return None, "Backup file is not a valid options object."
+        return payload, "OK"
+    except Exception as exc:
+        return None, f"Could not read backup: {exc}"
 
 
 def append_event(event_type: str, title: str, detail: str = "", level: str = "info"):
@@ -831,6 +938,7 @@ def render_index(action_result="", action_message="", active_tab="status"):
         action_message=action_message,
         active_tab=active_tab,
         config_yaml=generate_config_yaml(options),
+        config_backups=list_config_backups(),
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     )
 
@@ -925,7 +1033,13 @@ def route_save_config():
         append_event("config_save", "Configuration save blocked", message, "warn")
         return render_index("warn", message, active_tab="config")
 
+    backup_ok, backup_message, backup_filename = create_config_backup("before-save")
+    append_event("config_backup", "Configuration backup", backup_message, "ok" if backup_ok else "warn")
+
     ok, message = save_addon_options(new_options)
+
+    if ok and backup_filename:
+        message = message + f" Backup created: {backup_filename}"
 
     append_event("config_save", "Configuration save", message, "ok" if ok else "warn")
 
@@ -944,6 +1058,56 @@ def route_restart_addon():
     ok, message = restart_addon()
     append_event("restart", "Add-on restart requested", message, "warn" if ok else "danger")
     return render_index("ok" if ok else "warn", message, active_tab="config")
+
+
+
+@app.route("/download-config-backup/<filename>", methods=["GET"])
+def route_download_config_backup(filename):
+    path = safe_backup_path(filename)
+    if not path:
+        return Response("Backup not found.", mimetype="text/plain", status=404)
+
+    with open(path, "r", encoding="utf-8") as f:
+        payload = f.read()
+
+    return Response(
+        payload,
+        mimetype="application/json",
+        headers={"Content-Disposition": f"attachment; filename={os.path.basename(path)}"},
+    )
+
+
+@app.route("/create-config-backup", methods=["POST"])
+def route_create_config_backup():
+    ok, message, filename = create_config_backup("manual")
+    append_event("config_backup", "Manual configuration backup", message, "ok" if ok else "warn")
+    return render_index("ok" if ok else "warn", message, active_tab="config")
+
+
+@app.route("/restore-config-backup/<filename>", methods=["POST"])
+def route_restore_config_backup(filename):
+    backup_options, read_message = load_config_backup(filename)
+    if backup_options is None:
+        append_event("config_restore", "Configuration restore failed", read_message, "warn")
+        return render_index("warn", read_message, active_tab="config")
+
+    pre_ok, pre_message, pre_filename = create_config_backup("before-restore")
+    append_event("config_backup", "Pre-restore configuration backup", pre_message, "ok" if pre_ok else "warn")
+
+    ok, message = save_addon_options(backup_options)
+    if ok:
+        detail = f"Restored backup: {filename}"
+        if pre_filename:
+            detail += f" | Previous config backed up as: {pre_filename}"
+        append_event("config_restore", "Configuration restored", detail, "ok")
+        return render_index(
+            "ok",
+            "Configuration restored from backup. Restart required for runtime changes to apply.",
+            active_tab="config",
+        )
+
+    append_event("config_restore", "Configuration restore failed", message, "warn")
+    return render_index("warn", f"Restore failed: {message}", active_tab="config")
 
 
 @app.route("/export-config.yaml", methods=["GET"])
