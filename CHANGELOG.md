@@ -1,13 +1,15 @@
-## 2.0.35 - 2026-05-16
+## 2.0.36 - 2026-05-16
 
-### Added
-- Added persistent Last Events / Status History section to the Home Assistant Ingress web UI.
-- Added local `/data/events.json` event history storage.
-- Added monitor events for startup, shutdown, disconnect, recovery, stale data and fresh data recovery.
-- Added web UI events for Test Telegram and Test MQTT actions.
-- Event history keeps the latest 50 events and displays the latest 10 in the web UI.
+### Changed
+- Added release polish notes.
+- Added suggested GitHub release title and release notes.
+- Added post-install verification checklist.
+- Added public GitHub safety checklist for secrets.
+- Marked `2.0.36` as the current stable release polish version.
 
 ### Notes
-- Event history is local to the add-on data folder.
-- This feature is read-only to the BMS.
-- No BMS protocol or control commands were added.
+- This is a release polish update.
+- No Python monitor logic changes are required.
+- No BMS protocol changes were made.
+- No BMS write/control commands were added.
+- The add-on remains read-only to the BMS.
