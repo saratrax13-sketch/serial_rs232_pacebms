@@ -1,18 +1,22 @@
 # =============================================================================
 # bms_monitor.py — Pace BMS to MQTT Bridge
-# Version : 2.1.0
+# Version : 2.2.0
 # Changed : 2026-05-16
 # Changes :
-#   - Added direct Telegram notifications (pre-MQTT startup warnings)
-#   - Added BMS startup / shutdown MQTT status topic (pacebms/bms_status)
-#   - Added BMS disconnect / recovery MQTT error topic (pacebms/bms_error)
-#     with retry count and offline duration tracking
-#   - Replaced atexit lambda with proper on_exit() for shutdown notification
-#   - Switched connection_type to Serial by default
-#   - zero_pad_number_packs set to 0 (pack_1 / pack_2 style)
-#   - force_pack_offset deprecated and removed
-#   - Pack count auto-detected from BMS analog response
-#   - Capacity publishes as whole Ah; SOH capped at 100%
+#   - Full notification engine via bms_notify.py
+#   - Direct Telegram for all alerts — no HA automation dependency
+#   - SOC low alerts (configurable thresholds)
+#   - SOC high alert (configurable, resets on drop)
+#   - BMS warning flags (new warnings only, suppresses known noise)
+#   - FET off unexpectedly
+#   - SOH degradation threshold alert
+#   - Disconnect alert after configurable retry count
+#   - Recovery notification
+#   - Startup/shutdown notifications
+#   - Daily 19:00 summary (kWh + worst cell deviation)
+#   - Delta report at configurable time (worst spread in window)
+#   - All notifications togglable via config
+#   - Timestamp added to MQTT error payload to prevent stale retain
 # =============================================================================
 import paho.mqtt.client as mqtt
 import socket
@@ -26,6 +30,7 @@ import sys
 import logging
 import constants
 import urllib.request
+from bms_notify import NotifyState, telegram_send
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -40,18 +45,8 @@ log = logging.getLogger("bmspace")
 # ─── Telegram direct notify (used before MQTT is available) ─────────────────
 
 def telegram_notify(config: dict, message: str):
-    token   = config.get('telegram_bot_token', '')
-    chat_id = config.get('telegram_chat_id', '')
-    if not token or not chat_id:
-        return
-    try:
-        url     = f"https://api.telegram.org/bot{token}/sendMessage"
-        payload = json.dumps({"chat_id": chat_id, "text": message}).encode()
-        req     = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
-        urllib.request.urlopen(req, timeout=5)
-        log.info("Telegram notification sent")
-    except Exception as e:
-        log.warning("Telegram notify failed: %s", e)
+    """Legacy wrapper — delegates to bms_notify.telegram_send."""
+    telegram_send(config, message)
 
 # ─── Serial number sanitizer ─────────────────────────────────────────────────
 def sanitize_id(s: str) -> str:
@@ -921,6 +916,7 @@ def main():
         client.publish(f"{base}/bms_status", shutdown_payload, qos=1, retain=True)
         time.sleep(0.5)
         client.publish(f"{base}/availability", "offline", qos=1, retain=True)
+        notify.on_shutdown(bms_sn)
 
     atexit.register(on_exit)
 
@@ -933,10 +929,14 @@ def main():
     analog_data        = None
     first_analog_ready = False  # guard: discovery must not fire before first analog read
 
+    # ── Notification engine ──────────────────────────────────────────────────
+    notify = NotifyState(config)
+    notify.on_startup(bms_sn, bms_version)
+
     # ── BMS disconnect tracking ───────────────────────────────────────────────
     bms_retry_count    = 0
-    bms_disconnect_time = None   # time.time() when BMS first disconnected
-    bms_error_published = False  # guard: only publish error topic once per disconnect
+    bms_disconnect_time = None
+    bms_error_published = False
 
     while True:
         try:
@@ -955,20 +955,24 @@ def main():
 
                 client.publish(f"{base}/availability", "offline", qos=1, retain=True)
 
-                # Publish error details to MQTT for HA automation to pick up
+                # Publish error details to MQTT for HA automation
                 error_payload = json.dumps({
                     "status":       "disconnected",
                     "retry_count":  bms_retry_count,
                     "offline_time": offline_str,
                     "offline_secs": offline_secs,
+                    "timestamp":    int(time.time()),
                 })
                 client.publish(f"{base}/bms_error", error_payload, qos=1, retain=True)
                 bms_error_published = True
 
+                # Direct Telegram notification
+                notify.on_disconnect(bms_retry_count, offline_str)
+
                 time.sleep(5)
                 bms, bms_connected = bms_connect(config)
-                last_discovery     = 0.0   # force discovery republish after reconnect
-                first_analog_ready = False  # re-arm: wait for fresh analog read
+                last_discovery     = 0.0
+                first_analog_ready = False
                 continue
 
             # ── Reconnect MQTT if needed ──────────────────────────────────────
@@ -994,8 +998,10 @@ def main():
                         "retry_count":   bms_retry_count,
                         "offline_time":  offline_str,
                         "offline_secs":  offline_secs,
+                        "timestamp":     int(time.time()),
                     })
                     client.publish(f"{base}/bms_error", recovery_payload, qos=1, retain=True)
+                    notify.on_recovery(bms_retry_count, offline_str)
                     log.info("BMS recovered after %s (%d retries)", offline_str, bms_retry_count)
                     bms_error_published  = False
                     bms_retry_count      = 0
@@ -1009,6 +1015,20 @@ def main():
                 publish_analog_data(client, config, analog_data, force=force_state)
                 if force_state:
                     last_state_force = now
+
+                # ── Notification engine — per-pack updates ────────────────────
+                for pack in analog_data.packs:
+                    p = pack.pack_number
+                    notify.on_soc_update(p, pack.soc)
+                    notify.on_soh_update(p, pack.soh)
+                    notify.on_energy_update(p, pack.voltage, pack.current, scan_interval)
+                    cells_v = [c / 1000.0 for c in pack.cell_voltages]
+                    notify.on_cell_update(p, cells_v)
+                    delta_mv = pack.cells_max_diff_calc
+                    notify.on_delta_update(p, delta_mv)
+
+                # ── Scheduled reports check ───────────────────────────────────
+                notify.check_scheduled(len(analog_data.packs))
 
                 log_analog_summary(analog_data)
 
@@ -1038,6 +1058,13 @@ def main():
                 publish_warn_data(client, config, result, force=force_warn)
                 if force_warn:
                     last_warn_force = now
+                # ── Warning and FET notifications ─────────────────────────────
+                for pack_warn in result.packs:
+                    p = pack_warn.pack_number
+                    notify.on_warnings_update(p, pack_warn.warnings)
+                    notify.on_fet_update(p,
+                        'ON' if pack_warn.charge_fet    else 'OFF',
+                        'ON' if pack_warn.discharge_fet else 'OFF')
                 log_warn_summary(result)
             else:
                 log.error("Warn info error: %s", result)

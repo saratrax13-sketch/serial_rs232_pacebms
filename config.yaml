@@ -1,6 +1,6 @@
 name: "Pace BMS - Hubble EenoVance"
 description: "Pace BMS RS232 Interface"
-version: "2.0.12"
+version: "2.0.13"
 slug: "pace_bms_rs232_485"
 url: "https://github.com/saratrax13-sketch/serial_rs485_pacebms"
 init: false
@@ -15,12 +15,39 @@ uart: true
 usb: true
 
 options:
-  # ── Telegram direct notifications (used before MQTT is available) ───────────
-  telegram_bot_token: ""
-  telegram_chat_id: ""
+  # ── Telegram direct notifications ────────────────────────────────────────
+  telegram_bot_token: "YOUR_BOT_TOKEN"
+  telegram_chat_id: "0000"
+
+  # ── Notification master switch ────────────────────────────────────────────
+  notify_enabled: true
+
+  # ── Notification toggles ──────────────────────────────────────────────────
+  notify_soc_low: true          # SOC threshold alerts
+  notify_soc_high: true         # High charge alert
+  notify_warnings: true         # BMS warning flags
+  notify_fet: true              # FET off unexpectedly
+  notify_soh: true              # SOH degradation
+  notify_disconnect: true       # BMS disconnected/recovered
+  notify_startup: true          # Monitor started/stopped
+  notify_daily_summary: true    # 19:00 daily summary
+  notify_delta_report: true     # Delta window report
+
+  # ── Thresholds ────────────────────────────────────────────────────────────
+  notify_soc_low_thresholds: "75,50,25,10"  # % SOC levels to alert
+  notify_soc_high_threshold: 98             # % SOC to trigger high charge alert
+  notify_soc_high_reset: 95                 # % SOC must drop before re-alerting
+  notify_soh_threshold: 95                  # % SOH below which to alert
+  notify_retry_count: 3                     # retries before disconnect alert
+
+  # ── Report schedule ───────────────────────────────────────────────────────
+  notify_daily_summary_time: "19:00"        # time for daily kWh + worst cell report
+  notify_delta_report_time: "10:15"         # time for delta report
+  notify_delta_window_start: "00:00"        # start of delta tracking window
+  notify_delta_window_end: "10:00"          # end of delta tracking window
 
   # ── MQTT ──────────────────────────────────────────────────────────────────
-  mqtt_host: "192.168.10.16"
+  mqtt_host: "10.0.0.132"
   mqtt_port: 1883
   mqtt_user: "mqtt-users"
   mqtt_password: "mqtt-users"
@@ -59,6 +86,25 @@ options:
 schema:
   telegram_bot_token: str
   telegram_chat_id: str
+  notify_enabled: bool
+  notify_soc_low: bool
+  notify_soc_high: bool
+  notify_warnings: bool
+  notify_fet: bool
+  notify_soh: bool
+  notify_disconnect: bool
+  notify_startup: bool
+  notify_daily_summary: bool
+  notify_delta_report: bool
+  notify_soc_low_thresholds: str
+  notify_soc_high_threshold: int
+  notify_soc_high_reset: int
+  notify_soh_threshold: int
+  notify_retry_count: int
+  notify_daily_summary_time: str
+  notify_delta_report_time: str
+  notify_delta_window_start: str
+  notify_delta_window_end: str
   mqtt_host: str
   mqtt_port: int
   mqtt_user: str
