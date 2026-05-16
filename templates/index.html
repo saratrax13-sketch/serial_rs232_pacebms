@@ -1275,36 +1275,80 @@ Restart the add-on afterwards for runtime changes to apply.`);
       "Warning Detail": {
         title: "Warning Detail Settings",
         html: `
-          <p>These settings help the add-on explain BMS warnings in a clearer way.</p>
-          <h3>Reference thresholds</h3>
+          <p>These settings control how much detail is included when the BMS reports warnings. They help the add-on explain warnings in Telegram and in the web UI.</p>
+
+          <h3>Main switch</h3>
           <ul>
-            <li><code>notify_cell_high_warn_voltage</code> is the high-cell reference used in Telegram and the web UI.</li>
-            <li><code>notify_cell_low_warn_voltage</code> is the low-cell reference used for explanations.</li>
-            <li><code>notify_cell_delta_warn_mv</code> is the cell voltage difference reference in millivolts.</li>
-            <li><code>notify_temp_high_warn_c</code> and <code>notify_temp_low_warn_c</code> are temperature references.</li>
+            <li><code>notify_warning_detail_enabled</code> — enables detailed warning explanations. When enabled, the add-on includes extra information such as highest cell, lowest cell, pack voltage and reference checks.</li>
           </ul>
-          <h3>Important</h3>
-          <p>These are display and notification reference values only. They do not configure the battery and they are not written to the BMS.</p>
-          <p>The BMS may trigger an internal warning before your configured reference is exceeded. The web UI shows both so you can see the difference.</p>
+
+          <h3>Voltage reference values</h3>
+          <ul>
+            <li><code>notify_cell_high_warn_voltage</code> — the high-cell voltage reference used for explanations. Example: <code>4.20</code> V. If the BMS reports a high-cell warning, the add-on compares the highest cell against this value.</li>
+            <li><code>notify_cell_low_warn_voltage</code> — the low-cell voltage reference used for explanations. Example: <code>3.00</code> V. If the BMS reports a low-cell warning, the add-on compares the lowest cell against this value.</li>
+            <li><code>notify_cell_delta_warn_mv</code> — the cell voltage difference reference in millivolts. Example: <code>100</code> mV. This helps identify if the highest and lowest cells are too far apart.</li>
+          </ul>
+
+          <h3>Temperature reference values</h3>
+          <ul>
+            <li><code>notify_temp_high_warn_c</code> — the high temperature reference in degrees Celsius. Example: <code>55</code> °C.</li>
+            <li><code>notify_temp_low_warn_c</code> — the low temperature reference in degrees Celsius. Example: <code>10</code> °C or <code>0</code> °C, depending on your preference and battery specification.</li>
+          </ul>
+
+          <h3>Cell detail options</h3>
+          <ul>
+            <li><code>notify_include_all_cells_above_threshold</code> — when enabled, the warning message can include all cells above the configured high-cell reference, not only the highest cell.</li>
+            <li><code>notify_include_all_cells_below_threshold</code> — when enabled, the warning message can include all cells below the configured low-cell reference, not only the lowest cell.</li>
+            <li><code>notify_include_highest_and_lowest_cell</code> — includes the highest and lowest cell numbers and voltages in warning detail messages.</li>
+          </ul>
+
+          <h3>Pack and summary detail options</h3>
+          <ul>
+            <li><code>notify_include_pack_voltage</code> — includes the pack voltage and calculated pack reference voltage. For example, a 13-cell pack with a 4.20 V high-cell reference gives a 54.60 V pack high reference.</li>
+            <li><code>notify_include_soc_soh</code> — includes State of Charge and State of Health in detailed warning messages.</li>
+          </ul>
+
+          <h3>Important safety note</h3>
+          <p>These values are used only for display and notification explanations. They do not configure the battery, they do not change BMS thresholds, and they are not written to the BMS.</p>
+          <p>The BMS may trigger an internal warning before your configured reference is exceeded. The web UI separates <strong>BMS internal warning active</strong> from the configured <strong>Reference Check</strong> so you can see the difference.</p>
         `
       },
       "MQTT": {
         title: "MQTT Settings",
         html: `
-          <p>These settings control how the add-on connects to MQTT and publishes battery data to Home Assistant.</p>
-          <h3>Connection</h3>
+          <p>These settings control how the add-on connects to your MQTT broker and publishes battery data to Home Assistant.</p>
+
+          <h3>Connection settings</h3>
           <ul>
-            <li><code>mqtt_host</code> is your MQTT broker IP address or hostname.</li>
-            <li><code>mqtt_port</code> is normally <code>1883</code>.</li>
-            <li><code>mqtt_user</code> and <code>mqtt_password</code> are your broker credentials. Leave password blank in the form to keep the saved value.</li>
+            <li><code>mqtt_host</code> — the IP address or hostname of your MQTT broker. In your setup this is usually your Home Assistant/MQTT broker IP.</li>
+            <li><code>mqtt_port</code> — the MQTT broker port. Standard MQTT normally uses <code>1883</code>.</li>
+            <li><code>mqtt_user</code> — the MQTT username used by the add-on to connect to the broker.</li>
+            <li><code>mqtt_password</code> — the MQTT password. In the web form, leave this field blank to keep the existing saved password. Type a new value only if you want to change it.</li>
           </ul>
-          <h3>Topics and discovery</h3>
+
+          <h3>Topic settings</h3>
           <ul>
-            <li><code>mqtt_base_topic</code> is the root topic, usually <code>pacebms</code>.</li>
-            <li><code>mqtt_ha_discovery</code> enables Home Assistant MQTT Discovery.</li>
-            <li><code>mqtt_retain_state</code> keeps the latest values retained so the web UI and Home Assistant can show the latest known state after reconnects.</li>
+            <li><code>mqtt_base_topic</code> — the root MQTT topic used by the add-on. Example: <code>pacebms</code>. Pack topics are then published under this, for example <code>pacebms/pack_1/soc</code>.</li>
+            <li><code>mqtt_ha_discovery_topic</code> — the Home Assistant MQTT discovery root topic. This is normally <code>homeassistant</code>.</li>
           </ul>
-          <p>The Test MQTT button only checks broker connectivity. It does not read or write BMS data.</p>
+
+          <h3>Home Assistant Discovery</h3>
+          <ul>
+            <li><code>mqtt_ha_discovery</code> — enables or disables Home Assistant MQTT Discovery. When enabled, Home Assistant can automatically create the battery sensors and binary sensors.</li>
+          </ul>
+
+          <h3>Retained values and republishing</h3>
+          <ul>
+            <li><code>mqtt_retain_state</code> — when enabled, MQTT keeps the latest published battery values. This helps the web UI and Home Assistant show the last known values after reconnects or restarts.</li>
+            <li><code>state_force_republish_seconds</code> — forces normal analog/state values to be republished at this interval, even if values have not changed. This helps keep retained MQTT data fresh.</li>
+            <li><code>warn_force_republish_seconds</code> — forces BMS warning/status values to be republished at this interval, even if warning values have not changed.</li>
+          </ul>
+
+          <h3>Test MQTT button</h3>
+          <p>The Test MQTT button only checks whether the add-on web UI can connect to the MQTT broker with the configured host, port, username and password. It does not read from the BMS, write to the BMS, or change MQTT settings.</p>
+
+          <h3>Safety note</h3>
+          <p>MQTT settings only control how the add-on publishes data to MQTT/Home Assistant. They do not write to the BMS.</p>
         `
       },
       "BMS Connection": {
@@ -1340,7 +1384,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
           <h3>Topic formatting</h3>
           <ul>
             <li><code>zero_pad_number_cells</code> controls whether cell numbers use leading zeroes, for example <code>cell_01</code>.</li>
-            <li><code>zero_pad_number_packs</code> controls pack number formatting.</li>
+            <li><code>zero_pad_number_packs</code> controls pack number formatting, for example <code>pack_01</code>.</li>
           </ul>
           <p>Advanced settings do not change the BMS. They only affect logging and topic naming.</p>
         `

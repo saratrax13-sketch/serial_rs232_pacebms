@@ -1,13 +1,12 @@
-## 2.2.5 - 2026-05-17
+## 2.2.8 - 2026-05-17
 
-### Added
-- Added info/help buttons to each Config tab card.
-- Added popup explanations for Telegram, Notifications, Warning Detail, MQTT, BMS Connection and Advanced settings.
-- Added plain-language descriptions of important settings and safety notes.
-- Added reminder in help popups that notification thresholds are display/reference values and are not written to the BMS.
+### Changed
+- Expanded the Warning Detail Config help popup to describe every field shown on the card.
+- Added explanations for detailed warning enablement, voltage references, temperature references, cell detail options, pack voltage detail, and SOC/SOH detail.
+- Added clearer safety note that warning detail values are display/notification references only and are not written to the BMS.
 
 ### Notes
-- This is a web UI help/documentation polish release.
+- This is a web UI help text polish release.
 - No Python monitor logic changes were made.
 - No BMS protocol changes were made.
 - No BMS write/control commands were added.
