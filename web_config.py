@@ -6,9 +6,10 @@ from pathlib import Path
 import time
 import zipfile
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime
-from flask import Flask, Response, jsonify, render_template, request, send_file
+from flask import Flask, Response, jsonify, render_template, request, send_file, redirect
 
 import paho.mqtt.client as mqtt
 
@@ -990,6 +991,21 @@ def restart_addon():
     return False, f"Restart request failed: {message}"
 
 
+
+def redirect_to_tab(tab="status", result="", message=""):
+    """Redirect back to the normal page after POST actions.
+
+    This avoids leaving the browser on action routes such as
+    /delete-config-backup/<file>, which can break the next relative action.
+    """
+    params = [f"tab={tab}"]
+    if result:
+        params.append(f"result={urllib.parse.quote(str(result))}")
+    if message:
+        params.append(f"message={urllib.parse.quote(str(message))}")
+    return redirect("?" + "&".join(params))
+
+
 def render_index(action_result="", action_message="", active_tab="status", compare_data=None, restore_preview=None):
     options, error = load_options()
     grouped = build_grouped_config(options)
@@ -1020,7 +1036,9 @@ def render_index(action_result="", action_message="", active_tab="status", compa
 @app.route("/", methods=["GET"])
 def index():
     tab = request.args.get("tab", "status")
-    return render_index(active_tab=tab)
+    result = request.args.get("result", "")
+    message = request.args.get("message", "")
+    return render_index(action_result=result, action_message=message, active_tab=tab)
 
 
 @app.route("/test-telegram", methods=["POST"])
@@ -1099,13 +1117,13 @@ def route_save_config():
     if new_options == options:
         message = "No configuration changes detected. Nothing was saved."
         append_event("config_save", "No config changes", message, "info")
-        return render_index("ok", message, active_tab="config")
+        return redirect_to_tab("config", "ok", message)
 
     validation_errors = validate_addon_options(new_options)
     if validation_errors:
         message = "Configuration was not saved. Please fix: " + " | ".join(validation_errors)
         append_event("config_save", "Configuration save blocked", message, "warn")
-        return render_index("warn", message, active_tab="config")
+        return redirect_to_tab("config", "warn", message)
 
     backup_ok, backup_message, backup_filename = create_config_backup("before-save")
     append_event("config_backup", "Configuration backup", backup_message, "ok" if backup_ok else "warn")
@@ -1124,14 +1142,14 @@ def route_save_config():
             active_tab="backups",
         )
 
-    return render_index("warn", message, active_tab="config")
+    return redirect_to_tab("config", "warn", message)
 
 
 @app.route("/restart-addon", methods=["POST"])
 def route_restart_addon():
     ok, message = restart_addon()
     append_event("restart", "Add-on restart requested", message, "warn" if ok else "danger")
-    return render_index("ok" if ok else "warn", message, active_tab="backups")
+    return redirect_to_tab("backups", "ok" if ok else "warn", message)
 
 
 
@@ -1222,7 +1240,7 @@ def route_create_config_backup():
     requested_tab = request.form.get("active_tab", "backups")
     ok, message, filename = create_config_backup("manual")
     append_event("config_backup", "Manual configuration backup", message, "ok" if ok else "warn")
-    return render_index("ok" if ok else "warn", message, active_tab=requested_tab)
+    return redirect_to_tab(requested_tab, "ok" if ok else "warn", message)
 
 
 @app.route("/restore-config-backup/<filename>", methods=["POST"])
@@ -1241,14 +1259,14 @@ def route_restore_config_backup(filename):
         if pre_filename:
             detail += f" | Previous config backed up as: {pre_filename}"
         append_event("config_restore", "Configuration restored", detail, "ok")
-        return render_index(
+        return redirect_to_tab(
+            "backups",
             "ok",
             "Configuration restored from backup. Restart required for runtime changes to apply.",
-            active_tab="backups",
         )
 
     append_event("config_restore", "Configuration restore failed", message, "warn")
-    return render_index("warn", f"Restore failed: {message}", active_tab="backups")
+    return redirect_to_tab("backups", "warn", f"Restore failed: {message}")
 
 
 @app.route("/export-config.yaml", methods=["GET"])

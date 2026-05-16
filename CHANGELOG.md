@@ -1,14 +1,13 @@
-## 2.3.6 - 2026-05-17
+## 2.3.8 - 2026-05-17
 
-### Changed
-- Increased configuration backup retention from 3 to 10 backups.
-- Added a dedicated Backups tab.
-- Moved the full backup table out of the Config tab to reduce clutter.
-- Config tab now shows a compact Backup Safety summary only.
-- Backups tab now contains full backup management: create, download all ZIP, compare, restore preview, download and delete.
-- Added backup filters: All, Manual, Before Save and Before Restore.
+### Fixed
+- Fixed repeated backup delete actions causing a `Not Found` page.
+- Backup POST actions now redirect back to the normal tab URL after completion.
+- Create backup, delete backup, restore backup, save config and restart actions no longer leave the browser on action URLs.
 
 ### Notes
-- Backup restore changes Home Assistant add-on options only.
+- This is a web UI routing/redirect polish release.
+- Delete only removes selected backup JSON files.
+- Config restore writes Home Assistant add-on options only.
 - This does not write to the BMS.
 - No BMS protocol changes were made.
