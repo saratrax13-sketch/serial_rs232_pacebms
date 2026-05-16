@@ -26,6 +26,7 @@ import os
 import json
 import serial
 import atexit
+import signal
 import sys
 import logging
 import constants
@@ -207,7 +208,11 @@ def bms_recv(comms, connection_type: str, debug: int = 0) -> Optional[bytes]:
     """Read one complete frame from BMS. Includes timeout guard on TCP."""
     try:
         if connection_type == "Serial":
-            return comms.readline()
+            data = comms.readline()
+            if not data:
+                log.error("BMS serial recv: no data received before timeout")
+                return None
+            return data
 
         # TCP: accumulate until \r, but give up after SOCKET_TIMEOUT seconds
         temp       = b''
@@ -909,18 +914,37 @@ def main():
     client.publish(f"{base}/bms_status", startup_payload, qos=1, retain=True)
     log.info("Startup notification published")
 
-    # ── Shutdown notification via atexit ──────────────────────────────────────
-    def on_exit():
-        log.info("Script exiting — publishing shutdown notification")
-        shutdown_payload = json.dumps({"status": "shutdown", "bms_sn": bms_sn})
-        client.publish(f"{base}/bms_status", shutdown_payload, qos=1, retain=True)
-        time.sleep(0.5)
-        client.publish(f"{base}/availability", "offline", qos=1, retain=True)
-        notify.on_shutdown(bms_sn)
-
-    atexit.register(on_exit)
-
     scan_interval      = float(config.get('scan_interval', 30))
+
+    # ── Notification engine ──────────────────────────────────────────────────
+    notify = NotifyState(config)
+    notify.on_startup(bms_sn, bms_version)
+
+    # ── Clean shutdown handling ──────────────────────────────────────────────
+    shutdown_sent = False
+
+    def clean_shutdown(signum=None, frame=None):
+        nonlocal shutdown_sent
+        if shutdown_sent:
+            return
+        shutdown_sent = True
+        log.info("Script exiting — publishing shutdown notification")
+        try:
+            shutdown_payload = json.dumps({"status": "shutdown", "bms_sn": bms_sn, "timestamp": int(time.time())})
+            client.publish(f"{base}/bms_status", shutdown_payload, qos=1, retain=True)
+            client.publish(f"{base}/availability", "offline", qos=1, retain=True)
+            client.loop(timeout=1.0)
+            notify.on_shutdown(bms_sn)
+            time.sleep(0.5)
+        except Exception as e:
+            log.warning("Shutdown notification failed: %s", e)
+        if signum is not None:
+            raise SystemExit(0)
+
+    atexit.register(clean_shutdown)
+    signal.signal(signal.SIGTERM, clean_shutdown)
+    signal.signal(signal.SIGINT, clean_shutdown)
+
     last_discovery     = 0.0   # use time.time() for reliable hourly republish
     last_state_force   = 0.0
     last_warn_force    = 0.0
@@ -929,46 +953,53 @@ def main():
     analog_data        = None
     first_analog_ready = False  # guard: discovery must not fire before first analog read
 
-    # ── Notification engine ──────────────────────────────────────────────────
-    notify = NotifyState(config)
-    notify.on_startup(bms_sn, bms_version)
-
     # ── BMS disconnect tracking ───────────────────────────────────────────────
     bms_retry_count    = 0
     bms_disconnect_time = None
     bms_error_published = False
 
+    def mark_bms_disconnected(reason: str):
+        """Mark the BMS offline based on failed communication, not just serial port state."""
+        nonlocal bms_retry_count, bms_disconnect_time, bms_error_published, bms_connected, bms
+
+        if bms_disconnect_time is None:
+            bms_disconnect_time = time.time()
+
+        bms_retry_count += 1
+        offline_secs = int(time.time() - bms_disconnect_time)
+        offline_mins = offline_secs // 60
+        offline_str = f"{offline_mins}m {offline_secs % 60}s" if offline_mins else f"{offline_secs}s"
+
+        log.warning("BMS communication failed — retry %d, offline %s, reason: %s",
+                    bms_retry_count, offline_str, reason)
+
+        client.publish(f"{base}/availability", "offline", qos=1, retain=True)
+
+        error_payload = json.dumps({
+            "status": "disconnected",
+            "reason": reason,
+            "retry_count": bms_retry_count,
+            "offline_time": offline_str,
+            "offline_secs": offline_secs,
+            "timestamp": int(time.time()),
+        })
+        client.publish(f"{base}/bms_error", error_payload, qos=1, retain=True)
+        bms_error_published = True
+
+        notify.on_disconnect(bms_retry_count, offline_str)
+
+        try:
+            if bms:
+                bms.close()
+        except Exception:
+            pass
+
+        bms_connected = False
+
     while True:
         try:
             # ── Reconnect BMS if needed ───────────────────────────────────────
             if not bms_connected:
-                if bms_disconnect_time is None:
-                    bms_disconnect_time = time.time()
-
-                bms_retry_count += 1
-                offline_secs     = int(time.time() - bms_disconnect_time)
-                offline_mins     = offline_secs // 60
-                offline_str      = f"{offline_mins}m {offline_secs % 60}s" if offline_mins else f"{offline_secs}s"
-
-                log.warning("BMS disconnected — retry %d, offline %s, retrying in 5s...",
-                            bms_retry_count, offline_str)
-
-                client.publish(f"{base}/availability", "offline", qos=1, retain=True)
-
-                # Publish error details to MQTT for HA automation
-                error_payload = json.dumps({
-                    "status":       "disconnected",
-                    "retry_count":  bms_retry_count,
-                    "offline_time": offline_str,
-                    "offline_secs": offline_secs,
-                    "timestamp":    int(time.time()),
-                })
-                client.publish(f"{base}/bms_error", error_payload, qos=1, retain=True)
-                bms_error_published = True
-
-                # Direct Telegram notification
-                notify.on_disconnect(bms_retry_count, offline_str)
-
                 time.sleep(5)
                 bms, bms_connected = bms_connect(config)
                 last_discovery     = 0.0
@@ -1040,7 +1071,12 @@ def main():
                     last_discovery = time.time()
             else:
                 log.error("Analog data error: %s", result)
-                bms_connected = False
+                mark_bms_disconnected(str(result))
+                time.sleep(5)
+                bms, bms_connected = bms_connect(config)
+                last_discovery     = 0.0
+                first_analog_ready = False
+                continue
             time.sleep(scan_interval / 3)
 
             success, result = bms_get_pack_capacity(bms, config)
