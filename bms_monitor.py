@@ -1021,7 +1021,7 @@ def main():
                     p = pack.pack_number
                     notify.on_soc_update(p, pack.soc)
                     notify.on_soh_update(p, pack.soh)
-                    notify.on_energy_update(p, pack.voltage, pack.current, scan_interval)
+                    notify.on_energy_update(p, pack.v_pack, pack.i_pack, scan_interval)
                     cells_v = [c / 1000.0 for c in pack.v_cells]
                     notify.on_cell_update(p, cells_v)
                     delta_mv = pack.cell_max_diff
