@@ -1,14 +1,15 @@
-## 2.0.40 - 2026-05-16
+## 2.0.41 - 2026-05-16
 
-### Changed
-- Added README documentation for the polished Home Assistant Ingress web UI.
-- Added web UI screenshot under `docs/screenshots/`.
-- Added explanation of Overall Status meanings.
-- Added explanation of BMS internal warning versus configured reference threshold checks.
-- Added reminder that the web UI remains read-only to the BMS.
+### Added
+- Added `.gitignore` for Python, local secrets, logs, build files, and Home Assistant local data.
+- Added `SECURITY.md` with read-only BMS safety and secret-handling guidance.
+- Added `SUPPORT.md` with troubleshooting and support guidance.
+- Added `CONTRIBUTING.md` with contribution and testing guidelines.
+- Added `docs/INSTALL.md`.
+- Added `docs/CONFIGURATION.md`.
 
 ### Notes
-- This is a documentation and screenshot update.
+- This is a repository hygiene and public GitHub safety release.
 - No Python monitor logic changes were made.
 - No BMS protocol changes were made.
 - No BMS write/control commands were added.
