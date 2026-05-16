@@ -1,8 +1,10 @@
 # =============================================================================
 # bms_monitor.py — Pace BMS to MQTT Bridge
-# Version : 2.2.0
+# Version : 2.2.1
 # Changed : 2026-05-16
 # Changes :
+#   - Fixed warning-frame parser alignment for Pace frames with prefix byte + pack count
+#   - Corrected false Unknown(0x0D), false FET OFF, and false Undefined fault states
 #   - Full notification engine via bms_notify.py
 #   - Direct Telegram for all alerts — no HA automation dependency
 #   - SOC low alerts (configurable thresholds)
@@ -459,103 +461,193 @@ def bms_get_pack_capacity(bms, config: dict) -> tuple[bool, any]:
         return False, f"Pack capacity parse error: {e}"
 
 def bms_get_warn_info(bms, config: dict, packs: int) -> tuple[bool, any]:
+    """Read and parse BMS warning/status information.
+
+    Pace warning frames used by several batteries include a small response
+    prefix before the first pack block. Example observed layout:
+
+        00 <pack_count> <cell_count> ...
+
+    The previous parser skipped only the first byte and then treated
+    <pack_count> as the cell count. On 13-cell packs that shifted the frame
+    and produced false warnings such as "cell 1 Unknown(0x0D)" and false
+    FET OFF states. This parser works on byte pairs and auto-detects that
+    prefix before parsing the pack blocks.
+    """
     success, inc = bms_request(bms, config, cid2=constants.cid2WarnInfo, info=b'FF')
     if not success:
         return False, inc
 
     try:
-        idx       = 2   # skip pack count byte (2 chars), read cell count fresh each pack
+        # Convert the ASCII hex payload into integer byte values.
+        # Example: b"00020D00..." -> [0x00, 0x02, 0x0D, 0x00, ...]
+        pairs = [int(inc[i:i + 2], 16) for i in range(0, len(inc), 2)]
+
+        def is_plausible_cell_count(value: int) -> bool:
+            # Pace-compatible lithium packs commonly report 13 or 16 cells,
+            # but allow a wider sensible range for other packs.
+            return 4 <= value <= 32
+
+        def is_plausible_temp_count(value: int) -> bool:
+            return 0 <= value <= 16
+
+        # Auto-detect the response prefix.
+        #
+        # Observed warning frame:
+        #   byte 0 = reserved/status byte (0x00)
+        #   byte 1 = pack count
+        #   byte 2 = first pack cell count
+        #
+        # Some variants may return:
+        #   byte 0 = pack count
+        #   byte 1 = first pack cell count
+        if (
+            len(pairs) >= 3
+            and pairs[1] == packs
+            and is_plausible_cell_count(pairs[2])
+        ):
+            idx = 2
+        elif (
+            len(pairs) >= 2
+            and pairs[0] == packs
+            and is_plausible_cell_count(pairs[1])
+        ):
+            idx = 1
+        else:
+            # Fallback for older/unknown frames where the first byte is already
+            # the first pack cell count.
+            idx = 0
+
+        if config.get('debug_output', 0) > 1:
+            log.debug("Warn frame byte pairs: %s", " ".join(f"{b:02X}" for b in pairs))
+            log.debug("Warn parser start index: %d", idx)
+
         warn_list = []
+
+        def warn_lookup(code: int) -> str:
+            key = f"{code:02X}".encode("ascii")
+            return constants.warningStates.get(key, f"Unknown(0x{code:02X})")
+
+        def read_byte() -> int:
+            nonlocal idx
+            if idx >= len(pairs):
+                raise IndexError("Warning frame ended unexpectedly")
+            val = pairs[idx]
+            idx += 1
+            return val
+
+        def bit_names(state_map: dict, value: int, ignore_names: set[str] | None = None) -> list[str]:
+            ignore_names = ignore_names or set()
+            names = []
+            for bit in range(8):
+                if value & (1 << bit):
+                    name = state_map.get(bit + 1, "Undefined")
+                    if name not in ignore_names and name != "Undefined":
+                        names.append(name)
+            return names
 
         for p in range(1, packs + 1):
             warnings = ""
-            cells_w  = int(inc[idx:idx + 2], 16)
-            idx      += 2
 
-            def warn_lookup(code: bytes) -> str:
-                return constants.warningStates.get(code, f"Unknown(0x{code.decode('ascii')})")
+            if idx >= len(pairs):
+                return False, f"Warning frame ended before pack {p}"
 
+            cells_w = read_byte()
+            if not is_plausible_cell_count(cells_w):
+                return False, f"Unexpected warning cell count {cells_w} at pack {p}"
+
+            # Cell warning bytes
             for c in range(1, cells_w + 1):
-                code = inc[idx:idx + 2]
-                if code != b'00':
+                code = read_byte()
+                if code != 0x00:
                     warnings += f"cell {c} {warn_lookup(code)}, "
-                idx += 2
 
-            temps_w = int(inc[idx:idx + 2], 16); idx += 2
+            temps_w = read_byte()
+            if not is_plausible_temp_count(temps_w):
+                return False, f"Unexpected warning temp count {temps_w} at pack {p}"
+
+            # Temperature warning bytes
             for t in range(1, temps_w + 1):
-                code = inc[idx:idx + 2]
-                if code != b'00':
+                code = read_byte()
+                if code != 0x00:
                     warnings += f"temp {t} {warn_lookup(code)}, "
-                idx += 2
 
+            # Charge current, total voltage, discharge current warning bytes
             for label in ("charge current", "total voltage", "discharge current"):
-                code = inc[idx:idx + 2]
-                if code != b'00':
+                code = read_byte()
+                if code != 0x00:
                     warnings += f"{label} {warn_lookup(code)}, "
-                idx += 2
-
-            def read_byte() -> int:
-                nonlocal idx
-                val  = ord(bytes.fromhex(inc[idx:idx + 2].decode('ascii')))
-                idx += 2
-                return val
 
             ps1 = read_byte()
-            if ps1:
-                bits      = " | ".join(constants.protectState1[x + 1] for x in range(8) if ps1 & (1 << x))
-                warnings += f"Protection State 1: {bits}, "
+            ps1_bits = bit_names(constants.protectState1, ps1)
+            if ps1_bits:
+                warnings += f"Protection State 1: {' | '.join(ps1_bits)}, "
 
             ps2 = read_byte()
-            if ps2:
-                bits      = " | ".join(constants.protectState2[x + 1] for x in range(8) if ps2 & (1 << x))
-                warnings += f"Protection State 2: {bits}, "
+            # "Fully charged" is a useful status bit, but not a protection alarm.
+            # It is still published separately as the `fully` binary sensor below.
+            ps2_bits = bit_names(constants.protectState2, ps2, ignore_names={"Fully charged"})
+            if ps2_bits:
+                warnings += f"Protection State 2: {' | '.join(ps2_bits)}, "
 
             inst = read_byte()
 
             ctrl = read_byte()
-            if ctrl:
-                bits      = " | ".join(constants.controlState[x + 1] for x in range(8) if ctrl & (1 << x))
-                warnings += f"Control State: {bits}, "
+            # Ignore non-actionable/undefined control bits in the warning string.
+            ctrl_bits = bit_names(
+                constants.controlState,
+                ctrl,
+                ignore_names={"Buzzer warn function enabled"}
+            )
+            if ctrl_bits:
+                warnings += f"Control State: {' | '.join(ctrl_bits)}, "
 
             fault = read_byte()
-            if fault:
-                bits      = " | ".join(constants.faultState[x + 1] for x in range(8) if fault & (1 << x))
-                warnings += f"Fault State: {bits}, "
+            fault_bits = bit_names(constants.faultState, fault)
+            if fault_bits:
+                warnings += f"Fault State: {' | '.join(fault_bits)}, "
 
-            bal1 = f'{int(inc[idx:idx + 2], 16):08b}'; idx += 2
-            bal2 = f'{int(inc[idx:idx + 2], 16):08b}'; idx += 2
+            bal1 = f'{read_byte():08b}'
+            bal2 = f'{read_byte():08b}'
 
             ws1 = read_byte()
-            if ws1:
-                bits      = " | ".join(constants.warnState1[x + 1] for x in range(8) if ws1 & (1 << x))
-                warnings += f"Warning State 1: {bits}, "
+            ws1_bits = bit_names(constants.warnState1, ws1)
+            if ws1_bits:
+                warnings += f"Warning State 1: {' | '.join(ws1_bits)}, "
 
             ws2 = read_byte()
-            if ws2:
-                bits      = " | ".join(constants.warnState2[x + 1] for x in range(8) if ws2 & (1 << x))
-                warnings += f"Warning State 2: {bits}, "
-
-            # Skip INFOFLAG between packs
-            if idx < len(inc) and cells_w != int(inc[idx:idx + 2], 16):
-                idx += 2
+            ws2_bits = bit_names(constants.warnState2, ws2)
+            if ws2_bits:
+                warnings += f"Warning State 2: {' | '.join(ws2_bits)}, "
 
             warn_list.append(WarnData(
-                pack_number           = p,
-                warnings              = warnings.rstrip(", "),
-                balancing1            = bal1,
-                balancing2            = bal2,
-                prot_short_circuit    = ps1 >> 6 & 1,
-                prot_discharge_current= ps1 >> 5 & 1,
-                prot_charge_current   = ps1 >> 4 & 1,
-                fully                 = ps2 >> 7 & 1,
-                current_limit         = inst >> 0 & 1,
-                charge_fet            = inst >> 1 & 1,
-                discharge_fet         = inst >> 2 & 1,
-                pack_indicate         = inst >> 3 & 1,
-                reverse               = inst >> 4 & 1,
-                ac_in                 = inst >> 5 & 1,
-                heart                 = inst >> 7 & 1,
+                pack_number            = p,
+                warnings               = warnings.rstrip(", "),
+                balancing1             = bal1,
+                balancing2             = bal2,
+                prot_short_circuit     = ps1 >> 6 & 1,
+                prot_discharge_current = ps1 >> 5 & 1,
+                prot_charge_current    = ps1 >> 4 & 1,
+                fully                  = ps2 >> 7 & 1,
+                current_limit          = inst >> 0 & 1,
+                charge_fet             = inst >> 1 & 1,
+                discharge_fet          = inst >> 2 & 1,
+                pack_indicate          = inst >> 3 & 1,
+                reverse                = inst >> 4 & 1,
+                ac_in                  = inst >> 5 & 1,
+                heart                  = inst >> 7 & 1,
             ))
+
+            # Some Pace warning frames include one byte between pack blocks
+            # representing the next pack address/index. Example observed:
+            #   ... ws1 ws2 01 0D ...
+            # where 01 is the next pack index and 0D is the next cell count.
+            if p < packs and idx + 1 < len(pairs):
+                if not is_plausible_cell_count(pairs[idx]) and is_plausible_cell_count(pairs[idx + 1]):
+                    if config.get('debug_output', 0) > 0:
+                        log.debug("Warn parser: skipped inter-pack byte 0x%02X before pack %d",
+                                  pairs[idx], p + 1)
+                    idx += 1
 
         return True, warn_list
 
