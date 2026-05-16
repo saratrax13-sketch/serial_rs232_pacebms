@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.0.21 - 2026-05-16
+
+### Fixed
+- Fixed Home Assistant Ingress web UI styling.
+- Updated the web UI template to load static CSS correctly through Home Assistant Ingress.
+- Improved visual appearance of the read-only configuration page.
+
 ## 2.0.20 - 2026-05-16
 
 ### Added
