@@ -449,6 +449,115 @@
       margin: 0;
     }
 
+    .config-card-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .config-card-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .help-icon-button {
+      width: 26px;
+      height: 26px;
+      padding: 0;
+      border-radius: 999px;
+      border: 1px solid rgba(56, 189, 248, 0.65);
+      background: rgba(14, 165, 233, 0.14);
+      color: #bae6fd;
+      font-weight: 900;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .help-icon-button:hover {
+      background: rgba(14, 165, 233, 0.28);
+    }
+
+    .help-modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.72);
+      z-index: 9999;
+      padding: 18px;
+      overflow-y: auto;
+    }
+
+    .help-modal-backdrop.show {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .help-modal {
+      width: min(760px, 100%);
+      max-height: calc(100vh - 48px);
+      overflow-y: auto;
+      background: rgba(15, 23, 42, 0.98);
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      border-radius: 22px;
+      box-shadow: 0 24px 90px rgba(0, 0, 0, 0.50);
+      padding: 20px;
+    }
+
+    .help-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .help-modal-title {
+      margin: 0;
+      color: #93c5fd;
+      font-size: 24px;
+      letter-spacing: -0.03em;
+    }
+
+    .help-close-button {
+      border-color: rgba(148, 163, 184, 0.35);
+      background: rgba(30, 41, 59, 0.8);
+      color: #e5e7eb;
+      padding: 7px 10px;
+    }
+
+    .help-content {
+      color: #dbeafe;
+      line-height: 1.55;
+    }
+
+    .help-content h3 {
+      color: #f8fafc;
+      margin: 16px 0 8px;
+      font-size: 16px;
+    }
+
+    .help-content ul {
+      margin-top: 6px;
+      padding-left: 20px;
+    }
+
+    .help-content li {
+      margin-bottom: 6px;
+    }
+
+    .help-content code {
+      color: #bfdbfe;
+      background: rgba(59, 130, 246, 0.12);
+      border: 1px solid rgba(59, 130, 246, 0.20);
+      border-radius: 6px;
+      padding: 1px 5px;
+    }
+
     .changed-badge {
       display: none;
       color: #fcd34d;
@@ -779,8 +888,13 @@
             {% for group_name, items in grouped.items() %}
             <article class="card config-card" data-config-group="{{ group_name }}">
               <div class="config-card-header">
-                <h2>{{ group_name }}</h2>
-                <span class="changed-badge">Changed</span>
+                <div class="config-card-title">
+                  <h2>{{ group_name }}</h2>
+                  <button class="help-icon-button" type="button" onclick="openConfigHelp('{{ group_name }}')" aria-label="Help for {{ group_name }}">i</button>
+                </div>
+                <div class="config-card-actions">
+                  <span class="changed-badge">Changed</span>
+                </div>
               </div>
 
               {% for item in items %}
@@ -856,6 +970,17 @@
         {% endif %}
       </section>
     </section>
+
+
+    <div id="help-modal-backdrop" class="help-modal-backdrop" onclick="closeConfigHelp(event)">
+      <div class="help-modal" role="dialog" aria-modal="true" aria-labelledby="help-modal-title" onclick="event.stopPropagation()">
+        <div class="help-modal-header">
+          <h2 id="help-modal-title" class="help-modal-title">Config Help</h2>
+          <button class="help-close-button" type="button" onclick="closeConfigHelp()">Close</button>
+        </div>
+        <div id="help-modal-content" class="help-content"></div>
+      </div>
+    </div>
 
     <footer>
       Page refreshed: {{ generated_at }}
@@ -1105,7 +1230,151 @@ Restart the add-on afterwards for runtime changes to apply.`);
       }
     });
 
-</script>
+
+    const configHelpContent = {
+      "Telegram": {
+        title: "Telegram Settings",
+        html: `
+          <p>These settings control direct Telegram notifications from the add-on.</p>
+          <h3>Important fields</h3>
+          <ul>
+            <li><code>notify_enabled</code> turns Telegram notifications on or off.</li>
+            <li><code>telegram_bot_token</code> is the token from BotFather. Leave it blank in the web form to keep the saved value.</li>
+            <li><code>telegram_chat_id</code> is the chat or group ID that receives alerts. Leave it blank to keep the saved value.</li>
+            <li><code>notify_startup</code> sends a message when the monitor starts.</li>
+            <li><code>notify_disconnect</code> sends a message when the BMS stops replying.</li>
+            <li><code>notify_stale_data</code> sends a message when fresh BMS reads stop updating.</li>
+            <li><code>notify_stale_recovery</code> sends a message when stale data becomes fresh again.</li>
+          </ul>
+          <h3>Safety note</h3>
+          <p>Telegram settings only affect notifications. They do not write to the BMS.</p>
+        `
+      },
+      "Notifications": {
+        title: "Notification Settings",
+        html: `
+          <p>These settings control which battery events generate Telegram notifications.</p>
+          <h3>SOC and SOH alerts</h3>
+          <ul>
+            <li><code>notify_soc_low</code> enables low state-of-charge alerts.</li>
+            <li><code>notify_soc_high</code> enables fully charged / high SOC alerts.</li>
+            <li><code>notify_soc_high_on_startup</code> controls whether high SOC alerts fire immediately after an add-on restart.</li>
+            <li><code>notify_soh</code> enables State of Health threshold alerts.</li>
+            <li><code>notify_soh_on_startup</code> controls whether SOH alerts fire immediately after restart.</li>
+          </ul>
+          <h3>Operational alerts</h3>
+          <ul>
+            <li><code>notify_warnings</code> enables BMS warning notifications.</li>
+            <li><code>notify_fet</code> enables charge/discharge FET notifications.</li>
+            <li><code>notify_daily_summary</code> enables the daily battery summary.</li>
+            <li><code>notify_delta_report</code> enables cell delta reports.</li>
+          </ul>
+          <p>These settings only decide what the add-on reports. They do not change BMS behaviour.</p>
+        `
+      },
+      "Warning Detail": {
+        title: "Warning Detail Settings",
+        html: `
+          <p>These settings help the add-on explain BMS warnings in a clearer way.</p>
+          <h3>Reference thresholds</h3>
+          <ul>
+            <li><code>notify_cell_high_warn_voltage</code> is the high-cell reference used in Telegram and the web UI.</li>
+            <li><code>notify_cell_low_warn_voltage</code> is the low-cell reference used for explanations.</li>
+            <li><code>notify_cell_delta_warn_mv</code> is the cell voltage difference reference in millivolts.</li>
+            <li><code>notify_temp_high_warn_c</code> and <code>notify_temp_low_warn_c</code> are temperature references.</li>
+          </ul>
+          <h3>Important</h3>
+          <p>These are display and notification reference values only. They do not configure the battery and they are not written to the BMS.</p>
+          <p>The BMS may trigger an internal warning before your configured reference is exceeded. The web UI shows both so you can see the difference.</p>
+        `
+      },
+      "MQTT": {
+        title: "MQTT Settings",
+        html: `
+          <p>These settings control how the add-on connects to MQTT and publishes battery data to Home Assistant.</p>
+          <h3>Connection</h3>
+          <ul>
+            <li><code>mqtt_host</code> is your MQTT broker IP address or hostname.</li>
+            <li><code>mqtt_port</code> is normally <code>1883</code>.</li>
+            <li><code>mqtt_user</code> and <code>mqtt_password</code> are your broker credentials. Leave password blank in the form to keep the saved value.</li>
+          </ul>
+          <h3>Topics and discovery</h3>
+          <ul>
+            <li><code>mqtt_base_topic</code> is the root topic, usually <code>pacebms</code>.</li>
+            <li><code>mqtt_ha_discovery</code> enables Home Assistant MQTT Discovery.</li>
+            <li><code>mqtt_retain_state</code> keeps the latest values retained so the web UI and Home Assistant can show the latest known state after reconnects.</li>
+          </ul>
+          <p>The Test MQTT button only checks broker connectivity. It does not read or write BMS data.</p>
+        `
+      },
+      "BMS Connection": {
+        title: "BMS Connection Settings",
+        html: `
+          <p>These settings tell the add-on how to communicate with the Pace BMS.</p>
+          <h3>Serial mode</h3>
+          <ul>
+            <li><code>connection_type</code> should be <code>Serial</code> for USB/RS232 adapters.</li>
+            <li><code>bms_serial</code> should use a stable path such as <code>/dev/serial/by-id/...</code>.</li>
+            <li><code>bms_baudrate</code> is usually <code>9600</code> for Pace RS232.</li>
+          </ul>
+          <h3>Network mode</h3>
+          <ul>
+            <li><code>bms_ip</code> and <code>bms_port</code> are used only when using TCP/IP mode.</li>
+          </ul>
+          <h3>Polling</h3>
+          <ul>
+            <li><code>scan_interval</code> controls how often the add-on polls the BMS.</li>
+          </ul>
+          <p>The add-on sends read requests only. It does not send BMS write or control commands.</p>
+        `
+      },
+      "Advanced": {
+        title: "Advanced Settings",
+        html: `
+          <p>These settings are mainly for troubleshooting and topic formatting.</p>
+          <h3>Debugging</h3>
+          <ul>
+            <li><code>debug_output</code> should normally be <code>0</code>.</li>
+            <li>Use higher debug levels only when troubleshooting, because logs can become very verbose.</li>
+          </ul>
+          <h3>Topic formatting</h3>
+          <ul>
+            <li><code>zero_pad_number_cells</code> controls whether cell numbers use leading zeroes, for example <code>cell_01</code>.</li>
+            <li><code>zero_pad_number_packs</code> controls pack number formatting.</li>
+          </ul>
+          <p>Advanced settings do not change the BMS. They only affect logging and topic naming.</p>
+        `
+      }
+    };
+
+    function openConfigHelp(groupName) {
+      const modal = document.getElementById("help-modal-backdrop");
+      const title = document.getElementById("help-modal-title");
+      const content = document.getElementById("help-modal-content");
+      const help = configHelpContent[groupName] || {
+        title: groupName + " Settings",
+        html: "<p>No help text is available for this section yet.</p>"
+      };
+
+      if (title) title.textContent = help.title;
+      if (content) content.innerHTML = help.html;
+      if (modal) modal.classList.add("show");
+    }
+
+    function closeConfigHelp(event) {
+      const modal = document.getElementById("help-modal-backdrop");
+      if (event && event.target !== modal) return;
+      if (modal) modal.classList.remove("show");
+    }
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") {
+        closeConfigHelp();
+      }
+    });
+
+
+  </script>
 
 </body>
 </html>
