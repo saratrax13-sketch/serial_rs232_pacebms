@@ -205,6 +205,12 @@
 
     button:hover, .button-link:hover { background: rgba(14, 165, 233, 0.28); }
 
+    button:disabled,
+    .disabled-button {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
     .danger-button {
       border-color: rgba(248, 113, 113, 0.55);
       background: rgba(248, 113, 113, 0.12);
@@ -725,13 +731,13 @@
                 <label class="key" for="cfg_{{ item.key }}">{{ item.key }}</label>
                 <div class="value">
                   {% if item.input_type == 'checkbox' %}
-                    <input id="cfg_{{ item.key }}" class="config-checkbox" type="checkbox" name="{{ item.key }}" {% if item.raw_value %}checked{% endif %}>
+                    <input id="cfg_{{ item.key }}" class="config-checkbox config-field" type="checkbox" name="{{ item.key }}" data-original="{% if item.raw_value %}true{% else %}false{% endif %}" {% if item.raw_value %}checked{% endif %}>
                   {% elif item.is_sensitive %}
-                    <input id="cfg_{{ item.key }}" class="config-input" type="password" name="{{ item.key }}" placeholder="Leave blank to keep existing value">
+                    <input id="cfg_{{ item.key }}" class="config-input config-field" type="password" name="{{ item.key }}" data-original="" placeholder="Leave blank to keep existing value">
                   {% elif item.input_type == 'number' %}
-                    <input id="cfg_{{ item.key }}" class="config-input" type="number" step="any" name="{{ item.key }}" value="{{ item.raw_value }}">
+                    <input id="cfg_{{ item.key }}" class="config-input config-field" type="number" step="any" name="{{ item.key }}" value="{{ item.raw_value }}" data-original="{{ item.raw_value }}">
                   {% else %}
-                    <input id="cfg_{{ item.key }}" class="config-input" type="text" name="{{ item.key }}" value="{{ item.raw_value }}">
+                    <input id="cfg_{{ item.key }}" class="config-input config-field" type="text" name="{{ item.key }}" value="{{ item.raw_value }}" data-original="{{ item.raw_value }}">
                   {% endif %}
                 </div>
               </div>
@@ -741,7 +747,7 @@
           </section>
 
           <div class="actions">
-            <button type="submit">Save Configuration</button>
+            <button id="save-config-button" type="submit" disabled>Save Configuration</button>
             <a class="button-link" href="export-config.yaml">Download Sanitized YAML</a>
           </div>
         </form>
@@ -878,23 +884,69 @@
   
     let configDirty = false;
 
-    function markConfigDirty() {
-      configDirty = true;
+    function normalizeConfigValue(field) {
+      if (field.type === "checkbox") {
+        return field.checked ? "true" : "false";
+      }
+      return String(field.value ?? "").trim();
+    }
+
+    function hasRealConfigChanges() {
+      const form = document.getElementById("config-save-form");
+      if (!form) return false;
+
+      const fields = form.querySelectorAll(".config-field");
+      for (const field of fields) {
+        const original = String(field.dataset.original ?? "").trim();
+        const current = normalizeConfigValue(field);
+
+        // Sensitive fields are blank by design. Blank means "keep existing".
+        if (field.type === "password" && current === "") {
+          continue;
+        }
+
+        if (current !== original) {
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    function updateConfigDirtyState() {
+      configDirty = hasRealConfigChanges();
+
       const banner = document.getElementById("restart-required-banner");
       if (banner) {
-        banner.classList.add("show");
+        banner.classList.toggle("show", configDirty);
+      }
+
+      const saveButton = document.getElementById("save-config-button");
+      if (saveButton) {
+        saveButton.disabled = !configDirty;
       }
     }
 
+    function markConfigDirty() {
+      updateConfigDirtyState();
+    }
+
     function confirmSaveConfig() {
-      return confirm(
-        "Save these Home Assistant add-on configuration changes?\\n\\n" +
-        "This does not write to the BMS.\\n" +
-        "You should restart the add-on afterwards for runtime changes to apply."
-      );
+      updateConfigDirtyState();
+
+      if (!configDirty) {
+        alert("No configuration changes detected. Nothing to save.");
+        return false;
+      }
+
+      return confirm(`Save these Home Assistant add-on configuration changes?
+
+This does not write to the BMS.
+Restart the add-on afterwards for runtime changes to apply.`);
     }
 
     window.addEventListener("beforeunload", function (event) {
+      updateConfigDirtyState();
       if (!configDirty) return;
       event.preventDefault();
       event.returnValue = "";
@@ -903,10 +955,12 @@
     document.addEventListener("DOMContentLoaded", function () {
       const form = document.getElementById("config-save-form");
       if (form) {
-        form.querySelectorAll("input, select, textarea").forEach(function (field) {
+        form.querySelectorAll(".config-field").forEach(function (field) {
           field.addEventListener("change", markConfigDirty);
           field.addEventListener("input", markConfigDirty);
         });
+
+        updateConfigDirtyState();
 
         form.addEventListener("submit", function () {
           configDirty = false;

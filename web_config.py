@@ -921,6 +921,11 @@ def route_save_config():
 
     new_options = build_options_from_form(request.form, options)
 
+    if new_options == options:
+        message = "No configuration changes detected. Nothing was saved."
+        append_event("config_save", "No config changes", message, "info")
+        return render_index("ok", message, active_tab="config")
+
     validation_errors = validate_addon_options(new_options)
     if validation_errors:
         message = "Configuration was not saved. Please fix: " + " | ".join(validation_errors)
