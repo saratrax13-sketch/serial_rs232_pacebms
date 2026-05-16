@@ -883,6 +883,7 @@
 
   
     let configDirty = false;
+    let configSaveSubmitting = false;
 
     function normalizeConfigValue(field) {
       if (field.type === "checkbox") {
@@ -939,15 +940,25 @@
         return false;
       }
 
-      return confirm(`Save these Home Assistant add-on configuration changes?
+      const confirmed = confirm(`Save these Home Assistant add-on configuration changes?
 
 This does not write to the BMS.
 Restart the add-on afterwards for runtime changes to apply.`);
+
+      if (confirmed) {
+        configSaveSubmitting = true;
+        configDirty = false;
+      }
+
+      return confirmed;
     }
 
     window.addEventListener("beforeunload", function (event) {
+      if (configSaveSubmitting) return;
+
       updateConfigDirtyState();
       if (!configDirty) return;
+
       event.preventDefault();
       event.returnValue = "";
     });
@@ -963,6 +974,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
         updateConfigDirtyState();
 
         form.addEventListener("submit", function () {
+          configSaveSubmitting = true;
           configDirty = false;
         });
       }
