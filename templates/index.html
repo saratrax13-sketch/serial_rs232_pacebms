@@ -115,8 +115,8 @@
       word-break: break-word;
     }
 
-    .tile-value.online, .tile-value.running, .value.ok { color: #86efac; }
-    .tile-value.offline, .tile-value.disconnected, .value.warn { color: #fcd34d; }
+    .tile-value.online, .tile-value.running, .tile-value.off, .value.ok { color: #86efac; }
+    .tile-value.offline, .tile-value.disconnected, .tile-value.on, .value.warn { color: #fcd34d; }
     .value.off { color: #cbd5e1; }
 
     .grid {
@@ -258,6 +258,14 @@
           <div class="tile-value {{ live.monitor_state|lower }}">{{ live.monitor_state }}</div>
         </div>
         <div class="status-tile">
+          <div class="tile-label">Data Stale</div>
+          <div class="tile-value {{ live.stale|lower }}">{{ live.stale }}</div>
+        </div>
+        <div class="status-tile">
+          <div class="tile-label">Stale Reason</div>
+          <div class="tile-value">{{ live.stale_reason }}</div>
+        </div>
+        <div class="status-tile">
           <div class="tile-label">Detected Packs</div>
           <div class="tile-value">{{ live.pack_count }}</div>
         </div>
@@ -272,6 +280,14 @@
         <div class="status-tile">
           <div class="tile-label">Last Warning Read</div>
           <div class="tile-value">{{ live.last_warn_read }}</div>
+        </div>
+        <div class="status-tile">
+          <div class="tile-label">Analog Age</div>
+          <div class="tile-value">{{ live.analog_age_seconds }}s</div>
+        </div>
+        <div class="status-tile">
+          <div class="tile-label">Warning Age</div>
+          <div class="tile-value">{{ live.warn_age_seconds }}s</div>
         </div>
       </div>
 

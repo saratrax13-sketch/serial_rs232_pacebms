@@ -18,6 +18,10 @@ GROUPS = {
         "telegram_chat_id",
         "notify_startup",
         "notify_disconnect",
+        "notify_stale_data",
+        "notify_stale_recovery",
+        "notify_stale_data_seconds",
+        "notify_stale_data_repeat_seconds",
     ],
     "Notifications": [
         "notify_soc_low",
@@ -190,6 +194,10 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
         "monitor_state": "Unknown",
         "last_analog_read": "Unknown",
         "last_warn_read": "Unknown",
+        "stale": "Unknown",
+        "stale_reason": "Unknown",
+        "analog_age_seconds": "Unknown",
+        "warn_age_seconds": "Unknown",
         "bms_status": "Not available",
         "bms_error": "Not available",
         "bms_version": "Unknown",
@@ -241,6 +249,10 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
     result["monitor_state"] = messages.get(f"{base_topic}/monitor/state", "Unknown")
     result["last_analog_read"] = messages.get(f"{base_topic}/monitor/last_analog_read", "Unknown")
     result["last_warn_read"] = messages.get(f"{base_topic}/monitor/last_warn_read", "Unknown")
+    result["stale"] = messages.get(f"{base_topic}/monitor/stale", "Unknown")
+    result["stale_reason"] = messages.get(f"{base_topic}/monitor/stale_reason", "Unknown")
+    result["analog_age_seconds"] = messages.get(f"{base_topic}/monitor/analog_age_seconds", "Unknown")
+    result["warn_age_seconds"] = messages.get(f"{base_topic}/monitor/warn_age_seconds", "Unknown")
 
     status_raw = messages.get(f"{base_topic}/bms_status", "")
     error_raw = messages.get(f"{base_topic}/bms_error", "")

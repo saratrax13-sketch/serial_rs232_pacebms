@@ -1,6 +1,6 @@
 name: "Pace BMS RS232 Monitor"
 description: "Read-only Pace BMS RS232 to MQTT bridge with Home Assistant discovery and Telegram notifications"
-version: "2.0.31"
+version: "2.0.32"
 slug: "pace_bms_rs232"
 url: "https://github.com/saratrax13-sketch/serial_rs232_pacebms"
 init: false
@@ -35,7 +35,9 @@ options:
   notify_disconnect: true
   notify_soc_low: true
   notify_soc_high: true
+  notify_soc_high_on_startup: false
   notify_soh: true
+  notify_soh_on_startup: false
   notify_warnings: true
   notify_warning_detail_enabled: true
   notify_fet: true
@@ -55,6 +57,16 @@ options:
   # Recommended for serial connections: 1
   # ─────────────────────────────────────────────
   notify_retry_count: 1
+
+  # ─────────────────────────────────────────────
+  # Notifications - Stale Data
+  # This checks the age of successful BMS reads, not whether values changed.
+  # It does not write to or configure the BMS.
+  # ─────────────────────────────────────────────
+  notify_stale_data: true
+  notify_stale_recovery: true
+  notify_stale_data_seconds: 120
+  notify_stale_data_repeat_seconds: 1800
 
   # ─────────────────────────────────────────────
   # Notifications - Warning Detail Reference Values
@@ -132,7 +144,9 @@ schema:
   notify_disconnect: bool
   notify_soc_low: bool
   notify_soc_high: bool
+  notify_soc_high_on_startup: bool
   notify_soh: bool
+  notify_soh_on_startup: bool
   notify_warnings: bool
   notify_warning_detail_enabled: bool
   notify_fet: bool
@@ -144,6 +158,11 @@ schema:
   notify_soc_high_reset: int
   notify_soh_threshold: int
   notify_retry_count: int
+
+  notify_stale_data: bool
+  notify_stale_recovery: bool
+  notify_stale_data_seconds: int
+  notify_stale_data_repeat_seconds: int
 
   notify_cell_high_warn_voltage: float
   notify_cell_low_warn_voltage: float

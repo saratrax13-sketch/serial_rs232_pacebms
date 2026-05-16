@@ -1,8 +1,11 @@
 # =============================================================================
 # bms_monitor.py — Pace BMS to MQTT Bridge
-# Version : 2.0.28
+# Version : 2.0.32
 # Changed : 2026-05-16
 # Changes :
+#   - Added stale data detection for analog and warning reads
+#   - Added retained MQTT stale status topics for web UI
+#   - Added optional Telegram stale-data and recovery alerts
 #   - Fixed monitor status helper scope for web UI MQTT status topics
 #   - Added retained MQTT monitor status topics and last read timestamps
 #   - Fixed warning-frame parser alignment for Pace frames with prefix byte + pack count
@@ -1068,6 +1071,75 @@ def main():
     bms_disconnect_time = None
     bms_error_published = False
 
+    # ── Stale-data tracking ──────────────────────────────────────────────────
+    stale_enabled = bool(config.get('notify_stale_data', True))
+    stale_recovery_enabled = bool(config.get('notify_stale_recovery', True))
+    stale_seconds = max(30, float(config.get('notify_stale_data_seconds', 120)))
+    stale_repeat_seconds = max(300, float(config.get('notify_stale_data_repeat_seconds', 1800)))
+
+    now_start = time.time()
+    last_analog_success = now_start
+    last_warn_success = now_start
+    stale_notified = False
+    last_stale_notify = 0.0
+
+    publish_monitor_status("stale", "OFF")
+    publish_monitor_status("stale_reason", "Fresh")
+    publish_monitor_status("stale_threshold_seconds", int(stale_seconds))
+
+    def check_stale_data():
+        """Check whether analog or warning data is stale.
+
+        This is a monitor-side safety check only. It publishes MQTT status and
+        can send Telegram alerts. It does not write to the BMS.
+        """
+        nonlocal stale_notified, last_stale_notify
+
+        now = time.time()
+        analog_age = int(now - last_analog_success)
+        warn_age = int(now - last_warn_success)
+
+        publish_monitor_status("analog_age_seconds", analog_age)
+        publish_monitor_status("warn_age_seconds", warn_age)
+
+        stale_reasons = []
+        if analog_age > stale_seconds:
+            stale_reasons.append(f"analog data age {analog_age}s")
+        if warn_age > stale_seconds:
+            stale_reasons.append(f"warning data age {warn_age}s")
+
+        if stale_reasons:
+            reason = "; ".join(stale_reasons)
+            publish_monitor_status("stale", "ON")
+            publish_monitor_status("stale_reason", reason)
+
+            # Avoid duplicate alerts while the normal disconnect alert is active.
+            if stale_enabled and not bms_error_published:
+                should_send = (not stale_notified) or ((now - last_stale_notify) >= stale_repeat_seconds)
+                if should_send:
+                    stale_notified = True
+                    last_stale_notify = now
+                    telegram_send(config,
+                        "BMS Data Stale\n"
+                        f"Reason: {reason}\n"
+                        f"Threshold: {int(stale_seconds)}s\n"
+                        f"Last analog read: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(last_analog_success))}\n"
+                        f"Last warning read: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(last_warn_success))}\n"
+                        f"Time: {time.strftime('%H:%M:%S')}")
+            return
+
+        publish_monitor_status("stale", "OFF")
+        publish_monitor_status("stale_reason", "Fresh")
+
+        if stale_notified:
+            stale_notified = False
+            if stale_recovery_enabled:
+                telegram_send(config,
+                    "BMS Data Fresh Again\n"
+                    f"Analog age: {analog_age}s\n"
+                    f"Warning age: {warn_age}s\n"
+                    f"Time: {time.strftime('%H:%M:%S')}")
+
     def mark_bms_disconnected(reason: str):
         """Mark the BMS offline based on failed communication, not just serial port state."""
         nonlocal bms_retry_count, bms_disconnect_time, bms_error_published, bms_connected, bms
@@ -1154,8 +1226,9 @@ def main():
                 analog_data        = result
                 first_analog_ready = True
 
-                publish_monitor_status("last_analog_read_epoch", int(time.time()))
-                publish_monitor_status("last_analog_read", time.strftime("%Y-%m-%d %H:%M:%S"))
+                last_analog_success = time.time()
+                publish_monitor_status("last_analog_read_epoch", int(last_analog_success))
+                publish_monitor_status("last_analog_read", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(last_analog_success)))
 
                 now = time.time()
                 force_state = (now - last_state_force) >= state_force_seconds
@@ -1205,8 +1278,9 @@ def main():
             packs           = analog_data.packs if analog_data else 1
             success, result = bms_get_warn_info(bms, config, packs)
             if success:
-                publish_monitor_status("last_warn_read_epoch", int(time.time()))
-                publish_monitor_status("last_warn_read", time.strftime("%Y-%m-%d %H:%M:%S"))
+                last_warn_success = time.time()
+                publish_monitor_status("last_warn_read_epoch", int(last_warn_success))
+                publish_monitor_status("last_warn_read", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(last_warn_success)))
                 now = time.time()
                 force_warn = (now - last_warn_force) >= warn_force_seconds
                 publish_warn_data(client, config, result, force=force_warn)
@@ -1225,10 +1299,16 @@ def main():
                 log_warn_summary(result)
             else:
                 log.error("Warn info error: %s", result)
+
+            check_stale_data()
             time.sleep(scan_interval / 3)
 
         except Exception as e:
             log.exception("Unhandled error in main loop: %s", e)
+            try:
+                check_stale_data()
+            except Exception:
+                pass
             time.sleep(scan_interval)
 
 

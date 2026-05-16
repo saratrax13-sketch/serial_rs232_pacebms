@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.0.32 - 2026-05-16
+
+### Added
+- Added stale-data detection for analog and warning reads.
+- Added Telegram alert when BMS data becomes stale.
+- Added optional Telegram recovery alert when stale data becomes fresh again.
+- Added retained MQTT stale status topics under `pacebms/monitor/`.
+- Added Data Stale, Stale Reason, Analog Age, and Warning Age tiles to the web UI.
+- Added stale-data configuration options:
+  - `notify_stale_data`
+  - `notify_stale_recovery`
+  - `notify_stale_data_seconds`
+  - `notify_stale_data_repeat_seconds`
+
+### Changed
+- Updated add-on version to `2.0.32`.
+- Updated Home Assistant add-on configuration schema to include stale-data settings.
+
+### Notes
+- Stale-data detection is based on successful BMS reads, not whether values changed.
+- A battery value staying the same is not considered stale if the BMS is still replying.
+- Stale-data detection is read-only and does not write to the BMS.
+- Stale alerts are suppressed while the normal BMS disconnect alert is active.
+
 ## 2.0.31 - 2026-05-16
 
 ### Fixed
