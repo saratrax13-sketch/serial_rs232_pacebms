@@ -1,8 +1,8 @@
-name: "Pace BMS - Hubble EenoVance"
-description: "Pace BMS RS232 Interface"
+name: "Pace BMS RS232 Monitor"
+description: "Read-only Pace BMS RS232 to MQTT bridge with Home Assistant discovery and Telegram notifications"
 version: "2.0.19"
-slug: "pace_bms_rs232_485"
-url: "https://github.com/saratrax13-sketch/serial_rs485_pacebms"
+slug: "pace_bms_rs232"
+url: "https://github.com/saratrax13-sketch/serial_rs232_pacebms"
 init: false
 arch:
   - aarch64
@@ -15,110 +15,168 @@ uart: true
 usb: true
 
 options:
-  # ── Telegram direct notifications ────────────────────────────────────────
-  telegram_bot_token: "YOUR_BOT_TOKEN"
-  telegram_chat_id: "0000"
+  # ─────────────────────────────────────────────
+  # Telegram
+  # ─────────────────────────────────────────────
+  telegram_bot_token: "YOUR_TELEGRAM_BOT_TOKEN"
+  telegram_chat_id: "YOUR_TELEGRAM_CHAT_ID"
 
-  # ── Notification master switch ────────────────────────────────────────────
+  # ─────────────────────────────────────────────
+  # Notifications - Main Toggles
+  # ─────────────────────────────────────────────
   notify_enabled: true
+  notify_startup: true
+  notify_disconnect: true
+  notify_soc_low: true
+  notify_soc_high: true
+  notify_soh: true
+  notify_warnings: true
+  notify_warning_detail_enabled: true
+  notify_fet: true
+  notify_daily_summary: true
+  notify_delta_report: true
 
-  # ── Notification toggles ──────────────────────────────────────────────────
-  notify_soc_low: true          # SOC threshold alerts
-  notify_soc_high: true         # High charge alert
-  notify_warnings: true         # BMS warning flags
-  notify_fet: true              # FET off unexpectedly
-  notify_soh: true              # SOH degradation
-  notify_disconnect: true       # BMS disconnected/recovered
-  notify_startup: true          # Monitor started/stopped
-  notify_daily_summary: true    # 19:00 daily summary
-  notify_delta_report: true     # Delta window report
+  # ─────────────────────────────────────────────
+  # Notifications - SOC / SOH
+  # ─────────────────────────────────────────────
+  notify_soc_low_thresholds: "75,50,25,10"
+  notify_soc_high_threshold: 98
+  notify_soc_high_reset: 95
+  notify_soh_threshold: 95
 
-  # ── Thresholds ────────────────────────────────────────────────────────────
-  notify_soc_low_thresholds: "75,50,25,10"  # % SOC levels to alert
-  notify_soc_high_threshold: 98             # % SOC to trigger high charge alert
-  notify_soc_high_reset: 95                 # % SOC must drop before re-alerting
-  notify_soh_threshold: 95                  # % SOH below which to alert
-  notify_retry_count: 1                     # retries before disconnect alert (1 = alert on first failed BMS read)
+  # ─────────────────────────────────────────────
+  # Notifications - Disconnect
+  # Recommended for serial connections: 1
+  # ─────────────────────────────────────────────
+  notify_retry_count: 1
 
-  # ── Report schedule ───────────────────────────────────────────────────────
-  notify_daily_summary_time: "19:00"        # time for daily kWh + worst cell report
-  notify_delta_report_time: "10:15"         # time for delta report
-  notify_delta_window_start: "00:00"        # start of delta tracking window
-  notify_delta_window_end: "10:00"          # end of delta tracking window
+  # ─────────────────────────────────────────────
+  # Notifications - Warning Detail Reference Values
+  # These are read-only reference values used only to enrich Telegram messages.
+  # They do not write to or configure the BMS.
+  # Pack high/low thresholds should be calculated from detected cell count.
+  # Example: 4.20 V x 13 cells = 54.60 V
+  # ─────────────────────────────────────────────
+  notify_cell_high_warn_voltage: 4.20
+  notify_cell_low_warn_voltage: 3.00
+  notify_cell_delta_warn_mv: 100
+  notify_temp_high_warn_c: 55
+  notify_temp_low_warn_c: 0
 
-  # ── MQTT ──────────────────────────────────────────────────────────────────
-  mqtt_host: "10.0.0.132"
+  # ─────────────────────────────────────────────
+  # Notifications - Warning Message Detail
+  # ─────────────────────────────────────────────
+  notify_include_all_cells_above_threshold: true
+  notify_include_all_cells_below_threshold: true
+  notify_include_highest_and_lowest_cell: true
+  notify_include_pack_voltage: true
+  notify_include_soc_soh: true
+
+  # ─────────────────────────────────────────────
+  # Notifications - FET Handling
+  # ─────────────────────────────────────────────
+  notify_ignore_charge_fet_off_when_full: true
+  notify_alert_discharge_fet_off: true
+
+  # ─────────────────────────────────────────────
+  # Scheduled Reports
+  # ─────────────────────────────────────────────
+  notify_daily_summary_time: "19:00"
+  notify_delta_report_time: "10:15"
+  notify_delta_window_start: "00:00"
+  notify_delta_window_end: "10:00"
+
+  # ─────────────────────────────────────────────
+  # MQTT
+  # ─────────────────────────────────────────────
+  mqtt_host: "192.168.10.16"
   mqtt_port: 1883
-  mqtt_user: "mqtt-users"
-  mqtt_password: "mqtt-users"
+  mqtt_user: "YOUR_MQTT_USER"
+  mqtt_password: "YOUR_MQTT_PASSWORD"
+  mqtt_base_topic: "pacebms"
   mqtt_ha_discovery: true
   mqtt_ha_discovery_topic: "homeassistant"
-  mqtt_base_topic: "pacebms"
+  mqtt_retain_state: true
+  state_force_republish_seconds: 300
+  warn_force_republish_seconds: 300
 
-  # ── BMS connection ─────────────────────────────────────────────────────────
-  # connection_type: "IP" or "Serial"
+  # ─────────────────────────────────────────────
+  # BMS Connection
+  # ─────────────────────────────────────────────
   connection_type: "Serial"
   bms_ip: "10.0.0.161"
   bms_port: 5000
+  bms_serial: "/dev/serial/by-id/usb-Prolific_Technology_Inc._USB-Serial_Controller_D-if00-port0"
+  bms_baudrate: 9600
+  scan_interval: 5
 
-  # Serial port settings (only used when connection_type is "Serial")
-  bms_serial: "/dev/ttyUSB1"
-  bms_baudrate: 9600          # added: explicitly set baud rate for serial
-
-  # ── Polling ────────────────────────────────────────────────────────────────
-  scan_interval: 5            # seconds between full BMS polls
-
-  # ── Debugging ─────────────────────────────────────────────────────────────
-  # 0 = off, 1 = basic, 2 = verbose, 3 = raw frames
+  # ─────────────────────────────────────────────
+  # Advanced
+  # ─────────────────────────────────────────────
   debug_output: 0
-
-  # ── Parsing tweaks ─────────────────────────────────────────────────────────
-  # force_pack_offset: extra bytes to skip after each pack in analog data.
-  # Set to 0 unless your BMS firmware adds unexpected trailing bytes.
-#  force_pack_offset: 0  # deprecated — auto-skip now handles INFOFLAG bytes
-
-  # zero_pad_number_cells / zero_pad_number_packs:
-  # Width for zero-padding topic names, e.g. 2 → cell_01, pack_01.
-  # Set to 0 to disable padding (cell_1, pack_1).
-  zero_pad_number_cells: 2   # cell_01..cell_16 — change to 0 for cell_1 style
-  zero_pad_number_packs: 0
+  zero_pad_number_cells: 2
+  zero_pad_number_packs: 1
 
 schema:
-  telegram_bot_token: str
+  telegram_bot_token: password
   telegram_chat_id: str
+
   notify_enabled: bool
+  notify_startup: bool
+  notify_disconnect: bool
   notify_soc_low: bool
   notify_soc_high: bool
-  notify_warnings: bool
-  notify_fet: bool
   notify_soh: bool
-  notify_disconnect: bool
-  notify_startup: bool
+  notify_warnings: bool
+  notify_warning_detail_enabled: bool
+  notify_fet: bool
   notify_daily_summary: bool
   notify_delta_report: bool
+
   notify_soc_low_thresholds: str
   notify_soc_high_threshold: int
   notify_soc_high_reset: int
   notify_soh_threshold: int
   notify_retry_count: int
+
+  notify_cell_high_warn_voltage: float
+  notify_cell_low_warn_voltage: float
+  notify_cell_delta_warn_mv: int
+  notify_temp_high_warn_c: int
+  notify_temp_low_warn_c: int
+
+  notify_include_all_cells_above_threshold: bool
+  notify_include_all_cells_below_threshold: bool
+  notify_include_highest_and_lowest_cell: bool
+  notify_include_pack_voltage: bool
+  notify_include_soc_soh: bool
+
+  notify_ignore_charge_fet_off_when_full: bool
+  notify_alert_discharge_fet_off: bool
+
   notify_daily_summary_time: str
   notify_delta_report_time: str
   notify_delta_window_start: str
   notify_delta_window_end: str
+
   mqtt_host: str
   mqtt_port: int
   mqtt_user: str
-  mqtt_password: str
+  mqtt_password: password
+  mqtt_base_topic: str
   mqtt_ha_discovery: bool
   mqtt_ha_discovery_topic: str
-  mqtt_base_topic: str
+  mqtt_retain_state: bool
+  state_force_republish_seconds: int
+  warn_force_republish_seconds: int
+
   connection_type: list(IP|Serial)
   bms_ip: str
   bms_port: int
   bms_serial: str
   bms_baudrate: int
   scan_interval: int
+
   debug_output: int
-#  force_pack_offset: "int?"
-  zero_pad_number_cells: "int?"
-  zero_pad_number_packs: "int?"
+  zero_pad_number_cells: int
+  zero_pad_number_packs: int

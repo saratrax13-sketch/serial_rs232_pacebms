@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.0.19 - 2026-05-16
+
+### Added
+- Added improved Home Assistant add-on configuration layout.
+- Added detailed BMS warning threshold configuration.
+- Added configurable cell high warning reference voltage.
+- Added configurable cell low warning reference voltage.
+- Added configurable cell delta warning threshold.
+- Added configurable high and low temperature warning reference values.
+- Added `notify_warning_detail_enabled` toggle for enhanced Telegram warning messages.
+
+### Changed
+- Simplified warning thresholds by removing early / attention warning levels.
+- Warning detail now uses actual configured warning reference values only.
+- Pack high and low voltage references can be calculated from detected cell count and configured cell voltage thresholds.
+- Improved configuration order so commonly used settings appear higher and advanced/debug settings appear lower.
+- Clarified that warning thresholds are read-only reference values used for notifications and do not write to the BMS.
+- Recommended `debug_output: 0` for normal use and `debug_output: 3` only for troubleshooting.
+
+### Fixed
+- Improved documentation around 13-cell and 16-cell Pace-compatible packs.
+- Improved explanation of detailed warning messages for cell voltage, pack voltage, SOC, SOH, cell delta, and temperature.
+
 ## 2.0.18 - 2026-05-16
 
 ### Added

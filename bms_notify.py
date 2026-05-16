@@ -1,9 +1,11 @@
 # =============================================================================
 # bms_notify.py — Notification Engine for Pace BMS Monitor
-# Version : 1.0.1
+# Version : 1.1.0
 # Changed : 2026-05-16
 # Changes :
 #   - Disconnect alert now uses retry_count >= threshold and logs skipped alerts
+#   - Detailed warning messages use latest analog data and configured thresholds
+#   - Charge FET OFF can be ignored when pack is fully charged
 # Handles all Telegram notifications directly from Python.
 # No dependency on HA automations.
 # =============================================================================
@@ -241,21 +243,131 @@ class NotifyState:
 
     # ── Warning flags ─────────────────────────────────────────────────────────
 
-    def on_warnings_update(self, pack_num: int, warnings: str):
+    def _clean_warning_text(self, warnings: str) -> str:
+        """Remove non-actionable status strings from the BMS warning text."""
+        ignore = {
+            'Control State: Buzzer warn function enabled',
+            'Fault State: Undefined',
+            'Normal',
+            '',
+            'None',
+        }
+        parts = [w.strip() for w in str(warnings or '').split(',') if w.strip() not in ignore]
+        return ', '.join(parts) if parts else 'Normal'
+
+    def _format_cells_over_under(self, cells_v: list[float], threshold: float, mode: str) -> list[str]:
+        """Return formatted cell lines above or below a voltage threshold."""
+        matches = []
+        for i, v in enumerate(cells_v, start=1):
+            if mode == 'above' and v > threshold:
+                matches.append(f"Cell {i:02d}: {v:.3f} V")
+            elif mode == 'below' and v < threshold:
+                matches.append(f"Cell {i:02d}: {v:.3f} V")
+        return matches
+
+    def _build_warning_detail(self, pack_num: int, cleaned: str, pack=None) -> str:
+        """Build an enriched Telegram warning message using latest analog data.
+
+        The BMS warning frame tells us the warning type. The analog frame gives
+        the current cell voltages, pack voltage, temperatures, SOC and SOH. The
+        configured thresholds below are read-only reference values for the
+        Telegram message only; they do not write to or configure the BMS.
+        """
+        if not self.config.get('notify_warning_detail_enabled', True) or pack is None:
+            return cleaned
+
+        try:
+            cell_high = float(self.config.get('notify_cell_high_warn_voltage', 4.20))
+            cell_low  = float(self.config.get('notify_cell_low_warn_voltage', 3.00))
+            delta_thr = float(self.config.get('notify_cell_delta_warn_mv', 100))
+            temp_high = float(self.config.get('notify_temp_high_warn_c', 55))
+            temp_low  = float(self.config.get('notify_temp_low_warn_c', 0))
+
+            raw_cells = getattr(pack, 'v_cells', []) or []
+            cells_v = [float(v) / 1000.0 for v in raw_cells if v is not None and float(v) > 0]
+            temps = [float(t) for t in (getattr(pack, 't_cells', []) or []) if t is not None]
+            pack_v = float(getattr(pack, 'v_pack', 0.0) or 0.0)
+            soc = float(getattr(pack, 'soc', 0.0) or 0.0)
+            soh = float(getattr(pack, 'soh', 0.0) or 0.0)
+            cell_count = int(getattr(pack, 'cells', len(cells_v)) or len(cells_v))
+            delta_mv = float(getattr(pack, 'cell_max_diff', 0.0) or 0.0)
+
+            lines = ["BMS reported:", cleaned]
+
+            if cells_v and self.config.get('notify_include_highest_and_lowest_cell', True):
+                high_idx, high_v = max(enumerate(cells_v, start=1), key=lambda x: x[1])
+                low_idx, low_v = min(enumerate(cells_v, start=1), key=lambda x: x[1])
+                lines.extend([
+                    "",
+                    f"Highest cell: Cell {high_idx:02d} = {high_v:.3f} V",
+                    f"Lowest cell: Cell {low_idx:02d} = {low_v:.3f} V",
+                    f"Cell delta: {delta_mv:.0f} mV (reference: {delta_thr:.0f} mV)",
+                ])
+
+                if 'Above cell volt warn' in cleaned:
+                    over = self._format_cells_over_under(cells_v, cell_high, 'above')
+                    lines.append(f"High cell reference: {cell_high:.2f} V")
+                    if over and self.config.get('notify_include_all_cells_above_threshold', True):
+                        lines.append("Cells above reference:")
+                        lines.extend(over)
+                    elif not over:
+                        lines.append(f"No cell is above the configured {cell_high:.2f} V reference.")
+                        lines.append("The BMS may use a lower internal warning level.")
+
+                if 'Lower cell volt warn' in cleaned or 'Below lower limit' in cleaned:
+                    under = self._format_cells_over_under(cells_v, cell_low, 'below')
+                    lines.append(f"Low cell reference: {cell_low:.2f} V")
+                    if under and self.config.get('notify_include_all_cells_below_threshold', True):
+                        lines.append("Cells below reference:")
+                        lines.extend(under)
+                    elif not under:
+                        lines.append(f"No cell is below the configured {cell_low:.2f} V reference.")
+                        lines.append("The BMS may use a higher internal warning level.")
+
+            if self.config.get('notify_include_pack_voltage', True):
+                pack_high = cell_high * cell_count if cell_count else 0.0
+                pack_low = cell_low * cell_count if cell_count else 0.0
+                lines.extend(["", f"Pack voltage: {pack_v:.3f} V"])
+                if 'Above total volt warn' in cleaned or 'total voltage Above upper limit' in cleaned:
+                    lines.append(f"Pack high reference: {pack_high:.2f} V ({cell_high:.2f} V x {cell_count} cells)")
+                    if pack_high and pack_v <= pack_high:
+                        lines.append("Pack voltage is not above the configured reference.")
+                if 'Lower total volt warn' in cleaned or 'total voltage Below lower limit' in cleaned:
+                    lines.append(f"Pack low reference: {pack_low:.2f} V ({cell_low:.2f} V x {cell_count} cells)")
+                    if pack_low and pack_v >= pack_low:
+                        lines.append("Pack voltage is not below the configured reference.")
+
+            if temps and 'temp' in cleaned.lower():
+                high_t_idx, high_t = max(enumerate(temps, start=1), key=lambda x: x[1])
+                low_t_idx, low_t = min(enumerate(temps, start=1), key=lambda x: x[1])
+                lines.extend([
+                    "",
+                    f"Highest temp: Temp {high_t_idx} = {high_t:.1f} °C",
+                    f"Lowest temp: Temp {low_t_idx} = {low_t:.1f} °C",
+                    f"Temperature references: high {temp_high:.0f} °C / low {temp_low:.0f} °C",
+                ])
+
+            if self.config.get('notify_include_soc_soh', True):
+                lines.extend(["", f"SOC: {soc:.1f}%", f"SOH: {soh:.1f}%"])
+
+            return '\n'.join(lines)
+        except Exception as e:
+            log.warning("Could not build detailed warning message for pack %s: %s", pack_num, e)
+            return cleaned
+
+    def on_warnings_update(self, pack_num: int, warnings: str, pack=None):
         if not self._notify_enabled('notify_warnings'):
             return
-        normal_states = {'Normal', '', 'None'}
-        # Strip known non-alarm states
-        ignore = {'Control State: Buzzer warn function enabled', 'Fault State: Undefined'}
-        parts   = [w.strip() for w in warnings.split(',') if w.strip() not in ignore]
-        cleaned = ', '.join(parts) if parts else 'Normal'
 
+        cleaned = self._clean_warning_text(warnings)
         prev = self.last_warnings.get(pack_num, 'Normal')
+
         if cleaned != prev and cleaned != 'Normal':
             self.last_warnings[pack_num] = cleaned
+            detail = self._build_warning_detail(pack_num, cleaned, pack)
             telegram_send(self.config,
                 f"BMS Warning — Pack {pack_num:02d}\n"
-                f"{cleaned}\n"
+                f"{detail}\n"
                 f"Time: {datetime.now().strftime('%H:%M:%S')}")
         elif cleaned == 'Normal' and prev != 'Normal':
             self.last_warnings[pack_num] = 'Normal'
@@ -265,16 +377,23 @@ class NotifyState:
 
     # ── FET alerts ────────────────────────────────────────────────────────────
 
-    def on_fet_update(self, pack_num: int, charge_fet: str, discharge_fet: str):
+    def on_fet_update(self, pack_num: int, charge_fet: str, discharge_fet: str, fully: bool = False):
         if not self._notify_enabled('notify_fet'):
             return
         prev_chg  = self.last_charge_fet.get(pack_num)
         prev_dchg = self.last_discharge_fet.get(pack_num)
 
         alerts = []
+        ignore_charge_when_full = bool(self.config.get('notify_ignore_charge_fet_off_when_full', True))
+        alert_discharge_off = bool(self.config.get('notify_alert_discharge_fet_off', True))
+
         if prev_chg == 'ON' and charge_fet == 'OFF':
-            alerts.append('Charge FET turned OFF unexpectedly')
-        if prev_dchg == 'ON' and discharge_fet == 'OFF':
+            if not (ignore_charge_when_full and fully):
+                alerts.append('Charge FET turned OFF unexpectedly')
+            else:
+                log.info("Charge FET OFF ignored for Pack %02d because pack is fully charged", pack_num)
+
+        if alert_discharge_off and prev_dchg == 'ON' and discharge_fet == 'OFF':
             alerts.append('Discharge FET turned OFF unexpectedly')
 
         if alerts:

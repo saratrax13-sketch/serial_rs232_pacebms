@@ -1187,12 +1187,15 @@ def main():
                 if force_warn:
                     last_warn_force = now
                 # ── Warning and FET notifications ─────────────────────────────
+                pack_by_number = {pack.pack_number: pack for pack in (analog_data.pack_data if analog_data else [])}
                 for pack_warn in result:
                     p = pack_warn.pack_number
-                    notify.on_warnings_update(p, pack_warn.warnings)
+                    pack_detail = pack_by_number.get(p)
+                    notify.on_warnings_update(p, pack_warn.warnings, pack_detail)
                     notify.on_fet_update(p,
                         'ON' if pack_warn.charge_fet    else 'OFF',
-                        'ON' if pack_warn.discharge_fet else 'OFF')
+                        'ON' if pack_warn.discharge_fet else 'OFF',
+                        bool(pack_warn.fully))
                 log_warn_summary(result)
             else:
                 log.error("Warn info error: %s", result)
