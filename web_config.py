@@ -3,7 +3,7 @@ import os
 import time
 import urllib.request
 from datetime import datetime
-from flask import Flask, render_template, request
+from flask import Flask, render_template
 
 import paho.mqtt.client as mqtt
 
@@ -20,8 +20,6 @@ GROUPS = {
         "notify_disconnect",
         "notify_stale_data",
         "notify_stale_recovery",
-        "notify_stale_data_seconds",
-        "notify_stale_data_repeat_seconds",
     ],
     "Notifications": [
         "notify_soc_low",
@@ -173,6 +171,13 @@ def test_mqtt(options):
         return False, f"MQTT connection test failed: {exc}"
 
 
+def _to_float(value, default=None):
+    try:
+        return float(value)
+    except Exception:
+        return default
+
+
 def fetch_mqtt_snapshot(options, timeout=1.2):
     """Read retained MQTT values for a live status overview.
 
@@ -204,6 +209,11 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
         "bms_sn": "Unknown",
         "pack_sn": "Unknown",
         "pack_count": 0,
+        "total_cells": 0,
+        "layout": "Unknown",
+        "overall_status": "Unknown",
+        "overall_class": "unknown",
+        "warning_count": 0,
         "packs": [],
         "fetched_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
@@ -281,16 +291,49 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
                 pack_ids.add(pack_id)
 
     packs = []
+    warning_count = 0
+    total_cells = 0
+
     for pack_id in sorted(pack_ids, key=lambda x: int(x)):
         pfx = f"{base_topic}/pack_{pack_id}"
+
+        cell_prefix = f"{pfx}/v_cells/cell_"
+        cell_numbers = []
+        cell_values = []
+        for topic, value in messages.items():
+            if topic.startswith(cell_prefix):
+                try:
+                    cell_numbers.append(int(topic.rsplit("_", 1)[1]))
+                    fv = _to_float(value)
+                    if fv is not None:
+                        cell_values.append(fv)
+                except Exception:
+                    pass
+
+        cell_count = max(cell_numbers) if cell_numbers else 0
+        total_cells += cell_count
+
+        warnings = messages.get(f"{pfx}/warnings", "Normal") or "Normal"
+        has_warning = warnings != "Normal"
+        if has_warning:
+            warning_count += 1
+
+        voltage = messages.get(f"{pfx}/v_pack", "Unknown")
+        current = messages.get(f"{pfx}/i_pack", "Unknown")
+        soc = messages.get(f"{pfx}/soc", "Unknown")
+        soh = messages.get(f"{pfx}/soh", "Unknown")
+        delta = messages.get(f"{pfx}/cells_max_diff_calc", "Unknown")
+
         packs.append({
             "id": pack_id,
-            "soc": messages.get(f"{pfx}/soc", "Unknown"),
-            "soh": messages.get(f"{pfx}/soh", "Unknown"),
-            "voltage": messages.get(f"{pfx}/v_pack", "Unknown"),
-            "current": messages.get(f"{pfx}/i_pack", "Unknown"),
-            "delta": messages.get(f"{pfx}/cells_max_diff_calc", "Unknown"),
-            "warnings": messages.get(f"{pfx}/warnings", "Normal") or "Normal",
+            "cell_count": cell_count,
+            "soc": soc,
+            "soh": soh,
+            "voltage": voltage,
+            "current": current,
+            "delta": delta,
+            "warnings": warnings,
+            "has_warning": has_warning,
             "charge_fet": messages.get(f"{pfx}/charge_fet", "Unknown"),
             "discharge_fet": messages.get(f"{pfx}/discharge_fet", "Unknown"),
             "fully": messages.get(f"{pfx}/fully", "Unknown"),
@@ -298,6 +341,32 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
 
     result["packs"] = packs
     result["pack_count"] = len(packs)
+    result["total_cells"] = total_cells
+    result["warning_count"] = warning_count
+
+    if packs:
+        cell_layout = ", ".join(f"Pack {p['id']}: {p['cell_count']} cells" for p in packs)
+        result["layout"] = f"{len(packs)} pack(s), {total_cells} cells total — {cell_layout}"
+
+    availability = str(result["availability"]).lower()
+    monitor_state = str(result["monitor_state"]).lower()
+    stale = str(result["stale"]).upper()
+
+    if availability == "offline" or monitor_state in {"disconnected", "stopped"}:
+        result["overall_status"] = "Offline"
+        result["overall_class"] = "offline"
+    elif stale == "ON":
+        result["overall_status"] = "Stale"
+        result["overall_class"] = "stale"
+    elif warning_count > 0:
+        result["overall_status"] = "Warning"
+        result["overall_class"] = "warning"
+    elif result["ok"]:
+        result["overall_status"] = "Healthy"
+        result["overall_class"] = "healthy"
+    else:
+        result["overall_status"] = "Unknown"
+        result["overall_class"] = "unknown"
 
     if not messages and not result["error"]:
         result["error"] = "No retained MQTT values were received. Check mqtt_retain_state and MQTT connection."
