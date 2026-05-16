@@ -1,38 +1,52 @@
-## 2.2.9 - 2026-05-17
+## v2.2.9 — Stable Web Config + Status UI Release
 
-### Added
-- Added `icon.png` for the Home Assistant add-on.
+This release is a stable milestone for the Pace BMS RS232 Monitor Home Assistant add-on.
 
-### Changed
-- Expanded Advanced Config help text to explain `debug_output` levels 0, 1, 2 and 3.
-- Removed `bms_ip` and `bms_port` from the web Config tab.
-- Removed outdated IP/TCP wording from the BMS Connection help popup.
+### Highlights
+
+- Read-only Pace BMS RS232 monitoring
+- Home Assistant MQTT Discovery
+- Direct Telegram notifications
+- Web UI with Status, Config and Events tabs
+- Direct Home Assistant add-on config saving from the web UI
+- Restart Add-on button
+- Test Telegram button
+- Test MQTT button
+- Event history with export options
+- Stale-data monitoring
+- Warning explanation with reference checks
+- Config help popups
+- Home Assistant add-on icon
+- Removed unused `bms_ip` and `bms_port` config fields
+
+### Web UI
+
+The web UI now includes:
+
+- Status tab for live BMS status
+- Config tab for editable add-on settings
+- Events tab for recent monitor events
+- Help buttons on config cards
+- Changed-field highlighting
+- Revert card / discard unsaved changes tools
+
+### Safety
+
+- The monitor remains read-only to the BMS.
+- No BMS settings are changed.
+- No BMS thresholds are written.
+- No charge/discharge FET control commands are sent.
+- Web config saving only writes Home Assistant add-on options.
 
 ### Notes
-- This is a web UI, icon and config-cleanup release.
-- `bms_ip` and `bms_port` should also be removed from `config.yaml` under both `options:` and `schema:`.
-- No BMS protocol changes were made.
-- No BMS write/control commands were added.
 
+After updating, confirm:
 
-# 2.2.9 config.yaml cleanup
-
-Remove these from `options:` if present:
-
-```yaml
-bms_ip: "10.0.0.161"
-bms_port: 5000
-```
-
-Remove these from `schema:` if present:
-
-```yaml
-bms_ip: str
-bms_port: int
-```
-
-Then update:
-
-```yaml
-version: "2.2.9"
-```
+- Add-on starts normally
+- MQTT connects
+- Web UI opens
+- Status tab shows live data
+- Config tab saves correctly
+- Events tab works
+- Telegram test works
+- MQTT test works
