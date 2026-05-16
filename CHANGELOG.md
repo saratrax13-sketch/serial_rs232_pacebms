@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.0.30 - 2026-05-16
+
+### Fixed
+- Fixed Home Assistant Ingress 404 error on Test Telegram and Test MQTT buttons.
+- Changed web UI form actions to use relative Ingress-safe paths.
+
 ## 2.0.29 - 2026-05-16
 
 ### Fixed

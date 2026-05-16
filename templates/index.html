@@ -230,10 +230,11 @@
       <h2>Tools</h2>
       <p>These buttons test Telegram and MQTT only. They do not send commands to the BMS.</p>
       <div class="actions">
-        <form method="post" action="{{ url_for('route_test_telegram') }}">
+        <!-- Home Assistant Ingress needs relative paths here. Absolute /test-telegram causes HA 404. -->
+        <form method="post" action="test-telegram">
           <button type="submit">Test Telegram</button>
         </form>
-        <form method="post" action="{{ url_for('route_test_mqtt') }}">
+        <form method="post" action="test-mqtt">
           <button type="submit">Test MQTT</button>
         </form>
       </div>
