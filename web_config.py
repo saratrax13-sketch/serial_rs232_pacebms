@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import time
+import zipfile
 import urllib.error
 import urllib.request
 from datetime import datetime
@@ -140,11 +141,11 @@ def list_config_backups():
 
                 reason = "Unknown"
                 if name.endswith("-manual.json"):
-                    reason = "Manual"
+                    reason = "Manual Backup"
                 elif name.endswith("-before-save.json"):
-                    reason = "Before Save"
+                    reason = "Automatic Backup Before Save"
                 elif name.endswith("-before-restore.json"):
-                    reason = "Before Restore"
+                    reason = "Automatic Backup Before Restore"
 
                 items.append({
                     "filename": name,
@@ -239,6 +240,64 @@ def load_config_backup(filename):
         return payload, "OK"
     except Exception as exc:
         return None, f"Could not read backup: {exc}"
+
+
+def config_backup_summary():
+    backups = list_config_backups()
+    if not backups:
+        return {
+            "count": 0,
+            "keep_count": MAX_CONFIG_BACKUPS,
+            "latest": "None",
+            "oldest": "None",
+            "folder": CONFIG_BACKUP_DIR,
+        }
+
+    return {
+        "count": len(backups),
+        "keep_count": MAX_CONFIG_BACKUPS,
+        "latest": backups[0].get("created", "Unknown"),
+        "oldest": backups[-1].get("created", "Unknown"),
+        "folder": CONFIG_BACKUP_DIR,
+    }
+
+
+def sanitize_compare_value(key, value):
+    if key in SENSITIVE_KEYS:
+        if value in (None, ""):
+            return "Blank / not set"
+        return "••••••••"
+    return value
+
+
+def compare_options(current_options, backup_options):
+    keys = sorted(set(current_options.keys()) | set(backup_options.keys()))
+    changes = []
+
+    for key in keys:
+        current_value = current_options.get(key, "<missing>")
+        backup_value = backup_options.get(key, "<missing>")
+
+        if current_value != backup_value:
+            changes.append({
+                "key": key,
+                "current": sanitize_compare_value(key, current_value),
+                "backup": sanitize_compare_value(key, backup_value),
+            })
+
+    return changes
+
+
+def delete_config_backup(filename):
+    path = safe_backup_path(filename)
+    if not path:
+        return False, "Backup file not found or invalid."
+
+    try:
+        os.remove(path)
+        return True, f"Deleted backup: {filename}"
+    except Exception as exc:
+        return False, f"Could not delete backup: {exc}"
 
 
 def append_event(event_type: str, title: str, detail: str = "", level: str = "info"):
@@ -931,7 +990,7 @@ def restart_addon():
     return False, f"Restart request failed: {message}"
 
 
-def render_index(action_result="", action_message="", active_tab="status"):
+def render_index(action_result="", action_message="", active_tab="status", compare_data=None, restore_preview=None):
     options, error = load_options()
     grouped = build_grouped_config(options)
 
@@ -951,6 +1010,9 @@ def render_index(action_result="", action_message="", active_tab="status"):
         active_tab=active_tab,
         config_yaml=generate_config_yaml(options),
         config_backups=list_config_backups(),
+        config_backup_summary=config_backup_summary(),
+        compare_data=compare_data,
+        restore_preview=restore_preview,
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     )
 
@@ -1059,7 +1121,7 @@ def route_save_config():
         return render_index(
             "ok",
             message + " Restart required for monitor runtime changes to apply.",
-            active_tab="config",
+            active_tab="backups",
         )
 
     return render_index("warn", message, active_tab="config")
@@ -1069,8 +1131,74 @@ def route_save_config():
 def route_restart_addon():
     ok, message = restart_addon()
     append_event("restart", "Add-on restart requested", message, "warn" if ok else "danger")
-    return render_index("ok" if ok else "warn", message, active_tab="config")
+    return render_index("ok" if ok else "warn", message, active_tab="backups")
 
+
+
+
+@app.route("/download-all-config-backups.zip", methods=["GET"])
+def route_download_all_config_backups_zip():
+    ensure_config_backup_dir()
+    backups = list(Path(CONFIG_BACKUP_DIR).glob("options-backup-*.json"))
+
+    memory_file = io.BytesIO()
+    with zipfile.ZipFile(memory_file, "w", zipfile.ZIP_DEFLATED) as zf:
+        for path in backups:
+            zf.write(path, arcname=path.name)
+
+    memory_file.seek(0)
+    return Response(
+        memory_file.getvalue(),
+        mimetype="application/zip",
+        headers={"Content-Disposition": "attachment; filename=pacebms-config-backups.zip"},
+    )
+
+
+@app.route("/delete-config-backup/<filename>", methods=["POST"])
+def route_delete_config_backup(filename):
+    ok, message = delete_config_backup(filename)
+    append_event("config_backup_delete", "Configuration backup deleted" if ok else "Configuration backup delete failed", message, "ok" if ok else "warn")
+    return render_index("ok" if ok else "warn", message, active_tab="backups")
+
+
+@app.route("/compare-config-backup/<filename>", methods=["GET"])
+def route_compare_config_backup(filename):
+    options, error = load_options()
+    if error:
+        return render_index("warn", error, active_tab="config")
+
+    backup_options, read_message = load_config_backup(filename)
+    if backup_options is None:
+        return render_index("warn", read_message, active_tab="backups")
+
+    changes = compare_options(options, backup_options)
+    compare_data = {
+        "filename": filename,
+        "change_count": len(changes),
+        "changes": changes,
+    }
+
+    return render_index("ok", f"Comparison loaded for {filename}.", active_tab="backups", compare_data=compare_data)
+
+
+@app.route("/preview-restore-config-backup/<filename>", methods=["GET"])
+def route_preview_restore_config_backup(filename):
+    options, error = load_options()
+    if error:
+        return render_index("warn", error, active_tab="config")
+
+    backup_options, read_message = load_config_backup(filename)
+    if backup_options is None:
+        return render_index("warn", read_message, active_tab="backups")
+
+    changes = compare_options(options, backup_options)
+    restore_preview = {
+        "filename": filename,
+        "change_count": len(changes),
+        "changes": changes,
+    }
+
+    return render_index("warn", f"Restore preview loaded for {filename}. Review changes before restoring.", active_tab="backups", restore_preview=restore_preview)
 
 
 @app.route("/download-config-backup/<filename>", methods=["GET"])
@@ -1091,9 +1219,10 @@ def route_download_config_backup(filename):
 
 @app.route("/create-config-backup", methods=["POST"])
 def route_create_config_backup():
+    requested_tab = request.form.get("active_tab", "backups")
     ok, message, filename = create_config_backup("manual")
     append_event("config_backup", "Manual configuration backup", message, "ok" if ok else "warn")
-    return render_index("ok" if ok else "warn", message, active_tab="config")
+    return render_index("ok" if ok else "warn", message, active_tab=requested_tab)
 
 
 @app.route("/restore-config-backup/<filename>", methods=["POST"])
@@ -1101,7 +1230,7 @@ def route_restore_config_backup(filename):
     backup_options, read_message = load_config_backup(filename)
     if backup_options is None:
         append_event("config_restore", "Configuration restore failed", read_message, "warn")
-        return render_index("warn", read_message, active_tab="config")
+        return render_index("warn", read_message, active_tab="backups")
 
     pre_ok, pre_message, pre_filename = create_config_backup("before-restore")
     append_event("config_backup", "Pre-restore configuration backup", pre_message, "ok" if pre_ok else "warn")
@@ -1115,11 +1244,11 @@ def route_restore_config_backup(filename):
         return render_index(
             "ok",
             "Configuration restored from backup. Restart required for runtime changes to apply.",
-            active_tab="config",
+            active_tab="backups",
         )
 
     append_event("config_restore", "Configuration restore failed", message, "warn")
-    return render_index("warn", f"Restore failed: {message}", active_tab="config")
+    return render_index("warn", f"Restore failed: {message}", active_tab="backups")
 
 
 @app.route("/export-config.yaml", methods=["GET"])

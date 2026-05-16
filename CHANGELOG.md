@@ -1,16 +1,14 @@
-## 2.3.2 - 2026-05-17
-
-### Fixed
-- Fixed web UI header icon not displaying correctly by serving `icon.png` through Flask.
-- Improved icon sizing and fallback behaviour in the web UI header.
+## 2.3.6 - 2026-05-17
 
 ### Changed
-- Improved Configuration Backups section layout.
-- Backups now show as a clearer table with Type, Created time, Backup File, Size and Actions.
-- Restore confirmation now identifies the selected backup file, created time and backup type.
-- Added backup type labels such as Manual, Before Save and Before Restore.
+- Increased configuration backup retention from 3 to 10 backups.
+- Added a dedicated Backups tab.
+- Moved the full backup table out of the Config tab to reduce clutter.
+- Config tab now shows a compact Backup Safety summary only.
+- Backups tab now contains full backup management: create, download all ZIP, compare, restore preview, download and delete.
+- Added backup filters: All, Manual, Before Save and Before Restore.
 
 ### Notes
-- This is a web UI usability and icon fix release.
+- Backup restore changes Home Assistant add-on options only.
+- This does not write to the BMS.
 - No BMS protocol changes were made.
-- No BMS write/control commands were added.

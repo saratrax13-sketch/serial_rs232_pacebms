@@ -842,6 +842,7 @@
       <a class="tab-button {% if active_tab == 'status' %}active{% endif %}" href="?tab=status">Status</a>
       <a class="tab-button {% if active_tab == 'config' %}active{% endif %}" href="?tab=config">Config</a>
       <a class="tab-button {% if active_tab == 'events' %}active{% endif %}" href="?tab=events">Events</a>
+      <a class="tab-button {% if active_tab == 'backups' %}active{% endif %}" href="?tab=backups">Backups</a>
     </nav>
 
     {% if error %}
@@ -1030,51 +1031,27 @@
         </div>
 
         <section class="card wide-card" style="margin-top: 16px; margin-bottom: 16px;">
-          <h2>Configuration Backups</h2>
-          <p>Backups are stored locally in <code>/data/config_backups/</code>. A backup is created before every web config save and before every restore.</p>
+          <h2>Backup Safety</h2>
+          <p>A backup is created before every web config save and before every restore.</p>
+
+          <div class="status-grid">
+            <div class="status-tile">
+              <div class="tile-label">Backups Stored</div>
+              <div class="tile-value">{{ config_backup_summary.count }} / {{ config_backup_summary.keep_count }}</div>
+            </div>
+            <div class="status-tile">
+              <div class="tile-label">Latest Backup</div>
+              <div class="tile-value">{{ config_backup_summary.latest }}</div>
+            </div>
+          </div>
 
           <div class="actions">
             <form method="post" action="create-config-backup">
+              <input type="hidden" name="active_tab" value="config">
               <button type="submit">Create Backup Now</button>
             </form>
+            <a class="button-link" href="?tab=backups">Manage Backups</a>
           </div>
-
-          {% if config_backups %}
-          <table class="backup-table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Created</th>
-                <th>Backup File</th>
-                <th>Size</th>
-                <th style="text-align: right;">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for backup in config_backups %}
-              <tr>
-                <td data-label="Type"><span class="backup-type">{{ backup.reason }}</span></td>
-                <td data-label="Created">{{ backup.created_short }}</td>
-                <td data-label="Backup File">
-                  <div class="backup-name">{{ backup.filename }}</div>
-                  <div class="backup-meta">This row is the selected backup for the action buttons.</div>
-                </td>
-                <td data-label="Size">{{ backup.size }} bytes</td>
-                <td data-label="Actions">
-                  <div class="backup-actions">
-                    <a class="button-link" href="download-config-backup/{{ backup.filename }}">Download</a>
-                    <form method="post" action="restore-config-backup/{{ backup.filename }}" onsubmit="return confirm(`Restore this configuration backup?\n\nFile: {{ backup.filename }}\nCreated: {{ backup.created }}\nType: {{ backup.reason }}\n\nA backup of the current config will be created first.\nRestart is required afterwards.`);">
-                      <button class="danger-button" type="submit">Restore</button>
-                    </form>
-                  </div>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-          {% else %}
-          <p>No configuration backups yet. A backup will be created before the next web config save.</p>
-          {% endif %}
         </section>
 
         <form id="config-save-form" method="post" action="save-config" onsubmit="return confirmSaveConfig();">
@@ -1129,6 +1106,157 @@
           Sensitive values are not shown. Enter a new value only when you want to change it.
         </p>
       </section>
+    </section>
+
+    <section class="tab-panel {% if active_tab == 'backups' %}active{% endif %}">
+      <section class="card wide-card">
+        <h2>Configuration Backups</h2>
+        <p>Backups are stored locally in <code>/data/config_backups/</code>. A backup is created before every web config save and before every restore.</p>
+
+        <div class="status-grid">
+          <div class="status-tile">
+            <div class="tile-label">Backups Stored</div>
+            <div class="tile-value">{{ config_backup_summary.count }} / {{ config_backup_summary.keep_count }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Latest Backup</div>
+            <div class="tile-value">{{ config_backup_summary.latest }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Oldest Backup</div>
+            <div class="tile-value">{{ config_backup_summary.oldest }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Backup Folder</div>
+            <div class="tile-value">{{ config_backup_summary.folder }}</div>
+          </div>
+        </div>
+
+        <div class="helper-note">
+          The latest 10 backups are kept. Restoring a backup changes Home Assistant add-on options only and does not write to the BMS. Restart is required after restore.
+        </div>
+
+        <div class="actions">
+          <form method="post" action="create-config-backup">
+            <input type="hidden" name="active_tab" value="backups">
+            <button type="submit">Create Backup Now</button>
+          </form>
+          <a class="button-link" href="download-all-config-backups.zip">Download All ZIP</a>
+        </div>
+
+        <div class="actions" style="margin-top: 12px;">
+          <button type="button" onclick="filterBackups('all')">All</button>
+          <button type="button" onclick="filterBackups('manual')">Manual</button>
+          <button type="button" onclick="filterBackups('before-save')">Before Save</button>
+          <button type="button" onclick="filterBackups('before-restore')">Before Restore</button>
+        </div>
+
+        {% if config_backups %}
+        <table class="backup-table" id="backup-table">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Created</th>
+              <th>Backup File</th>
+              <th>Size</th>
+              <th style="text-align: right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for backup in config_backups %}
+            <tr data-backup-type="{% if backup.reason == 'Manual Backup' %}manual{% elif backup.reason == 'Automatic Backup Before Save' %}before-save{% elif backup.reason == 'Automatic Backup Before Restore' %}before-restore{% else %}other{% endif %}">
+              <td data-label="Type"><span class="backup-type">{{ backup.reason }}</span></td>
+              <td data-label="Created">{{ backup.created_short }}</td>
+              <td data-label="Backup File">
+                <div class="backup-name">{{ backup.filename }}</div>
+                <div class="backup-meta">This row is the selected backup for the action buttons.</div>
+              </td>
+              <td data-label="Size">{{ backup.size }} bytes</td>
+              <td data-label="Actions">
+                <div class="backup-actions">
+                  <a class="button-link" href="compare-config-backup/{{ backup.filename }}">Compare</a>
+                  <a class="button-link" href="preview-restore-config-backup/{{ backup.filename }}">Restore Preview</a>
+                  <a class="button-link" href="download-config-backup/{{ backup.filename }}">Download</a>
+                  <form method="post" action="delete-config-backup/{{ backup.filename }}" onsubmit="return confirm(`Delete this backup?\n\nFile: {{ backup.filename }}\n\nThis cannot be undone.`);">
+                    <button class="danger-button" type="submit">Delete</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p>No configuration backups yet. A backup will be created before the next web config save.</p>
+        {% endif %}
+      </section>
+
+        {% if compare_data %}
+        <section class="card wide-card" style="margin-top: 16px; margin-bottom: 16px;">
+          <h2>Backup Compare</h2>
+          <p>Comparing current configuration with <code>{{ compare_data.filename }}</code>.</p>
+          {% if compare_data.change_count == 0 %}
+            <div class="normal-box">No differences found.</div>
+          {% else %}
+            <div class="helper-note">{{ compare_data.change_count }} difference(s) found. Sensitive values are hidden.</div>
+            <table class="backup-table">
+              <thead>
+                <tr>
+                  <th>Setting</th>
+                  <th>Current Value</th>
+                  <th>Backup Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for change in compare_data.changes %}
+                <tr>
+                  <td data-label="Setting"><strong>{{ change.key }}</strong></td>
+                  <td data-label="Current Value">{{ change.current }}</td>
+                  <td data-label="Backup Value">{{ change.backup }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% endif %}
+        </section>
+        {% endif %}
+
+        {% if restore_preview %}
+        <section class="card wide-card" style="margin-top: 16px; margin-bottom: 16px;">
+          <h2>Restore Preview</h2>
+          <p>Review what will change if you restore <code>{{ restore_preview.filename }}</code>.</p>
+          {% if restore_preview.change_count == 0 %}
+            <div class="normal-box">No differences found. Restore is not needed.</div>
+          {% else %}
+            <div class="alert">This restore will change {{ restore_preview.change_count }} setting(s). A backup of the current configuration will be created first. Restart is required afterwards.</div>
+            <table class="backup-table">
+              <thead>
+                <tr>
+                  <th>Setting</th>
+                  <th>Current Value</th>
+                  <th>Restored Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for change in restore_preview.changes %}
+                <tr>
+                  <td data-label="Setting"><strong>{{ change.key }}</strong></td>
+                  <td data-label="Current Value">{{ change.current }}</td>
+                  <td data-label="Restored Value">{{ change.backup }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            <form method="post" action="restore-config-backup/{{ restore_preview.filename }}" onsubmit="return confirm(`Restore this backup now?\\n\\nFile: {{ restore_preview.filename }}\\n\\nA backup of the current config will be created first. Restart is required afterwards.`);">
+              <div class="actions">
+                <button class="danger-button" type="submit">Restore This Backup Now</button>
+              </div>
+            </form>
+          {% endif %}
+        </section>
+        {% endif %}
+
+
     </section>
 
     <section class="tab-panel {% if active_tab == 'events' %}active{% endif %}">
@@ -1613,6 +1741,19 @@ Restart the add-on afterwards for runtime changes to apply.`);
         closeConfigHelp();
       }
     });
+
+
+  
+    function filterBackups(type) {
+      const table = document.getElementById("backup-table");
+      if (!table) return;
+
+      table.querySelectorAll("tbody tr").forEach(function (row) {
+        const rowType = row.dataset.backupType || "other";
+        const show = type === "all" || rowType === type;
+        row.style.display = show ? "" : "none";
+      });
+    }
 
 
   </script>
