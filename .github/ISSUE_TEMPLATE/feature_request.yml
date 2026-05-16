@@ -1,0 +1,52 @@
+name: Feature request
+description: Suggest an improvement for the Pace BMS add-on
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement.
+
+        This project is intended to remain read-only to the BMS.
+
+  - type: textarea
+    id: feature
+    attributes:
+      label: Feature request
+      description: What would you like to add or improve?
+      placeholder: "I would like..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reason
+    attributes:
+      label: Why is this useful?
+      placeholder: "This would help because..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - Web UI
+        - Telegram notifications
+        - MQTT / Home Assistant Discovery
+        - Documentation
+        - Battery/protocol support
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety
+      options:
+        - label: This request does not require writing/control commands to the BMS.
+          required: false
+        - label: This request may involve BMS write/control commands and needs careful review.
+          required: false

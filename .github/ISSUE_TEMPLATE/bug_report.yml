@@ -1,0 +1,94 @@
+name: Bug report
+description: Report a problem with the Pace BMS add-on
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug.
+
+        Please do not include real secrets such as Telegram tokens, chat IDs, MQTT passwords, or private credentials.
+
+  - type: input
+    id: addon_version
+    attributes:
+      label: Add-on version
+      description: Example: 2.0.42
+      placeholder: "2.0.42"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: connection_type
+    attributes:
+      label: Connection type
+      options:
+        - Serial
+        - TCP/IP
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: battery_model
+    attributes:
+      label: Battery model / BMS type
+      description: Example: Hubble AM2 / Pace P13S
+      placeholder: "Hubble AM2 / Pace P13S"
+    validations:
+      required: false
+
+  - type: input
+    id: pack_count
+    attributes:
+      label: Number of packs
+      placeholder: "2"
+    validations:
+      required: false
+
+  - type: input
+    id: cell_count
+    attributes:
+      label: Cell count per pack
+      placeholder: "13"
+    validations:
+      required: false
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the issue clearly.
+      placeholder: "The add-on starts but..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+      placeholder: "I expected..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste relevant logs. Remove secrets before posting.
+      render: text
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I removed secrets from logs/config before posting.
+          required: true
+        - label: I confirmed the add-on version.
+          required: true
+        - label: I have checked the README troubleshooting section.
+          required: false
