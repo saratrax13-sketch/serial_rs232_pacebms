@@ -1,6 +1,6 @@
 # =============================================================================
 # bms_monitor.py — Pace BMS to MQTT Bridge
-# Version : 2.2.1
+# Version : 2.2.2
 # Changed : 2026-05-16
 # Changes :
 #   - Fixed warning-frame parser alignment for Pace frames with prefix byte + pack count
@@ -19,6 +19,7 @@
 #   - Delta report at configurable time (worst spread in window)
 #   - All notifications togglable via config
 #   - Timestamp added to MQTT error payload to prevent stale retain
+#   - BMS version, BMS serial and pack serial are now retained MQTT topics
 # =============================================================================
 import paho.mqtt.client as mqtt
 import socket
@@ -993,9 +994,11 @@ def main():
 
     base = config['mqtt_base_topic']
     client.publish(f"{base}/availability", "offline", qos=1, retain=True)
-    client.publish(f"{base}/bms_version",  bms_version)
-    client.publish(f"{base}/bms_sn",       bms_sn)
-    client.publish(f"{base}/pack_sn",      pack_sn)
+    # Retain static identity topics so the Web UI and Home Assistant can read
+    # them immediately after reconnect/restart without waiting for a fresh publish.
+    client.publish(f"{base}/bms_version",  bms_version, qos=1, retain=True)
+    client.publish(f"{base}/bms_sn",       bms_sn,      qos=1, retain=True)
+    client.publish(f"{base}/pack_sn",      pack_sn,     qos=1, retain=True)
 
     # ── Startup notification ──────────────────────────────────────────────────
     startup_payload = json.dumps({

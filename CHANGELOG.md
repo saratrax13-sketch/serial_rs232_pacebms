@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.0.25 - 2026-05-16
+
+### Fixed
+- Retained BMS identity MQTT topics: `bms_version`, `bms_sn`, and `pack_sn`.
+- Fixed duplicate `Battery Fully Charged` Telegram messages after startup/midnight reset.
+- High-SOC notifications now only reset after SOC drops below `notify_soc_high_reset`.
+
+### Notes
+- This remains read-only. No write/control commands are sent to the BMS.
+
 ## 2.0.24 - 2026-05-16
 
 ### Fixed

@@ -1,11 +1,12 @@
 # =============================================================================
 # bms_notify.py — Notification Engine for Pace BMS Monitor
-# Version : 1.1.0
+# Version : 1.1.1
 # Changed : 2026-05-16
 # Changes :
 #   - Disconnect alert now uses retry_count >= threshold and logs skipped alerts
 #   - Detailed warning messages use latest analog data and configured thresholds
 #   - Charge FET OFF can be ignored when pack is fully charged
+#   - Fixed duplicate SOC high notifications caused by startup/midnight reset
 # Handles all Telegram notifications directly from Python.
 # No dependency on HA automations.
 # =============================================================================
@@ -76,7 +77,7 @@ class NotifyState:
         # Energy tracking — per pack
         self.kwh_charged          = {}   # {pack_num: float}
         self.kwh_discharged       = {}   # {pack_num: float}
-        self.energy_reset_day     = None  # date of last midnight reset
+        self.energy_reset_day     = datetime.now().date()  # date of last midnight reset
 
         # Worst cell deviation tracking — per pack (for 19:00 report)
         self.worst_cell_dev       = {}   # {pack_num: {'cell': n, 'dev': float, 'time': str}}
@@ -117,9 +118,14 @@ class NotifyState:
             self.kwh_charged           = {}
             self.kwh_discharged        = {}
             self.worst_cell_dev        = {}
+            # Reset low-SOC threshold notifications daily so a battery that remains
+            # low can alert again the next day.
             self.soc_thresholds_hit    = {}
-            self.soc_high_notified     = {}
-            self.soc_high_reset_ready  = {}
+
+            # Do NOT reset high-SOC notification state here. High-SOC alerts
+            # must reset only after SOC drops below notify_soc_high_reset.
+            # Resetting this at startup/midnight caused duplicate "Battery
+            # Fully Charged" Telegram messages while the pack was still full.
             self.daily_summary_sent_today = False
             self.delta_reported_today  = False
             log.info("Midnight reset: energy, SOC thresholds, daily summary flags cleared")
