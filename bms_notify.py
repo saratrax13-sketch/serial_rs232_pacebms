@@ -1,7 +1,9 @@
 # =============================================================================
 # bms_notify.py — Notification Engine for Pace BMS Monitor
-# Version : 1.0.0
+# Version : 1.0.1
 # Changed : 2026-05-16
+# Changes :
+#   - Disconnect alert now uses retry_count >= threshold and logs skipped alerts
 # Handles all Telegram notifications directly from Python.
 # No dependency on HA automations.
 # =============================================================================
@@ -143,16 +145,48 @@ class NotifyState:
     # ── Disconnect / Recovery ─────────────────────────────────────────────────
 
     def on_disconnect(self, retry_count: int, offline_str: str):
+        """Send one disconnect notification once the retry threshold is reached.
+
+        Uses >= instead of == so a missed/interrupted retry cannot skip the alert.
+        Also logs why an alert is not sent, which helps diagnose config issues.
+        """
         if not self._notify_enabled('notify_disconnect'):
+            log.warning(
+                "Disconnect notification skipped: notify_enabled=%s, notify_disconnect=%s",
+                self.config.get('notify_enabled', True),
+                self.config.get('notify_disconnect', True),
+            )
             return
-        threshold = int(self.config.get('notify_retry_count', 3))
-        if retry_count == threshold and not self.disconnect_notified:
+
+        try:
+            threshold = int(self.config.get('notify_retry_count', 3))
+        except Exception:
+            threshold = 3
+
+        threshold = max(1, threshold)
+
+        if self.disconnect_notified:
+            log.debug("Disconnect notification already sent; retry=%s", retry_count)
+            return
+
+        if retry_count >= threshold:
             self.disconnect_notified = True
+            log.info(
+                "Disconnect notification threshold reached: retry=%s threshold=%s",
+                retry_count,
+                threshold,
+            )
             telegram_send(self.config,
                 f"BMS Disconnected\n"
                 f"Offline: {offline_str}\n"
                 f"Retries: {retry_count}\n"
                 f"Time: {datetime.now().strftime('%H:%M:%S')}")
+        else:
+            log.info(
+                "Disconnect notification waiting: retry=%s threshold=%s",
+                retry_count,
+                threshold,
+            )
 
     def on_recovery(self, retry_count: int, offline_str: str):
         if not self._notify_enabled('notify_disconnect'):
