@@ -302,6 +302,53 @@
       font-weight: 800;
     }
 
+    .events-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .event-item {
+      display: grid;
+      grid-template-columns: 120px minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
+      padding: 12px;
+      border-radius: 14px;
+      background: rgba(15, 23, 42, 0.66);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .event-time {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .event-title {
+      color: #f8fafc;
+      font-weight: 900;
+      margin-bottom: 3px;
+    }
+
+    .event-detail {
+      color: #cbd5e1;
+      font-size: 13px;
+      line-height: 1.45;
+      word-break: break-word;
+    }
+
+    .event-level {
+      text-transform: uppercase;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .event-level.ok { color: var(--green); }
+    .event-level.info { color: var(--cyan); }
+    .event-level.warn { color: var(--yellow); }
+    .event-level.danger { color: var(--red); }
+
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
@@ -349,6 +396,8 @@
       .row { grid-template-columns: 1fr; gap: 4px; }
       .value { text-align: left; }
       .metric-grid { grid-template-columns: repeat(2, 1fr); }
+      .event-item { grid-template-columns: 1fr auto; }
+      .event-time { grid-column: 1 / -1; }
     }
   </style>
 </head>
@@ -503,6 +552,28 @@
       {% endif %}
     </section>
     {% endif %}
+
+    <section class="card wide-card">
+      <h2>Last Events</h2>
+      {% if events %}
+        <div class="events-list">
+          {% for event in events[:10] %}
+          <div class="event-item">
+            <div class="event-time">{{ event.time }}</div>
+            <div>
+              <div class="event-title">{{ event.title }}</div>
+              {% if event.detail %}
+              <div class="event-detail">{{ event.detail }}</div>
+              {% endif %}
+            </div>
+            <div class="event-level {{ event.level }}">{{ event.level }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p>No events logged yet. Events will appear after startup, tests, disconnects, stale-data alerts, and recoveries.</p>
+      {% endif %}
+    </section>
 
     <section class="grid">
       {% for group_name, items in grouped.items() %}

@@ -1,8 +1,10 @@
 # =============================================================================
 # bms_monitor.py — Pace BMS to MQTT Bridge
-# Version : 2.0.32
+# Version : 2.0.35
 # Changed : 2026-05-16
 # Changes :
+#   - Added persistent last-events history for web UI
+#   - Logs startup, shutdown, disconnect, recovery, stale and fresh events
 #   - Added stale data detection for analog and warning reads
 #   - Added retained MQTT stale status topics for web UI
 #   - Added optional Telegram stale-data and recovery alerts
@@ -49,6 +51,10 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s"
 )
 log = logging.getLogger("bmspace")
+
+# ─── Web UI event history ────────────────────────────────────────────────
+EVENT_LOG_PATH = "/data/events.json"
+MAX_EVENT_LOG_ENTRIES = 50
 
 # ─── Telegram direct notify (used before MQTT is available) ─────────────────
 
@@ -1011,6 +1017,42 @@ def main():
     publish_monitor_status("state", "starting")
     publish_monitor_status("started_at", int(time.time()))
 
+    def append_event(event_type: str, title: str, detail: str = "", level: str = "info"):
+        """Append a small event to /data/events.json for the web UI.
+
+        This is local add-on status history only. It does not write to the BMS.
+        """
+        try:
+            event = {
+                "time": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "ts": int(time.time()),
+                "type": str(event_type),
+                "level": str(level),
+                "title": str(title),
+                "detail": str(detail or ""),
+            }
+
+            events = []
+            if os.path.exists(EVENT_LOG_PATH):
+                with open(EVENT_LOG_PATH, "r", encoding="utf-8") as f:
+                    try:
+                        events = json.load(f)
+                    except Exception:
+                        events = []
+
+            if not isinstance(events, list):
+                events = []
+
+            events.insert(0, event)
+            events = events[:MAX_EVENT_LOG_ENTRIES]
+
+            with open(EVENT_LOG_PATH, "w", encoding="utf-8") as f:
+                json.dump(events, f, indent=2)
+        except Exception as e:
+            log.debug("Could not append web UI event: %s", e)
+
+    append_event("startup", "Monitor starting", f"SN: {bms_sn}", "info")
+
     client.publish(f"{base}/availability", "offline", qos=1, retain=True)
     client.publish(f"{base}/bms_version",  bms_version, qos=1, retain=True)
     client.publish(f"{base}/bms_sn",       bms_sn, qos=1, retain=True)
@@ -1025,6 +1067,7 @@ def main():
     client.publish(f"{base}/bms_status", startup_payload, qos=1, retain=True)
     log.info("Startup notification published")
     publish_monitor_status("state", "running")
+    append_event("startup", "Monitor started", f"SN: {bms_sn}", "ok")
 
     scan_interval      = float(config.get('scan_interval', 30))
 
@@ -1046,6 +1089,7 @@ def main():
             client.publish(f"{base}/bms_status", shutdown_payload, qos=1, retain=True)
             client.publish(f"{base}/availability", "offline", qos=1, retain=True)
             publish_monitor_status("state", "stopped")
+            append_event("shutdown", "Monitor stopped", f"SN: {bms_sn}", "warn")
             client.loop(timeout=1.0)
             notify.on_shutdown(bms_sn)
             time.sleep(0.5)
@@ -1119,6 +1163,7 @@ def main():
                 if should_send:
                     stale_notified = True
                     last_stale_notify = now
+                    append_event("stale", "BMS data stale", reason, "warn")
                     telegram_send(config,
                         "BMS Data Stale\n"
                         f"Reason: {reason}\n"
@@ -1134,6 +1179,7 @@ def main():
         if stale_notified:
             stale_notified = False
             if stale_recovery_enabled:
+                append_event("fresh", "BMS data fresh again", f"Analog age: {analog_age}s; warning age: {warn_age}s", "ok")
                 telegram_send(config,
                     "BMS Data Fresh Again\n"
                     f"Analog age: {analog_age}s\n"
@@ -1157,6 +1203,7 @@ def main():
 
         client.publish(f"{base}/availability", "offline", qos=1, retain=True)
         publish_monitor_status("state", "disconnected")
+        append_event("disconnect", "BMS disconnected", reason, "danger")
 
         error_payload = json.dumps({
             "status": "disconnected",
@@ -1219,6 +1266,7 @@ def main():
                     log.info("BMS recovered after %s (%d retries)", offline_str, bms_retry_count)
                     publish_monitor_status("state", "running")
                     publish_monitor_status("last_recovery_epoch", int(time.time()))
+                    append_event("recovery", "BMS reconnected", f"Offline: {offline_str}; retries: {bms_retry_count}", "ok")
                     bms_error_published  = False
                     bms_retry_count      = 0
                     bms_disconnect_time  = None

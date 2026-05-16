@@ -10,6 +10,8 @@ import paho.mqtt.client as mqtt
 app = Flask(__name__)
 
 OPTIONS_PATH = "/data/options.json"
+EVENT_LOG_PATH = "/data/events.json"
+MAX_EVENT_LOG_ENTRIES = 50
 
 GROUPS = {
     "Telegram": [
@@ -87,6 +89,40 @@ def load_options():
             return json.load(f), None
     except Exception as exc:
         return {}, f"Could not read /data/options.json: {exc}"
+
+
+def load_events():
+    try:
+        if not os.path.exists(EVENT_LOG_PATH):
+            return []
+        with open(EVENT_LOG_PATH, "r", encoding="utf-8") as f:
+            events = json.load(f)
+        if not isinstance(events, list):
+            return []
+        return events[:MAX_EVENT_LOG_ENTRIES]
+    except Exception:
+        return []
+
+
+def append_event(event_type: str, title: str, detail: str = "", level: str = "info"):
+    try:
+        event = {
+            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "ts": int(time.time()),
+            "type": str(event_type),
+            "level": str(level),
+            "title": str(title),
+            "detail": str(detail or ""),
+        }
+
+        events = load_events()
+        events.insert(0, event)
+        events = events[:MAX_EVENT_LOG_ENTRIES]
+
+        with open(EVENT_LOG_PATH, "w", encoding="utf-8") as f:
+            json.dump(events, f, indent=2)
+    except Exception:
+        pass
 
 
 def safe_value(key, value):
@@ -397,6 +433,7 @@ def render_index(action_result="", action_message=""):
         error=error,
         action_result=action_result,
         action_message=action_message,
+        events=load_events(),
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     )
 
@@ -413,6 +450,7 @@ def route_test_telegram():
         return render_index("warn", error)
 
     ok, message = test_telegram(options)
+    append_event("telegram_test", "Telegram test", message, "ok" if ok else "warn")
     return render_index("ok" if ok else "warn", message)
 
 
@@ -423,6 +461,7 @@ def route_test_mqtt():
         return render_index("warn", error)
 
     ok, message = test_mqtt(options)
+    append_event("mqtt_test", "MQTT test", message, "ok" if ok else "warn")
     return render_index("ok" if ok else "warn", message)
 
 

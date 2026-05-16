@@ -1,14 +1,13 @@
-## 2.0.34 - 2026-05-16
+## 2.0.35 - 2026-05-16
 
-### Changed
-- Polished the Home Assistant Ingress web UI.
-- Added clearer Overall Status summary card.
-- Added Detected Battery Layout summary.
-- Reworked pack status into individual pack cards.
-- Added status badges for Healthy, Warning, Stale, Offline, Normal, and FET states.
-- Improved spacing, visual hierarchy, and mobile layout.
+### Added
+- Added persistent Last Events / Status History section to the Home Assistant Ingress web UI.
+- Added local `/data/events.json` event history storage.
+- Added monitor events for startup, shutdown, disconnect, recovery, stale data and fresh data recovery.
+- Added web UI events for Test Telegram and Test MQTT actions.
+- Event history keeps the latest 50 events and displays the latest 10 in the web UI.
 
 ### Notes
-- This is a web UI polish release.
-- No BMS protocol changes were made.
-- The web UI remains read-only to the BMS.
+- Event history is local to the add-on data folder.
+- This feature is read-only to the BMS.
+- No BMS protocol or control commands were added.
