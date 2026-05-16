@@ -1361,10 +1361,6 @@ Restart the add-on afterwards for runtime changes to apply.`);
             <li><code>bms_serial</code> should use a stable path such as <code>/dev/serial/by-id/...</code>.</li>
             <li><code>bms_baudrate</code> is usually <code>9600</code> for Pace RS232.</li>
           </ul>
-          <h3>Network mode</h3>
-          <ul>
-            <li><code>bms_ip</code> and <code>bms_port</code> are used only when using TCP/IP mode.</li>
-          </ul>
           <h3>Polling</h3>
           <ul>
             <li><code>scan_interval</code> controls how often the add-on polls the BMS.</li>
@@ -1375,18 +1371,25 @@ Restart the add-on afterwards for runtime changes to apply.`);
       "Advanced": {
         title: "Advanced Settings",
         html: `
-          <p>These settings are mainly for troubleshooting and topic formatting.</p>
+          <p>These settings are mainly for troubleshooting and MQTT topic formatting.</p>
+
           <h3>Debugging</h3>
           <ul>
-            <li><code>debug_output</code> should normally be <code>0</code>.</li>
-            <li>Use higher debug levels only when troubleshooting, because logs can become very verbose.</li>
+            <li><code>debug_output = 0</code> — normal operation. Recommended for daily use. Shows normal startup, MQTT, read status and important warnings.</li>
+            <li><code>debug_output = 1</code> — extra parser/detail logging. Useful when checking how the add-on interprets BMS data.</li>
+            <li><code>debug_output = 2</code> — more detailed polling and processing logs. Useful for deeper troubleshooting, but can make logs busier.</li>
+            <li><code>debug_output = 3</code> — raw protocol/frame troubleshooting. Use this when diagnosing BMS communication problems. Logs can become very verbose.</li>
           </ul>
+          <p>For normal use, keep <code>debug_output</code> on <code>0</code>. Only increase it while troubleshooting, then return it to <code>0</code>.</p>
+
           <h3>Topic formatting</h3>
           <ul>
             <li><code>zero_pad_number_cells</code> controls whether cell numbers use leading zeroes, for example <code>cell_01</code>.</li>
             <li><code>zero_pad_number_packs</code> controls pack number formatting, for example <code>pack_01</code>.</li>
           </ul>
-          <p>Advanced settings do not change the BMS. They only affect logging and topic naming.</p>
+
+          <h3>Safety note</h3>
+          <p>Advanced settings do not change the BMS. They only affect logging and MQTT topic naming.</p>
         `
       }
     };

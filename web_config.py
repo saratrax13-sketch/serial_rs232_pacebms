@@ -15,6 +15,7 @@ app = Flask(__name__)
 OPTIONS_PATH = "/data/options.json"
 EVENT_LOG_PATH = "/data/events.json"
 MAX_EVENT_LOG_ENTRIES = 50
+DEPRECATED_OPTION_KEYS = {"bms_ip", "bms_port"}
 
 GROUPS = {
     "Telegram": [
@@ -66,8 +67,6 @@ GROUPS = {
         "connection_type",
         "bms_serial",
         "bms_baudrate",
-        "bms_ip",
-        "bms_port",
         "scan_interval",
     ],
     "Advanced": [
@@ -673,6 +672,9 @@ def build_options_from_form(form, current_options):
 
             new_options[key] = parse_form_value(key, raw_value, current_value)
 
+    for deprecated_key in DEPRECATED_OPTION_KEYS:
+        new_options.pop(deprecated_key, None)
+
     return new_options
 
 
@@ -730,19 +732,10 @@ def validate_addon_options(options):
         errors.append("mqtt_port must be between 1 and 65535.")
 
     connection_type = str(options.get("connection_type", "")).strip().lower()
-    if connection_type == "serial":
-        if not str(options.get("bms_serial", "")).strip():
-            errors.append("bms_serial cannot be blank when connection_type is Serial.")
-    elif connection_type in {"ip", "tcp", "tcp/ip"}:
-        if not str(options.get("bms_ip", "")).strip():
-            errors.append("bms_ip cannot be blank when connection_type is IP/TCP.")
-        bms_port = as_int("bms_port")
-        if bms_port is None or bms_port < 1 or bms_port > 65535:
-            errors.append("bms_port must be between 1 and 65535.")
-    elif connection_type:
-        # Keep this soft but visible because some users may use Home Assistant selector labels.
-        if connection_type not in {"serial", "ip"}:
-            errors.append("connection_type must be Serial or IP.")
+    if connection_type != "serial":
+        errors.append("connection_type must be Serial. IP/TCP fields were removed from this add-on config.")
+    elif not str(options.get("bms_serial", "")).strip():
+        errors.append("bms_serial cannot be blank when connection_type is Serial.")
 
     scan_interval = as_float("scan_interval")
     if scan_interval is None or scan_interval < 1:
