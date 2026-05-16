@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.0.31 - 2026-05-16
+
+### Fixed
+- Fixed Home Assistant Ingress navigation after Test Telegram and Test MQTT.
+- Test buttons now render the same add-on page directly instead of redirecting to Home Assistant Overview.
+
 ## 2.0.30 - 2026-05-16
 
 ### Fixed

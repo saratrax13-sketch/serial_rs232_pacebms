@@ -3,7 +3,7 @@ import os
 import time
 import urllib.request
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request
 
 import paho.mqtt.client as mqtt
 
@@ -119,8 +119,10 @@ def parse_json_or_raw(raw):
 def test_telegram(options):
     if not options.get("notify_enabled", True):
         return False, "Notifications are disabled."
+
     token = options.get("telegram_bot_token", "")
     chat_id = options.get("telegram_chat_id", "")
+
     if not token or not chat_id:
         return False, "Telegram bot token or chat ID is not configured."
 
@@ -133,7 +135,11 @@ def test_telegram(options):
     try:
         url = f"https://api.telegram.org/bot{token}/sendMessage"
         payload = json.dumps({"chat_id": chat_id, "text": message}).encode()
-        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+        req = urllib.request.Request(
+            url,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
         urllib.request.urlopen(req, timeout=8)
         return True, "Telegram test sent successfully."
     except Exception as exc:
@@ -145,11 +151,13 @@ def test_mqtt(options):
     port = int(options.get("mqtt_port", 1883) or 1883)
     user = options.get("mqtt_user", "")
     password = options.get("mqtt_password", "")
+
     if not host:
         return False, "MQTT host is not configured."
 
     client_id = f"pacebms-web-test-{int(time.time() * 1000)}"
     client = mqtt.Client(client_id=client_id)
+
     if user or password:
         client.username_pw_set(user, password)
 
@@ -252,6 +260,7 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
 
     pack_ids = set()
     prefix = f"{base_topic}/pack_"
+
     for topic in messages:
         if topic.startswith(prefix):
             remainder = topic[len(prefix):]
@@ -284,12 +293,8 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
     return result
 
 
-@app.route("/", methods=["GET"])
-def index():
+def render_index(action_result="", action_message=""):
     options, error = load_options()
-
-    action_result = request.args.get("result", "")
-    action_message = request.args.get("message", "")
 
     grouped = {}
     for group_name, keys in GROUPS.items():
@@ -315,22 +320,29 @@ def index():
     )
 
 
+@app.route("/", methods=["GET"])
+def index():
+    return render_index()
+
+
 @app.route("/test-telegram", methods=["POST"])
 def route_test_telegram():
     options, error = load_options()
     if error:
-        return redirect(url_for("index", result="warn", message=error))
+        return render_index("warn", error)
+
     ok, message = test_telegram(options)
-    return redirect(url_for("index", result="ok" if ok else "warn", message=message))
+    return render_index("ok" if ok else "warn", message)
 
 
 @app.route("/test-mqtt", methods=["POST"])
 def route_test_mqtt():
     options, error = load_options()
     if error:
-        return redirect(url_for("index", result="warn", message=error))
+        return render_index("warn", error)
+
     ok, message = test_mqtt(options)
-    return redirect(url_for("index", result="ok" if ok else "warn", message=message))
+    return render_index("ok" if ok else "warn", message)
 
 
 @app.route("/health")
