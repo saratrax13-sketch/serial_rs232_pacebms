@@ -250,6 +250,8 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
         "overall_status": "Unknown",
         "overall_class": "unknown",
         "warning_count": 0,
+        "cell_high_ref": options.get("notify_cell_high_warn_voltage", 4.20),
+        "cell_low_ref": options.get("notify_cell_low_warn_voltage", 3.00),
         "packs": [],
         "fetched_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
@@ -336,13 +338,16 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
         cell_prefix = f"{pfx}/v_cells/cell_"
         cell_numbers = []
         cell_values = []
+
         for topic, value in messages.items():
             if topic.startswith(cell_prefix):
                 try:
-                    cell_numbers.append(int(topic.rsplit("_", 1)[1]))
-                    fv = _to_float(value)
-                    if fv is not None:
-                        cell_values.append(fv)
+                    cell_num = int(topic.rsplit("_", 1)[1])
+                    # Cell topics are published in mV.
+                    cell_mv = _to_float(value)
+                    if cell_mv is not None:
+                        cell_numbers.append(cell_num)
+                        cell_values.append((cell_num, cell_mv / 1000.0))
                 except Exception:
                     pass
 
@@ -360,6 +365,60 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
         soh = messages.get(f"{pfx}/soh", "Unknown")
         delta = messages.get(f"{pfx}/cells_max_diff_calc", "Unknown")
 
+        cell_high_ref = _to_float(options.get("notify_cell_high_warn_voltage", 4.20), 4.20)
+        cell_low_ref = _to_float(options.get("notify_cell_low_warn_voltage", 3.00), 3.00)
+
+        highest_cell = {"number": "Unknown", "voltage": "Unknown"}
+        lowest_cell = {"number": "Unknown", "voltage": "Unknown"}
+        highest_cell_v = None
+        lowest_cell_v = None
+
+        if cell_values:
+            high_num, highest_cell_v = max(cell_values, key=lambda item: item[1])
+            low_num, lowest_cell_v = min(cell_values, key=lambda item: item[1])
+            highest_cell = {"number": f"{high_num:02d}", "voltage": f"{highest_cell_v:.3f}"}
+            lowest_cell = {"number": f"{low_num:02d}", "voltage": f"{lowest_cell_v:.3f}"}
+
+        pack_v = _to_float(voltage)
+        pack_high_ref = cell_high_ref * cell_count if cell_count else None
+        pack_low_ref = cell_low_ref * cell_count if cell_count else None
+
+        high_cell_exceeded = bool(highest_cell_v is not None and highest_cell_v > cell_high_ref)
+        low_cell_exceeded = bool(lowest_cell_v is not None and lowest_cell_v < cell_low_ref)
+        high_pack_exceeded = bool(pack_v is not None and pack_high_ref is not None and pack_v > pack_high_ref)
+        low_pack_exceeded = bool(pack_v is not None and pack_low_ref is not None and pack_v < pack_low_ref)
+
+        reference_checks = []
+        if "Above cell volt warn" in warnings:
+            if high_cell_exceeded:
+                reference_checks.append(f"Cell reference exceeded: highest cell is above {cell_high_ref:.2f} V")
+            else:
+                reference_checks.append(f"Cell reference not exceeded: no cell is above {cell_high_ref:.2f} V")
+
+        if "Above total volt warn" in warnings:
+            if high_pack_exceeded:
+                reference_checks.append(f"Pack reference exceeded: pack voltage is above {pack_high_ref:.2f} V")
+            elif pack_high_ref is not None:
+                reference_checks.append(f"Pack reference not exceeded: pack voltage is not above {pack_high_ref:.2f} V")
+
+        if "Lower cell volt warn" in warnings or "Below lower limit" in warnings:
+            if low_cell_exceeded:
+                reference_checks.append(f"Low cell reference exceeded: lowest cell is below {cell_low_ref:.2f} V")
+            else:
+                reference_checks.append(f"Low cell reference not exceeded: no cell is below {cell_low_ref:.2f} V")
+
+        if "Lower total volt warn" in warnings:
+            if low_pack_exceeded:
+                reference_checks.append(f"Low pack reference exceeded: pack voltage is below {pack_low_ref:.2f} V")
+            elif pack_low_ref is not None:
+                reference_checks.append(f"Low pack reference not exceeded: pack voltage is not below {pack_low_ref:.2f} V")
+
+        if has_warning and not reference_checks:
+            reference_checks.append("BMS warning is active. No matching configured reference check was available.")
+
+        if not has_warning:
+            reference_checks.append("No active BMS warning.")
+
         packs.append({
             "id": pack_id,
             "cell_count": cell_count,
@@ -370,6 +429,13 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
             "delta": delta,
             "warnings": warnings,
             "has_warning": has_warning,
+            "highest_cell": highest_cell,
+            "lowest_cell": lowest_cell,
+            "cell_high_ref": f"{cell_high_ref:.2f}",
+            "cell_low_ref": f"{cell_low_ref:.2f}",
+            "pack_high_ref": f"{pack_high_ref:.2f}" if pack_high_ref is not None else "Unknown",
+            "pack_low_ref": f"{pack_low_ref:.2f}" if pack_low_ref is not None else "Unknown",
+            "reference_checks": reference_checks,
             "charge_fet": messages.get(f"{pfx}/charge_fet", "Unknown"),
             "discharge_fet": messages.get(f"{pfx}/discharge_fet", "Unknown"),
             "fully": messages.get(f"{pfx}/fully", "Unknown"),

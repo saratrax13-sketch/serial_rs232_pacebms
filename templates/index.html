@@ -292,6 +292,27 @@
       line-height: 1.45;
     }
 
+    .reference-box {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(59, 130, 246, 0.10);
+      border: 1px solid rgba(59, 130, 246, 0.26);
+      color: #bfdbfe;
+      line-height: 1.45;
+    }
+
+    .reference-title {
+      color: #93c5fd;
+      font-weight: 900;
+      margin-bottom: 6px;
+    }
+
+    .reference-list {
+      margin: 0;
+      padding-left: 18px;
+    }
+
     .normal-box {
       margin-top: 10px;
       padding: 10px 12px;
@@ -518,7 +539,7 @@
               <div class="metric-value">{{ pack.soh }}%</div>
             </div>
             <div class="metric">
-              <div class="metric-label">Voltage</div>
+              <div class="metric-label">Pack Voltage</div>
               <div class="metric-value">{{ pack.voltage }} V</div>
             </div>
             <div class="metric">
@@ -526,12 +547,24 @@
               <div class="metric-value">{{ pack.current }} A</div>
             </div>
             <div class="metric">
+              <div class="metric-label">Highest Cell</div>
+              <div class="metric-value">Cell {{ pack.highest_cell.number }} = {{ pack.highest_cell.voltage }} V</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Lowest Cell</div>
+              <div class="metric-value">Cell {{ pack.lowest_cell.number }} = {{ pack.lowest_cell.voltage }} V</div>
+            </div>
+            <div class="metric">
               <div class="metric-label">Cell Delta</div>
               <div class="metric-value">{{ pack.delta }} mV</div>
             </div>
             <div class="metric">
-              <div class="metric-label">Cells</div>
-              <div class="metric-value">{{ pack.cell_count }}</div>
+              <div class="metric-label">Cell High Ref</div>
+              <div class="metric-value">{{ pack.cell_high_ref }} V</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Pack High Ref</div>
+              <div class="metric-value">{{ pack.pack_high_ref }} V</div>
             </div>
           </div>
 
@@ -544,8 +577,20 @@
           {% if pack.warnings == 'Normal' %}
             <div class="normal-box">No active BMS warnings.</div>
           {% else %}
-            <div class="warning-box">{{ pack.warnings }}</div>
+            <div class="warning-box">
+              <strong>BMS internal warning active:</strong><br>
+              {{ pack.warnings }}
+            </div>
           {% endif %}
+
+          <div class="reference-box">
+            <div class="reference-title">Reference Check</div>
+            <ul class="reference-list">
+              {% for check in pack.reference_checks %}
+              <li>{{ check }}</li>
+              {% endfor %}
+            </ul>
+          </div>
         </article>
         {% endfor %}
       </div>

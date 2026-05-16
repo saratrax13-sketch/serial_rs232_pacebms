@@ -1,13 +1,14 @@
-## 2.0.38 - 2026-05-16
+## 2.0.39 - 2026-05-16
 
-### Fixed
-- Fixed MQTT availability staying `offline` while the monitor was running and data was fresh.
-- Added explicit retained `online` availability publish after successful startup.
-- Added explicit retained `online` availability publish after successful analog reads.
-- Added explicit retained `online` availability publish after BMS recovery.
+### Changed
+- Improved web UI warning explanations on pack cards.
+- Added highest cell and lowest cell display to each pack card.
+- Added configured cell high reference and calculated pack high reference display.
+- Added explicit `BMS internal warning active` wording.
+- Added Reference Check section to explain whether configured reference thresholds are exceeded.
 
 ### Notes
-- This is an MQTT availability status correction.
+- This is a web UI warning-explanation polish release.
 - No BMS protocol changes were made.
 - No BMS write/control commands were added.
 - The add-on remains read-only to the BMS.
