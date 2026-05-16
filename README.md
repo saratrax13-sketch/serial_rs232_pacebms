@@ -1,8 +1,8 @@
 # PaceBMS — Pace BMS to MQTT Bridge
 
-A Python-based bridge for **Pace BMS** battery management systems that publishes real-time battery data to MQTT, with full **Home Assistant auto-discovery** support.
+A Python-based bridge for **Pace BMS** battery management systems. It reads live battery data from the BMS and publishes it to MQTT with **Home Assistant auto-discovery** support.
 
-Connects via **TCP/IP or Serial (RS232)**, supports **multiple packs** (auto-detected), and runs as a **Home Assistant addon**, standalone **Docker container**, or direct Python script.
+This version is configured for a **Hubble AM2 master + slave setup** connected through the **master battery RS232 port** using a USB serial adapter. It supports multiple packs automatically and sends Telegram notifications directly from Python.
 
 ---
 
@@ -10,26 +10,28 @@ Connects via **TCP/IP or Serial (RS232)**, supports **multiple packs** (auto-det
 
 | File | Version | Changed | Notes |
 |------|---------|---------|-------|
-| `bms_monitor.py` | 2.1.0 | 2026-05-16 | Added Telegram notifications, BMS status/error MQTT topics, startup/shutdown events. Confirmed working on Hubble AM2 via RS232 |
+| `bms_monitor.py` | 2.2.0 | 2026-05-16 | Direct Telegram notification engine, proper serial no-response disconnect detection, clean service-stop shutdown handling, MQTT status/error payloads, startup/shutdown/recovery events |
+| `bms_notify.py` | 1.0.0 | 2026-05-16 | Notification engine for Telegram alerts, SOC thresholds, warnings, FET alerts, SOH alerts, disconnect/recovery, daily summary, and cell delta reports |
 | `constants.py` | 1.0.0 | 2026-05-16 | Pace BMS protocol constants, CID2 codes, warning/protection state maps |
-| `config.yaml` | 2.0.6 | 2026-05-16 | Added Telegram token/chat_id, switched to Serial mode, zero_pad_number_packs=0 |
-| `automations.yaml` | 1.0.0 | 2026-05-16 | HA automations for BMS startup, shutdown, disconnect, and recovery notifications |
+| `config.yaml` | 2.0.15 | 2026-05-16 | Serial mode, Telegram settings, notification toggles, retry threshold, report schedule, MQTT settings, and HA add-on schema |
 
 ---
 
 ## Features
 
 - Reads cell voltages, temperatures, current, voltage, SOC, SOH, cycles, and capacity per pack
-- Publishes all data to MQTT with change-detection — only publishes when values change, minimising HA recorder writes
-- Full Home Assistant MQTT Discovery — sensors appear in HA automatically with correct device class and units
-- **Supports multiple battery packs (dynamic — no hardcoded cell or pack count)**
-- Availability topic — HA shows the device as unavailable if the monitor stops
-- **Telegram notifications** — direct Bot API calls for pre-MQTT startup warnings and fatal errors
-- **BMS status MQTT topic** — startup and shutdown events published to `pacebms/bms_status`
-- **BMS error MQTT topic** — disconnect and recovery events with retry count and offline duration published to `pacebms/bms_error`
-- **HA automations** — phone and Telegram notifications for all BMS events
-- Runs as an HA addon, standalone Docker container, or direct Python script
-- Serial (USB-RS232 or USB-RS485) and TCP/IP connection modes
+- Supports multiple battery packs through the master battery connection
+- Publishes all data to MQTT with Home Assistant MQTT Discovery
+- Publishes Home Assistant availability using `pacebms/availability`
+- Sends Telegram notifications directly from Python, without needing Home Assistant automations
+- Detects real BMS communication loss when the serial adapter is still present but the battery is not replying
+- Sends disconnect and recovery Telegram notifications
+- Sends service startup and service stopped Telegram notifications
+- Publishes startup, shutdown, disconnect, and recovery events to MQTT as JSON
+- Supports SOC low alerts, SOC high alerts, warning flag alerts, FET alerts, SOH alerts, daily summary reports, and cell delta reports
+- Uses retained MQTT state topics by default so Home Assistant has values after restart
+- Runs as a Home Assistant add-on, standalone Docker container, or direct Python script
+- Supports Serial and TCP/IP connection modes
 - Structured logging with configurable debug levels
 
 ---
@@ -37,67 +39,81 @@ Connects via **TCP/IP or Serial (RS232)**, supports **multiple packs** (auto-det
 ## Supported Hardware
 
 | BMS | Connection | Tested |
-|-----|-----------|--------|
-| Pace BMS P16S200A | Serial (USB) | Yes |
-| Pace BMS AM-x series (Hubble AM2) | Serial (USB-RS232) | Yes |
+|-----|------------|--------|
+| Pace BMS P16S200A | Serial USB | Yes |
+| Pace BMS AM-x series / Hubble AM2 | USB-RS232 to master battery RS232 port | Yes |
 
-The protocol is compatible with other Pace-based BMS units using the same RS232/UART frame format.
+The protocol is compatible with other Pace-based BMS units using the same RS232/UART ASCII frame format.
 
-### Hubble AM2 Notes
+---
 
-- The AM2 has two communication ports: **RS485** and **RS232**
-- Connect to the **RS232 port** on the **master battery** using a USB-RS232 adapter
-- The **RS232 port** uses the Pace BMS ASCII protocol — this is what `bms_monitor.py` speaks
-- The **RS485 port** uses Modbus RTU and is officially reserved for firmware updates only
-- Link multiple batteries together using standard RJ45 LAN cables via the Battery Link port
-- Set DIP switches: master = address 1, slave = address 2
-- Both packs are read through the master battery's RS232 port — no need to connect to the slave
+## Hubble AM2 Notes
+
+The Hubble AM2 has RS232 and RS485 communication ports. This project uses the **RS232 port** on the **master battery**.
+
+Recommended setup:
+
+1. Connect the USB-RS232 adapter to the **RS232 port** on the master battery.
+2. Link the slave battery to the master using the normal battery link cable.
+3. Set DIP switches correctly:
+   - Master battery = address 1
+   - Slave battery = address 2
+4. Read both packs through the master battery.
+
+Important: the Hubble AM2 RS485 port uses Modbus RTU and is not the same as the Pace RS232 ASCII protocol used by this monitor.
 
 ---
 
 ## Requirements
 
 - Python 3.11+
-- MQTT broker (e.g. Mosquitto)
-- Home Assistant (optional — for auto-discovery and notifications)
-- USB-to-RS232 adapter (for Hubble AM2 RS232 port)
+- MQTT broker, for example Mosquitto
+- Home Assistant, optional but recommended
+- USB-RS232 adapter for Hubble AM2 RS232 monitoring
 
-Python dependencies (see `requirements.txt`):
-```
+Python dependencies:
+
+```txt
 paho-mqtt
 pyserial
 pyyaml
 ```
 
-No additional dependencies needed for Telegram — uses Python's built-in `urllib`.
+Telegram uses Python's built-in `urllib`, so no extra Telegram library is required.
 
 ---
 
 ## Installation
 
-### Option A — Home Assistant Addon (recommended)
+### Option A — Home Assistant Add-on
 
-1. In Home Assistant go to **Settings -> Add-ons -> Add-on Store**
-2. Click the three-dot menu -> **Repositories**
-3. Add: `https://github.com/saratrax13-sketch/serial_rs485_pacebms`
-4. Find **BMS Pace** in the store and click **Install**
-5. Configure via the addon **Configuration** tab (see [Configuration](#configuration) below)
-6. Click **Start**
+1. In Home Assistant, go to **Settings -> Add-ons -> Add-on Store**.
+2. Click the three-dot menu and choose **Repositories**.
+3. Add this repository:
 
-### Option B — Docker Compose (standalone)
+```txt
+https://github.com/saratrax13-sketch/serial_rs485_pacebms
+```
+
+4. Install the add-on.
+5. Configure the add-on under the **Configuration** tab.
+6. Start the add-on.
+
+### Option B — Docker Compose
 
 ```bash
 git clone https://github.com/saratrax13-sketch/serial_rs485_pacebms.git
-cd pacebms
+cd serial_rs485_pacebms
 ```
 
-Edit `config.yaml` with your settings, then:
+Edit `config.yaml`, then start the container:
 
 ```bash
 docker compose up -d
 ```
 
-To view logs:
+View logs:
+
 ```bash
 docker compose logs -f
 ```
@@ -106,77 +122,121 @@ docker compose logs -f
 
 ```bash
 git clone https://github.com/saratrax13-sketch/serial_rs485_pacebms.git
-cd pacebms
+cd serial_rs485_pacebms
 pip install -r requirements.txt
 python3 bms_monitor.py
 ```
 
-The script looks for config at `/data/options.json` (HA addon) or `pace-bms-dev/config.yaml` (local).
+The script loads configuration from `/data/options.json` when running as a Home Assistant add-on. For local development it also checks for `pace-bms-dev/config.yaml`.
 
 ---
 
 ## Configuration
 
-All settings are in `config.yaml` under the `options` key, or via the HA addon Configuration tab.
+All settings are configured under the `options:` section in `config.yaml`, or through the Home Assistant add-on Configuration tab.
+
+### Main settings
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `telegram_bot_token` | string | — | Telegram bot token from @BotFather |
-| `telegram_chat_id` | string | — | Telegram chat ID from @userinfobot |
-| `mqtt_host` | string | — | IP address of your MQTT broker |
+| `telegram_bot_token` | string | — | Telegram bot token from BotFather |
+| `telegram_chat_id` | string | — | Telegram chat ID for notifications |
+| `notify_enabled` | bool | `true` | Master switch for all Telegram notifications |
+| `mqtt_host` | string | — | MQTT broker IP address or hostname |
 | `mqtt_port` | int | `1883` | MQTT broker port |
 | `mqtt_user` | string | — | MQTT username |
 | `mqtt_password` | string | — | MQTT password |
 | `mqtt_base_topic` | string | `pacebms` | Root MQTT topic |
-| `mqtt_ha_discovery` | bool | `true` | Enable HA auto-discovery |
-| `mqtt_ha_discovery_topic` | string | `homeassistant` | HA discovery prefix (must match HA config) |
-| `connection_type` | `IP` or `Serial` | `Serial` | How the BMS is connected |
-| `bms_ip` | string | — | BMS IP address (IP mode only) |
-| `bms_port` | int | `5000` | BMS TCP port (IP mode only) |
-| `bms_serial` | string | `/dev/ttyUSB0` | Serial device path (Serial mode only) |
-| `bms_baudrate` | int | `9600` | Serial baud rate (Serial mode only) |
-| `scan_interval` | int | `5` | Seconds between full BMS polls |
-| `zero_pad_number_cells` | int | `2` | Zero-pad cell topic names (`cell_01` vs `cell_1`) |
-| `zero_pad_number_packs` | int | `0` | Zero-pad pack topic names — `0` disables padding (`pack_1`, `pack_2`) |
-| `debug_output` | int | `0` | `0`=info only, `1`=debug, `3`=raw frames |
+| `mqtt_ha_discovery` | bool | `true` | Enable Home Assistant MQTT Discovery |
+| `mqtt_ha_discovery_topic` | string | `homeassistant` | Home Assistant discovery prefix |
+| `connection_type` | `IP` or `Serial` | `Serial` | BMS connection method |
+| `bms_ip` | string | — | BMS IP address, only used in IP mode |
+| `bms_port` | int | `5000` | BMS TCP port, only used in IP mode |
+| `bms_serial` | string | `/dev/ttyUSB0` | Serial device path, only used in Serial mode |
+| `bms_baudrate` | int | `9600` | Serial baud rate |
+| `scan_interval` | int | `5` | Seconds between full BMS polling cycles |
+| `debug_output` | int | `0` | `0` info only, `1` debug, `3` raw frames |
+| `zero_pad_number_cells` | int | `2` | Cell topic padding, for example `cell_01` |
+| `zero_pad_number_packs` | int | `0` | Pack topic padding. `0` gives `pack_1`, `pack_2` |
 
-> `force_pack_offset` has been deprecated and removed. The parser now auto-detects pack boundaries.
+### Notification settings
 
-### Finding your serial device path
+| Option | Default | Description |
+|--------|---------|-------------|
+| `notify_soc_low` | `true` | Alert when SOC crosses configured low thresholds |
+| `notify_soc_high` | `true` | Alert when SOC reaches high-charge threshold |
+| `notify_warnings` | `true` | Alert on BMS warning flags |
+| `notify_fet` | `true` | Alert when charge/discharge FET turns off unexpectedly |
+| `notify_soh` | `true` | Alert when SOH drops below configured threshold |
+| `notify_disconnect` | `true` | Alert when the BMS stops replying and when it recovers |
+| `notify_startup` | `true` | Alert when monitor starts or stops |
+| `notify_daily_summary` | `true` | Send daily kWh and worst cell summary |
+| `notify_delta_report` | `true` | Send cell delta report for the configured window |
+| `notify_soc_low_thresholds` | `75,50,25,10` | SOC levels that trigger low battery alerts |
+| `notify_soc_high_threshold` | `98` | SOC level that triggers high-charge alert |
+| `notify_soc_high_reset` | `95` | SOC must drop below this before another high-charge alert is sent |
+| `notify_soh_threshold` | `95` | SOH percentage below which an alert is sent |
+| `notify_retry_count` | `1` | Failed BMS communication attempts before disconnect alert. `1` means alert on first failed read |
+| `notify_daily_summary_time` | `19:00` | Daily summary time |
+| `notify_delta_report_time` | `10:15` | Cell delta report time |
+| `notify_delta_window_start` | `00:00` | Start of delta tracking window |
+| `notify_delta_window_end` | `10:00` | End of delta tracking window |
 
-On the HA host or RPi4 via SSH:
+Recommended value for fast disconnect testing:
+
+```yaml
+notify_retry_count: 1
+```
+
+This is important for serial testing because the USB adapter may remain connected even when the battery-side cable is unplugged. The monitor now treats a failed BMS response as the actual disconnect condition.
+
+---
+
+## Finding the Serial Device Path
+
+Use the stable `by-id` path where possible:
+
 ```bash
 ls /dev/serial/by-id/
 ```
-Use the full `by-id` path — it stays stable across reboots unlike `/dev/ttyUSB0`.
+
+Example:
+
+```yaml
+bms_serial: "/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0"
+```
+
+This is better than `/dev/ttyUSB0` or `/dev/ttyUSB1`, because USB numbering can change after a reboot.
 
 ---
 
 ## MQTT Topics
 
-All topics are published under `{mqtt_base_topic}/` (default: `pacebms/`).
+All topics are published under `{mqtt_base_topic}/`. The default base topic is `pacebms/`.
 
 ### Per-pack topics
 
+With `zero_pad_number_packs: 0`, pack topics are published as `pack_1`, `pack_2`, etc.
+
 | Topic | Unit | Description |
 |-------|------|-------------|
-| `pacebms/pack_01/v_cells/cell_01` | mV | Individual cell voltage |
-| `pacebms/pack_01/temps/temp_1` | °C | Temperature sensor |
-| `pacebms/pack_01/v_pack` | V | Pack voltage |
-| `pacebms/pack_01/i_pack` | A | Pack current (negative = charging) |
-| `pacebms/pack_01/soc` | % | State of charge |
-| `pacebms/pack_01/soh` | % | State of health |
-| `pacebms/pack_01/i_remain_cap` | Ah | Remaining capacity |
-| `pacebms/pack_01/i_full_cap` | Ah | Full charge capacity |
-| `pacebms/pack_01/i_design_cap` | Ah | Design capacity |
-| `pacebms/pack_01/cycles` | — | Charge cycle count |
-| `pacebms/pack_01/cells_max_diff_calc` | mV | Max cell voltage spread |
-| `pacebms/pack_01/warnings` | — | Active warning string |
-| `pacebms/pack_01/balancing1` | — | Cell balancing state bits |
-| `pacebms/pack_01/balancing2` | — | Cell balancing state bits |
-| `pacebms/pack_01/charge_fet` | ON/OFF | Charge FET state |
-| `pacebms/pack_01/discharge_fet` | ON/OFF | Discharge FET state |
-| `pacebms/pack_01/prot_short_circuit` | ON/OFF | Short circuit protection active |
+| `pacebms/pack_1/v_cells/cell_01` | mV | Individual cell voltage |
+| `pacebms/pack_1/temps/temp_1` | °C | Temperature sensor |
+| `pacebms/pack_1/v_pack` | V | Pack voltage |
+| `pacebms/pack_1/i_pack` | A | Pack current. Negative means charging |
+| `pacebms/pack_1/soc` | % | State of charge |
+| `pacebms/pack_1/soh` | % | State of health |
+| `pacebms/pack_1/i_remain_cap` | Ah | Remaining capacity |
+| `pacebms/pack_1/i_full_cap` | Ah | Full charge capacity |
+| `pacebms/pack_1/i_design_cap` | Ah | Design capacity |
+| `pacebms/pack_1/cycles` | — | Charge cycle count |
+| `pacebms/pack_1/cells_max_diff_calc` | mV | Maximum cell voltage spread |
+| `pacebms/pack_1/warnings` | — | Active warning string |
+| `pacebms/pack_1/balancing1` | — | Cell balancing state bits |
+| `pacebms/pack_1/balancing2` | — | Cell balancing state bits |
+| `pacebms/pack_1/charge_fet` | ON/OFF | Charge FET state |
+| `pacebms/pack_1/discharge_fet` | ON/OFF | Discharge FET state |
+| `pacebms/pack_1/prot_short_circuit` | ON/OFF | Short circuit protection active |
 
 ### Aggregate topics
 
@@ -184,11 +244,13 @@ All topics are published under `{mqtt_base_topic}/` (default: `pacebms/`).
 |-------|------|-------------|
 | `pacebms/pack_remain_cap` | Ah | Total remaining capacity across all packs |
 | `pacebms/pack_full_cap` | Ah | Total full capacity |
+| `pacebms/pack_design_cap` | Ah | Total design capacity |
 | `pacebms/pack_soc` | % | Overall SOC |
 | `pacebms/pack_soh` | % | Overall SOH |
-| `pacebms/availability` | online/offline | Bridge availability (LWT) |
+| `pacebms/availability` | online/offline | Bridge availability |
 | `pacebms/bms_version` | — | BMS firmware version |
 | `pacebms/bms_sn` | — | BMS serial number |
+| `pacebms/pack_sn` | — | Battery pack serial number |
 
 ### Status and error topics
 
@@ -197,118 +259,133 @@ All topics are published under `{mqtt_base_topic}/` (default: `pacebms/`).
 | `pacebms/bms_status` | JSON | Startup and shutdown events |
 | `pacebms/bms_error` | JSON | Disconnect and recovery events |
 
-#### bms_status payloads
+Example startup payload:
 
 ```json
-// Startup
 {"status": "startup", "bms_sn": "ABC123", "bms_version": "1.23"}
-
-// Shutdown
-{"status": "shutdown", "bms_sn": "ABC123"}
 ```
 
-#### bms_error payloads
+Example shutdown payload:
 
 ```json
-// Disconnected
-{"status": "disconnected", "retry_count": 3, "offline_time": "1m 15s", "offline_secs": 75}
+{"status": "shutdown", "bms_sn": "ABC123", "timestamp": 1778940000}
+```
 
-// Recovered
-{"status": "recovered", "retry_count": 3, "offline_time": "1m 15s", "offline_secs": 75}
+Example disconnect payload:
+
+```json
+{"status": "disconnected", "reason": "Receive failed", "retry_count": 1, "offline_time": "0s", "offline_secs": 0, "timestamp": 1778940000}
+```
+
+Example recovery payload:
+
+```json
+{"status": "recovered", "retry_count": 1, "offline_time": "10s", "offline_secs": 10, "timestamp": 1778940010}
 ```
 
 ---
 
-## Notifications
+## Telegram Notifications
 
-The script sends notifications through two channels:
+Notifications are sent directly from `bms_notify.py` using the Telegram Bot API.
 
-### Direct Telegram (pre-MQTT)
-Used for early startup warnings before MQTT is connected:
-- `Could not retrieve BMS version` — BMS may still be booting
-- `Cannot retrieve BMS serial` — fatal error, monitor exiting
+Home Assistant automations are no longer required for the core Telegram messages. MQTT status and error topics are still published, so Home Assistant automations can still be added if you want phone push notifications or extra dashboards.
 
-Requires `telegram_bot_token` and `telegram_chat_id` in config. Uses Python's built-in `urllib` — no extra dependencies.
+### Telegram setup
 
-### Home Assistant Automations (via MQTT)
-Once MQTT is connected, all events are published as JSON to MQTT topics and picked up by HA automations that notify via phone and Telegram:
+1. Open Telegram and create a bot with BotFather.
+2. Copy the bot token into `telegram_bot_token`.
+3. Send `/start` to your new bot.
+4. Get your chat ID from a Telegram user info bot.
+5. Copy the chat ID into `telegram_chat_id`.
+6. Restart the add-on or service.
 
-| Event | Topic | Channels |
-|-------|-------|----------|
-| BMS monitor started | `pacebms/bms_status` | Phone + Telegram |
-| BMS monitor stopped | `pacebms/bms_status` | Phone + Telegram |
-| BMS disconnected | `pacebms/bms_error` | Phone + Telegram |
-| BMS recovered | `pacebms/bms_error` | Phone + Telegram |
-
-### Setting up Telegram
-
-1. Create a bot via [@BotFather](https://t.me/botfather) — get your `bot_token`
-2. Get your `chat_id` via [@userinfobot](https://t.me/userinfobot)
-3. Add to HA `configuration.yaml`:
+Example:
 
 ```yaml
-telegram_bot:
-  - platform: polling
-    api_key: "YOUR_BOT_TOKEN"
-    allowed_chat_ids:
-      - YOUR_CHAT_ID
-
-notify:
-  - name: telegram
-    platform: telegram
-    chat_id: YOUR_CHAT_ID
+telegram_bot_token: "YOUR_BOT_TOKEN"
+telegram_chat_id: "123456789"
 ```
 
-4. Add `telegram_bot_token` and `telegram_chat_id` to `config.yaml`
-5. Copy `automations.yaml` content into your HA `automations.yaml`
+### Expected Telegram messages
+
+You should receive messages for:
+
+- Monitor started
+- Monitor stopped
+- BMS disconnected
+- BMS reconnected
+- Low SOC threshold reached
+- Battery fully charged
+- BMS warning detected
+- BMS warning cleared
+- FET alert
+- SOH degradation alert
+- Daily summary
+- Cell delta report
+
+---
+
+## Disconnect and Service-Stop Behaviour
+
+This version improves two important failure cases.
+
+### Battery cable disconnected
+
+When the cable between the battery and the serial adapter is disconnected, the USB adapter may still exist as `/dev/ttyUSB1`. Older logic could therefore think the serial port was still connected.
+
+The monitor now treats an empty serial read as a real communication failure:
+
+```txt
+BMS serial recv: no data received before timeout
+```
+
+It then publishes `pacebms/availability = offline`, sends a Telegram disconnect alert, and retries the BMS connection.
+
+### Service stopped
+
+The monitor now handles normal Python exit plus service termination signals. This allows the `BMS Monitor Stopped` Telegram message to be sent when the Home Assistant add-on, Docker container, or Python service is stopped cleanly.
 
 ---
 
 ## Home Assistant
 
-When `mqtt_ha_discovery: true`, all sensors register automatically in HA under a single **Generic Lithium** device.
+When `mqtt_ha_discovery: true`, sensors are created automatically in Home Assistant.
 
-Sensors include correct `device_class` and `state_class`:
-- Cell and pack voltages -> `device_class: voltage`
-- Current -> `device_class: current`
-- Temperatures -> `device_class: temperature`
-- SOC/SOH -> `device_class: battery`
+Sensors include suitable Home Assistant metadata:
 
-Binary sensors (FETs, protections) use `ON`/`OFF` payloads natively.
+- Cell and pack voltages -> voltage
+- Current -> current
+- Temperatures -> temperature
+- SOC/SOH -> battery percentage
+- Ah capacity values -> measurement sensors without an energy device class
 
-Discovery topics are re-published automatically every hour and immediately after any reconnect.
+Binary sensors such as FETs and protection states use `ON` and `OFF` payloads.
+
+Discovery topics are republished every hour and after reconnects.
 
 ---
 
 ## Architecture
 
-```
-BMS Hardware (Hubble AM2 / Pace BMS)
+```txt
+Hubble AM2 / Pace BMS
     |
-    +-- Serial USB-RS232 (master battery RS232 port only)
-    +-- TCP/IP
-            |
-    +-------+--------+
-    |  Transport     |  bms_connect / bms_send / bms_recv
-    +-------+--------+
-            |
-    +-------+--------+
-    |  Protocol      |  bms_request / bms_parse_response / checksums
-    +-------+--------+
-            |
-    +-------+--------+
-    |  Data Model    |  AnalogData / PackData / PackCapacity / WarnData
-    +-------+--------+
-            |
-    +-------+--------+
-    |  MQTT Publisher|  publish_analog_data / publish_warn_data / ha_discovery
-    +-------+--------+
-            |
-         MQTT Broker --> Home Assistant
-            |
-    +-------+--------+
-    | Notifications  |  Telegram (direct) + HA automations (phone + Telegram)
-    +----------------+
+    +-- Master battery RS232 port
+    |
+USB-RS232 adapter
+    |
+bms_monitor.py
+    |
+    +-- Pace protocol request/response parser
+    +-- Data model: AnalogData / PackData / PackCapacity / WarnData
+    +-- MQTT publisher
+    +-- Home Assistant MQTT Discovery
+    +-- bms_notify.py Telegram notification engine
+    |
+MQTT Broker
+    |
+Home Assistant
 ```
 
 ---
@@ -318,14 +395,15 @@ BMS Hardware (Hubble AM2 / Pace BMS)
 Set `debug_output` in config:
 
 | Level | What you see |
-|-------|-------------|
-| `0` | Startup, connect, pack summary per poll |
-| `1` | Skipped bytes between packs, cell/temp arrays |
-| `3` | Raw request and response frames (hex) |
+|-------|--------------|
+| `0` | Normal startup, connection, and pack summary logs |
+| `1` | Debug logs, including skipped bytes between packs |
+| `3` | Raw request and response frames |
 
-Logs are available via:
+View logs:
+
 ```bash
-# HA addon
+# Home Assistant add-on
 Settings -> Add-ons -> BMS Pace -> Logs
 
 # Docker
@@ -337,37 +415,132 @@ python3 bms_monitor.py
 
 ---
 
+## Recommended Test Procedure
+
+After installing the fixed files:
+
+1. Start the add-on or service.
+2. Confirm you receive `BMS Monitor Started` in Telegram.
+3. Disconnect the battery-side serial cable.
+4. Confirm you receive `BMS Disconnected`.
+5. Reconnect the cable.
+6. Confirm you receive `BMS Reconnected`.
+7. Stop the add-on or service.
+8. Confirm you receive `BMS Monitor Stopped`.
+
+For quick testing, use:
+
+```yaml
+scan_interval: 5
+notify_retry_count: 1
+```
+
+---
+
 ## Troubleshooting
 
-**Sensors show `Unknown` in HA**
-Delete stale retained MQTT topics using MQTT Explorer, then restart the addon to re-run discovery.
+### Sensors show `Unknown` in Home Assistant
 
-**Only some cells showing**
-The parser auto-detects pack boundaries. Set `debug_output: 1` to see skipped bytes.
+Delete stale retained MQTT topics using MQTT Explorer, then restart the add-on so discovery is republished.
 
-**`zero_pad_number_cells: 0`**
-Causes topics like `cell_1`, `cell_10`, `cell_2` which sort incorrectly. Keep at `2` for `cell_01`-`cell_16`.
+### Only some cells are showing
 
-**Serial not connecting**
-Use the full `by-id` path for `bms_serial`. Check the HA addon has `uart: true` and `usb: true` in config. For Hubble AM2, ensure you are connected to the **RS232 port**, not the RS485 port.
+The parser auto-detects pack boundaries. Set `debug_output: 1` and check the logs.
 
-**Checksum errors in logs**
-Usually indicates a noisy serial connection or wrong baud rate. Try `bms_baudrate: 9600`. Set `debug_output: 3` to inspect raw frames.
+### Cell topics sort incorrectly
 
-**RS485 port not responding**
-The Hubble AM2 RS485 port uses Modbus RTU, not the Pace BMS protocol. `bms_monitor.py` will not work on the RS485 port. Use the RS232 port instead.
+Keep this setting:
 
-**`Could not retrieve BMS version` warning**
-The BMS may still be booting. The monitor will continue and attempt to read the serial number. A Telegram notification is sent directly if `telegram_bot_token` and `telegram_chat_id` are configured.
+```yaml
+zero_pad_number_cells: 2
+```
 
-**Telegram notifications not working**
-Check `telegram_bot_token` and `telegram_chat_id` in `config.yaml`. Ensure the bot has been started by sending it a `/start` message in Telegram first.
+This gives `cell_01` to `cell_16`, which sorts correctly.
+
+### Pack topics are different from older README examples
+
+With the current recommended config:
+
+```yaml
+zero_pad_number_packs: 0
+```
+
+Topics use:
+
+```txt
+pacebms/pack_1/...
+pacebms/pack_2/...
+```
+
+not:
+
+```txt
+pacebms/pack_01/...
+pacebms/pack_02/...
+```
+
+### Serial not connecting
+
+Use the stable `/dev/serial/by-id/` path if possible. Also make sure the add-on has:
+
+```yaml
+uart: true
+usb: true
+```
+
+For Hubble AM2, confirm that you are connected to the **RS232 port**, not the RS485 port.
+
+### Disconnect alert only appears after reconnecting
+
+Set:
+
+```yaml
+notify_retry_count: 1
+```
+
+Also make sure you are using the fixed `bms_monitor.py`, which treats empty serial reads as communication failures.
+
+### Service stop does not send Telegram
+
+Make sure you are using the fixed `bms_monitor.py` with signal handling enabled. The service must be stopped cleanly. A forced kill may not allow any program enough time to send a final Telegram message.
+
+### Telegram notifications not working
+
+Check the following:
+
+- `notify_enabled: true`
+- The specific notification toggle is enabled, for example `notify_disconnect: true`
+- `telegram_bot_token` is correct
+- `telegram_chat_id` is correct
+- You sent `/start` to the bot in Telegram
+- The Home Assistant host or Docker container has internet access
+
+### Checksum errors
+
+Usually indicates noisy serial communication, wrong baud rate, or the wrong port. Use:
+
+```yaml
+bms_baudrate: 9600
+debug_output: 3
+```
+
+### RS485 port not responding
+
+The Hubble AM2 RS485 port uses Modbus RTU and is not used by this script. Use the RS232 port for this Pace BMS monitor.
+
+---
+
+## Notes on Home Assistant Automations
+
+Home Assistant automations are optional in this version.
+
+The monitor already sends Telegram directly. You may still use MQTT topics such as `pacebms/bms_status` and `pacebms/bms_error` to create extra HA automations, dashboards, persistent notifications, or mobile app push notifications.
 
 ---
 
 ## Contributing
 
-Pull requests welcome. Please test against a live BMS if possible and include relevant log output.
+Pull requests are welcome. Please test against a live BMS where possible and include relevant log output.
 
 ---
 
@@ -379,4 +552,4 @@ MIT
 
 ## Acknowledgements
 
-Originally based on the [bmspace](https://github.com/Tertiush/bmspace) project by Tertiush.
+Originally based on the `bmspace` project by Tertiush.
