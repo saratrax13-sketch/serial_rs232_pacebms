@@ -14,7 +14,6 @@
 #   - Pack count auto-detected from BMS analog response
 #   - Capacity publishes as whole Ah; SOH capped at 100%
 # =============================================================================
-
 import paho.mqtt.client as mqtt
 import socket
 import time
@@ -53,6 +52,18 @@ def telegram_notify(config: dict, message: str):
         log.info("Telegram notification sent")
     except Exception as e:
         log.warning("Telegram notify failed: %s", e)
+
+# ─── Serial number sanitizer ─────────────────────────────────────────────────
+def sanitize_id(s: str) -> str:
+    """Strip characters invalid in MQTT topics and HA identifiers."""
+    import re
+    s = s.replace('\x00', '').strip()          # remove null bytes
+    s = re.sub(r'[^A-Za-z0-9_\-]', '', s)      # keep only safe chars
+    return s or "unknown"
+
+def clean_version(s: str) -> str:
+    """Remove null bytes and extra whitespace from version string."""
+    return s.replace('\x00', '').strip()
 
 # ─── Protocol constants  (no more magic numbers) ─────────────────────────────
 
@@ -716,6 +727,8 @@ _HA_SENSOR_META: dict[str, tuple[Optional[str], str]] = {
 }
 
 def publish_ha_discovery(client, config: dict, bms_sn: str, bms_version: str, analog_data: AnalogData):
+    bms_sn      = sanitize_id(bms_sn)
+    bms_version = clean_version(bms_version)
     if not config.get('mqtt_ha_discovery'):
         log.info("HA Discovery disabled")
         return
