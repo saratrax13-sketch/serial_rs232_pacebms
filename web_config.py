@@ -1277,6 +1277,47 @@ def route_preview_restore_config_backup(filename):
     return render_index("warn", f"Restore preview loaded for {filename}. Review changes before restoring.", active_tab="backups", restore_preview=restore_preview)
 
 
+
+@app.route("/delete-config-backup", methods=["POST"])
+def route_delete_config_backup_post():
+    filename = request.form.get("filename", "")
+    ok, message = delete_config_backup(filename)
+    append_event(
+        "config_backup_delete",
+        "Configuration backup deleted" if ok else "Configuration backup delete failed",
+        message,
+        "ok" if ok else "warn",
+    )
+    return redirect_to_tab("backups", "ok" if ok else "warn", message)
+
+
+@app.route("/restore-config-backup", methods=["POST"])
+def route_restore_config_backup_post():
+    filename = request.form.get("filename", "")
+    backup_options, read_message = load_config_backup(filename)
+    if backup_options is None:
+        append_event("config_restore", "Configuration restore failed", read_message, "warn")
+        return redirect_to_tab("backups", "warn", read_message)
+
+    pre_ok, pre_message, pre_filename = create_config_backup("before-restore")
+    append_event("config_backup", "Pre-restore configuration backup", pre_message, "ok" if pre_ok else "warn")
+
+    ok, message = save_addon_options(backup_options)
+    if ok:
+        detail = f"Restored backup: {filename}"
+        if pre_filename:
+            detail += f" | Previous config backed up as: {pre_filename}"
+        append_event("config_restore", "Configuration restored", detail, "ok")
+        return redirect_to_tab(
+            "backups",
+            "ok",
+            "Configuration restored from backup. Restart required for runtime changes to apply.",
+        )
+
+    append_event("config_restore", "Configuration restore failed", message, "warn")
+    return redirect_to_tab("backups", "warn", f"Restore failed: {message}")
+
+
 @app.route("/download-config-backup/<filename>", methods=["GET"])
 def route_download_config_backup(filename):
     path = safe_backup_path(filename)

@@ -1177,7 +1177,13 @@
                   <a class="button-link" href="?tab=backups&compare_backup={{ backup.filename }}">Compare</a>
                   <a class="button-link" href="?tab=backups&restore_preview={{ backup.filename }}">Restore Preview</a>
                   <a class="button-link" href="download-config-backup/{{ backup.filename }}">Download</a>
-                  <form method="post" action="delete-config-backup/{{ backup.filename }}" onsubmit="return confirm(`Delete this backup?\n\nFile: {{ backup.filename }}\n\nThis cannot be undone.`);">
+                  <form method="post" action="delete-config-backup" onsubmit="return confirm(`Delete this backup?
+
+File: {{ backup.filename }}
+
+This cannot be undone.`);">
+                   <input type="hidden" name="filename" value="{{ backup.filename }}">
+                     <input type="hidden" name="filename" value="{{ backup.filename }}">
                     <button class="danger-button" type="submit">Delete</button>
                   </form>
                 </div>
@@ -1247,7 +1253,8 @@
                 {% endfor %}
               </tbody>
             </table>
-            <form method="post" action="restore-config-backup/{{ restore_preview.filename }}" onsubmit="return confirm(`Restore this backup now?\\n\\nFile: {{ restore_preview.filename }}\\n\\nA backup of the current config will be created first. Restart is required afterwards.`);">
+            <form method="post" action="restore-config-backup" onsubmit="return confirm(`Restore this backup now?\\n\\nFile: {{ restore_preview.filename }}\\n\\nA backup of the current config will be created first. Restart is required afterwards.`);">
+              <input type="hidden" name="filename" value="{{ restore_preview.filename }}">
               <div class="actions">
                 <button class="danger-button" type="submit">Restore This Backup Now</button>
               </div>

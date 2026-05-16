@@ -1,10 +1,10 @@
-## 2.3.9 - 2026-05-17
+## 2.3.10 - 2026-05-17
 
 ### Fixed
-- Fixed repeated backup delete actions still causing a `Not Found` page.
-- Delete action now redirects back to the clean Backups tab URL after completion.
-- Compare and Restore Preview now use normal Backups tab query links instead of separate action-page URLs.
-- Reduced the risk of broken relative paths after backup actions.
+- Fixed backup Delete showing `Method Not Allowed`.
+- Delete now uses a stable POST route with the backup filename sent as a hidden form field.
+- Restore now also uses a stable POST route with the backup filename sent as a hidden form field.
+- Avoids filename-based POST routes that can behave inconsistently through Home Assistant Ingress.
 
 ### Notes
 - Delete only removes selected local backup JSON files.
