@@ -104,6 +104,15 @@ def status_class(key, value):
     return ""
 
 
+def parse_json_or_raw(raw):
+    if not raw:
+        return "Not available"
+    try:
+        return json.loads(raw)
+    except Exception:
+        return raw
+
+
 def fetch_mqtt_snapshot(options, timeout=1.2):
     """Read retained MQTT values for a live status overview.
 
@@ -126,6 +135,7 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
         "bms_error": "Not available",
         "bms_version": "Unknown",
         "bms_sn": "Unknown",
+        "pack_sn": "Unknown",
         "pack_count": 0,
         "packs": [],
         "fetched_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -169,21 +179,24 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
 
     result["ok"] = bool(messages)
     result["availability"] = messages.get(f"{base_topic}/availability", "Unknown")
+
+    status_raw = messages.get(f"{base_topic}/bms_status", "")
+    error_raw = messages.get(f"{base_topic}/bms_error", "")
+
+    result["bms_status"] = parse_json_or_raw(status_raw)
+    result["bms_error"] = parse_json_or_raw(error_raw)
+
+    # Direct topics first. These may not be retained on older versions.
     result["bms_version"] = messages.get(f"{base_topic}/bms_version", "Unknown")
     result["bms_sn"] = messages.get(f"{base_topic}/bms_sn", "Unknown")
+    result["pack_sn"] = messages.get(f"{base_topic}/pack_sn", "Unknown")
 
-    # Parse JSON status/error if possible, otherwise show raw text.
-    for key, topic in (
-        ("bms_status", f"{base_topic}/bms_status"),
-        ("bms_error", f"{base_topic}/bms_error"),
-    ):
-        raw = messages.get(topic, "")
-        if raw:
-            try:
-                parsed = json.loads(raw)
-                result[key] = parsed
-            except Exception:
-                result[key] = raw
+    # Fallback to retained bms_status JSON if direct serial/version topics were not retained.
+    if isinstance(result["bms_status"], dict):
+        if result["bms_sn"] == "Unknown":
+            result["bms_sn"] = result["bms_status"].get("bms_sn", "Unknown")
+        if result["bms_version"] == "Unknown":
+            result["bms_version"] = result["bms_status"].get("bms_version", "Unknown")
 
     # Discover pack topics from retained values.
     pack_ids = set()

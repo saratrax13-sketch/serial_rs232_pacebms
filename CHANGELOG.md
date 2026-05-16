@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.0.24 - 2026-05-16
+
+### Fixed
+- Fixed Live Status showing BMS Serial as Unknown when the direct `bms_sn` MQTT topic is not retained.
+- Added fallback to read BMS serial and version from the retained `bms_status` payload.
+
 ## 2.0.23 - 2026-05-16
 
 ### Added
