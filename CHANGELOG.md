@@ -1,13 +1,13 @@
-## 2.3.8 - 2026-05-17
+## 2.3.9 - 2026-05-17
 
 ### Fixed
-- Fixed repeated backup delete actions causing a `Not Found` page.
-- Backup POST actions now redirect back to the normal tab URL after completion.
-- Create backup, delete backup, restore backup, save config and restart actions no longer leave the browser on action URLs.
+- Fixed repeated backup delete actions still causing a `Not Found` page.
+- Delete action now redirects back to the clean Backups tab URL after completion.
+- Compare and Restore Preview now use normal Backups tab query links instead of separate action-page URLs.
+- Reduced the risk of broken relative paths after backup actions.
 
 ### Notes
-- This is a web UI routing/redirect polish release.
-- Delete only removes selected backup JSON files.
-- Config restore writes Home Assistant add-on options only.
+- Delete only removes selected local backup JSON files.
+- Restore writes Home Assistant add-on options only.
 - This does not write to the BMS.
 - No BMS protocol changes were made.

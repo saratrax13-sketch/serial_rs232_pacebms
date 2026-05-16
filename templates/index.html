@@ -1174,8 +1174,8 @@
               <td data-label="Size">{{ backup.size }} bytes</td>
               <td data-label="Actions">
                 <div class="backup-actions">
-                  <a class="button-link" href="compare-config-backup/{{ backup.filename }}">Compare</a>
-                  <a class="button-link" href="preview-restore-config-backup/{{ backup.filename }}">Restore Preview</a>
+                  <a class="button-link" href="?tab=backups&compare_backup={{ backup.filename }}">Compare</a>
+                  <a class="button-link" href="?tab=backups&restore_preview={{ backup.filename }}">Restore Preview</a>
                   <a class="button-link" href="download-config-backup/{{ backup.filename }}">Download</a>
                   <form method="post" action="delete-config-backup/{{ backup.filename }}" onsubmit="return confirm(`Delete this backup?\n\nFile: {{ backup.filename }}\n\nThis cannot be undone.`);">
                     <button class="danger-button" type="submit">Delete</button>

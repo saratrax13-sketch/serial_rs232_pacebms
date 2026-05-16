@@ -1038,7 +1038,60 @@ def index():
     tab = request.args.get("tab", "status")
     result = request.args.get("result", "")
     message = request.args.get("message", "")
-    return render_index(action_result=result, action_message=message, active_tab=tab)
+
+    compare_data = None
+    restore_preview = None
+
+    compare_filename = request.args.get("compare_backup", "")
+    preview_filename = request.args.get("restore_preview", "")
+
+    if compare_filename:
+        options, error = load_options()
+        if error:
+            return render_index("warn", error, active_tab="backups")
+
+        backup_options, read_message = load_config_backup(compare_filename)
+        if backup_options is None:
+            return render_index("warn", read_message, active_tab="backups")
+
+        changes = compare_options(options, backup_options)
+        compare_data = {
+            "filename": compare_filename,
+            "change_count": len(changes),
+            "changes": changes,
+        }
+        tab = "backups"
+        if not message:
+            message = f"Comparison loaded for {compare_filename}."
+            result = "ok"
+
+    if preview_filename:
+        options, error = load_options()
+        if error:
+            return render_index("warn", error, active_tab="backups")
+
+        backup_options, read_message = load_config_backup(preview_filename)
+        if backup_options is None:
+            return render_index("warn", read_message, active_tab="backups")
+
+        changes = compare_options(options, backup_options)
+        restore_preview = {
+            "filename": preview_filename,
+            "change_count": len(changes),
+            "changes": changes,
+        }
+        tab = "backups"
+        if not message:
+            message = f"Restore preview loaded for {preview_filename}. Review changes before restoring."
+            result = "warn"
+
+    return render_index(
+        action_result=result,
+        action_message=message,
+        active_tab=tab,
+        compare_data=compare_data,
+        restore_preview=restore_preview,
+    )
 
 
 @app.route("/test-telegram", methods=["POST"])
@@ -1136,10 +1189,10 @@ def route_save_config():
     append_event("config_save", "Configuration save", message, "ok" if ok else "warn")
 
     if ok:
-        return render_index(
+        return redirect_to_tab(
+            "config",
             "ok",
             message + " Restart required for monitor runtime changes to apply.",
-            active_tab="backups",
         )
 
     return redirect_to_tab("config", "warn", message)
@@ -1175,8 +1228,13 @@ def route_download_all_config_backups_zip():
 @app.route("/delete-config-backup/<filename>", methods=["POST"])
 def route_delete_config_backup(filename):
     ok, message = delete_config_backup(filename)
-    append_event("config_backup_delete", "Configuration backup deleted" if ok else "Configuration backup delete failed", message, "ok" if ok else "warn")
-    return render_index("ok" if ok else "warn", message, active_tab="backups")
+    append_event(
+        "config_backup_delete",
+        "Configuration backup deleted" if ok else "Configuration backup delete failed",
+        message,
+        "ok" if ok else "warn",
+    )
+    return redirect_to_tab("backups", "ok" if ok else "warn", message)
 
 
 @app.route("/compare-config-backup/<filename>", methods=["GET"])
