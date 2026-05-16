@@ -1017,18 +1017,18 @@ def main():
                     last_state_force = now
 
                 # ── Notification engine — per-pack updates ────────────────────
-                for pack in analog_data.packs:
+                for pack in analog_data.pack_data:
                     p = pack.pack_number
                     notify.on_soc_update(p, pack.soc)
                     notify.on_soh_update(p, pack.soh)
                     notify.on_energy_update(p, pack.voltage, pack.current, scan_interval)
-                    cells_v = [c / 1000.0 for c in pack.cell_voltages]
+                    cells_v = [c / 1000.0 for c in pack.v_cells]
                     notify.on_cell_update(p, cells_v)
-                    delta_mv = pack.cells_max_diff_calc
+                    delta_mv = pack.cell_max_diff
                     notify.on_delta_update(p, delta_mv)
 
                 # ── Scheduled reports check ───────────────────────────────────
-                notify.check_scheduled(len(analog_data.packs))
+                notify.check_scheduled(analog_data.packs)
 
                 log_analog_summary(analog_data)
 
@@ -1059,7 +1059,7 @@ def main():
                 if force_warn:
                     last_warn_force = now
                 # ── Warning and FET notifications ─────────────────────────────
-                for pack_warn in result.packs:
+                for pack_warn in result:
                     p = pack_warn.pack_number
                     notify.on_warnings_update(p, pack_warn.warnings)
                     notify.on_fet_update(p,
