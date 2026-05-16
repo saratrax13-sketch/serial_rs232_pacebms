@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.0.29 - 2026-05-16
+
+### Fixed
+- Fixed `publish_monitor_status` helper scope error in `bms_monitor.py`.
+- Fixed add-on startup failure introduced in the 2.0.27 monitor status update.
+- Retained web UI monitor status topics remain MQTT-only and do not write to the BMS.
+
 ## 2.0.28 - 2026-05-16
 
 ### Fixed

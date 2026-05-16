@@ -1,10 +1,10 @@
 # =============================================================================
 # bms_monitor.py — Pace BMS to MQTT Bridge
-# Version : 2.0.27
+# Version : 2.0.28
 # Changed : 2026-05-16
 # Changes :
-#   - Added retained MQTT monitor status topics for web UI live status
-#   - Added last successful analog/warning read timestamps
+#   - Fixed monitor status helper scope for web UI MQTT status topics
+#   - Added retained MQTT monitor status topics and last read timestamps
 #   - Fixed warning-frame parser alignment for Pace frames with prefix byte + pack count
 #   - Corrected false Unknown(0x0D), false FET OFF, and false Undefined fault states
 #   - Full notification engine via bms_notify.py
@@ -747,19 +747,6 @@ def log_warn_summary(warn_list: list[WarnData]):
 
 def publish_analog_data(client, config: dict, data: AnalogData, force: bool = False):
     base = config['mqtt_base_topic']
-
-    def publish_monitor_status(key: str, value):
-        """Publish retained monitor status values for the web UI.
-
-        This is MQTT-only status telemetry. It does not write to the BMS.
-        """
-        try:
-            client.publish(f"{base}/monitor/{key}", str(value), qos=1, retain=True)
-        except Exception as e:
-            log.debug("Monitor status publish failed for %s: %s", key, e)
-
-    publish_monitor_status("state", "starting")
-    publish_monitor_status("started_at", int(time.time()))
     zp   = _zpad(config, 'zero_pad_number_packs')
     zc   = _zpad(config, 'zero_pad_number_cells')
 
@@ -1007,6 +994,20 @@ def main():
     client = setup_mqtt(config, bms_sn)
 
     base = config['mqtt_base_topic']
+
+    def publish_monitor_status(key: str, value):
+        """Publish retained monitor status values for the web UI.
+
+        This is MQTT-only status telemetry. It does not write to the BMS.
+        """
+        try:
+            client.publish(f"{base}/monitor/{key}", str(value), qos=1, retain=True)
+        except Exception as e:
+            log.debug("Monitor status publish failed for %s: %s", key, e)
+
+    publish_monitor_status("state", "starting")
+    publish_monitor_status("started_at", int(time.time()))
+
     client.publish(f"{base}/availability", "offline", qos=1, retain=True)
     client.publish(f"{base}/bms_version",  bms_version, qos=1, retain=True)
     client.publish(f"{base}/bms_sn",       bms_sn, qos=1, retain=True)
@@ -1083,6 +1084,7 @@ def main():
                     bms_retry_count, offline_str, reason)
 
         client.publish(f"{base}/availability", "offline", qos=1, retain=True)
+        publish_monitor_status("state", "disconnected")
 
         error_payload = json.dumps({
             "status": "disconnected",
