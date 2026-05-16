@@ -1,6 +1,6 @@
 # =============================================================================
 # bms_monitor.py — Pace BMS to MQTT Bridge
-# Version : 2.2.2
+# Version : 2.2.3
 # Changed : 2026-05-16
 # Changes :
 #   - Fixed warning-frame parser alignment for Pace frames with prefix byte + pack count

@@ -1,12 +1,15 @@
 # =============================================================================
 # bms_notify.py — Notification Engine for Pace BMS Monitor
-# Version : 1.1.1
+# Version : 1.2.0
 # Changed : 2026-05-16
 # Changes :
 #   - Disconnect alert now uses retry_count >= threshold and logs skipped alerts
 #   - Detailed warning messages use latest analog data and configured thresholds
 #   - Charge FET OFF can be ignored when pack is fully charged
 #   - Fixed duplicate SOC high notifications caused by startup/midnight reset
+#   - Shortened Telegram warning detail and startup version text
+#   - Added startup suppression options for SOC-high and SOH alerts
+#   - Telegram logs now show the message title only
 # Handles all Telegram notifications directly from Python.
 # No dependency on HA automations.
 # =============================================================================
@@ -39,7 +42,8 @@ def telegram_send(config: dict, message: str):
         req     = urllib.request.Request(url, data=payload,
                                          headers={"Content-Type": "application/json"})
         urllib.request.urlopen(req, timeout=5)
-        log.info("Telegram sent: %s", message[:60])
+        title = str(message or "").splitlines()[0].strip() or "<empty>"
+        log.info("Telegram sent: %s", title)
     except Exception as e:
         log.warning("Telegram failed: %s", e)
 
@@ -67,6 +71,10 @@ class NotifyState:
 
         # SOH tracking — per pack
         self.soh_notified         = {}   # {pack_num: bool}
+        self.soh_initialized      = {}   # {pack_num: bool} — used to suppress startup-only SOH noise
+
+        # Startup/noise suppression tracking
+        self.soc_high_initialized = {}   # {pack_num: bool} — used to suppress startup-only full alerts
 
         # Disconnect tracking
         self.disconnect_time      = None
@@ -111,6 +119,45 @@ class NotifyState:
         now = datetime.now()
         return now.hour == hour and now.minute == minute
 
+    def _clean_bms_version(self, version: str) -> str:
+        """Shorten long Pace/Hubble version strings for Telegram."""
+        clean = str(version or "unknown").replace('\x00', '').strip()
+        # Many Pace version strings include repeated pack serial fields after '*'.
+        # Keep the firmware part only for a clean startup message.
+        if '*' in clean:
+            clean = clean.split('*', 1)[0].strip()
+        return clean[:60] if clean else "unknown"
+
+    def _friendly_warning_lines(self, warning_text: str) -> list[str]:
+        """Convert raw BMS warning strings into shorter operator-friendly lines."""
+        replacements = {
+            'Warning State 1:': '',
+            'Warning State 2:': '',
+            'Above cell volt warn': 'Above cell voltage',
+            'Lower cell volt warn': 'Low cell voltage',
+            'Above total volt warn': 'Above total voltage',
+            'Lower total volt warn': 'Low total voltage',
+            'Charge current warn': 'Charge current warning',
+            'Discharge current warn': 'Discharge current warning',
+            'Above charge temp warn': 'High charge temperature',
+            'Above discharge temp warn': 'High discharge temperature',
+            'Low charge temp warn': 'Low charge temperature',
+            'Low discharge temp warn': 'Low discharge temperature',
+            'High env temp warn': 'High environment temperature',
+            'Low env temp warn': 'Low environment temperature',
+            'High MOS temp warn': 'High MOS temperature',
+            'Low power warn': 'Low power warning',
+        }
+        items = []
+        for part in str(warning_text or '').replace(',', '|').split('|'):
+            text = part.strip()
+            for old, new in replacements.items():
+                text = text.replace(old, new)
+            text = text.strip(' :-')
+            if text and text not in items:
+                items.append(text)
+        return items or [warning_text]
+
     def _midnight_reset(self):
         today = datetime.now().date()
         if self.energy_reset_day != today:
@@ -136,10 +183,11 @@ class NotifyState:
         if not self._notify_enabled('notify_startup'):
             return
         label = "Restarted" if restarted else "Started"
+        clean_version = self._clean_bms_version(bms_version)
         telegram_send(self.config,
             f"BMS Monitor {label}\n"
             f"SN: {bms_sn}\n"
-            f"Version: {bms_version}\n"
+            f"Version: {clean_version}\n"
             f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     def on_shutdown(self, bms_sn: str):
@@ -215,14 +263,31 @@ class NotifyState:
 
         # Parse thresholds
         raw        = str(self.config.get('notify_soc_low_thresholds', '75,50,25,10'))
-        thresholds = sorted([int(x.strip()) for x in raw.split(',')], reverse=True)
+        thresholds = sorted([int(x.strip()) for x in raw.split(',') if x.strip()], reverse=True)
         high_thr   = float(self.config.get('notify_soc_high_threshold', 98))
         high_reset = float(self.config.get('notify_soc_high_reset', 95))
 
         if pack_num not in self.soc_thresholds_hit:
-            self.soc_thresholds_hit[pack_num]    = set()
-            self.soc_high_notified[pack_num]     = False
-            self.soc_high_reset_ready[pack_num]  = True
+            self.soc_thresholds_hit[pack_num] = set()
+
+        # High-SOC startup suppression. If the monitor starts while the battery
+        # is already full, mark it as already notified instead of sending a
+        # fresh "Battery Fully Charged" message on every add-on restart.
+        if pack_num not in self.soc_high_initialized:
+            self.soc_high_initialized[pack_num] = True
+            if (
+                not bool(self.config.get('notify_soc_high_on_startup', False))
+                and soc >= high_thr
+            ):
+                self.soc_high_notified[pack_num] = True
+                self.soc_high_reset_ready[pack_num] = False
+                log.info(
+                    "High SOC startup alert suppressed for Pack %02d: SOC %.1f%% >= %.1f%%",
+                    pack_num, soc, high_thr
+                )
+            else:
+                self.soc_high_notified[pack_num] = False
+                self.soc_high_reset_ready[pack_num] = True
 
         # Low SOC alerts
         if self._notify_enabled('notify_soc_low'):
@@ -239,7 +304,7 @@ class NotifyState:
             if soc <= high_reset:
                 self.soc_high_reset_ready[pack_num] = True
                 self.soc_high_notified[pack_num]    = False
-            if soc >= high_thr and self.soc_high_reset_ready[pack_num] and not self.soc_high_notified[pack_num]:
+            if soc >= high_thr and self.soc_high_reset_ready.get(pack_num, True) and not self.soc_high_notified.get(pack_num, False):
                 self.soc_high_notified[pack_num]    = True
                 self.soc_high_reset_ready[pack_num] = False
                 telegram_send(self.config,
@@ -272,11 +337,11 @@ class NotifyState:
         return matches
 
     def _build_warning_detail(self, pack_num: int, cleaned: str, pack=None) -> str:
-        """Build an enriched Telegram warning message using latest analog data.
+        """Build a concise Telegram warning message using latest analog data.
 
-        The BMS warning frame tells us the warning type. The analog frame gives
-        the current cell voltages, pack voltage, temperatures, SOC and SOH. The
-        configured thresholds below are read-only reference values for the
+        The BMS warning frame tells us the internal warning type. The analog
+        frame gives the current cell voltages, pack voltage, temperatures, SOC
+        and SOH. Configured thresholds are read-only reference values for the
         Telegram message only; they do not write to or configure the BMS.
         """
         if not self.config.get('notify_warning_detail_enabled', True) or pack is None:
@@ -298,7 +363,9 @@ class NotifyState:
             cell_count = int(getattr(pack, 'cells', len(cells_v)) or len(cells_v))
             delta_mv = float(getattr(pack, 'cell_max_diff', 0.0) or 0.0)
 
-            lines = ["BMS reported:", cleaned]
+            friendly = self._friendly_warning_lines(cleaned)
+            lines = ["BMS internal warning active:"]
+            lines.extend(friendly)
 
             if cells_v and self.config.get('notify_include_highest_and_lowest_cell', True):
                 high_idx, high_v = max(enumerate(cells_v, start=1), key=lambda x: x[1])
@@ -312,23 +379,23 @@ class NotifyState:
 
                 if 'Above cell volt warn' in cleaned:
                     over = self._format_cells_over_under(cells_v, cell_high, 'above')
-                    lines.append(f"High cell reference: {cell_high:.2f} V")
+                    lines.append(f"Reference high cell: {cell_high:.2f} V")
                     if over and self.config.get('notify_include_all_cells_above_threshold', True):
                         lines.append("Cells above reference:")
                         lines.extend(over)
                     elif not over:
-                        lines.append(f"No cell is above the configured {cell_high:.2f} V reference.")
-                        lines.append("The BMS may use a lower internal warning level.")
+                        lines.append("No cell is above the configured reference.")
+                        lines.append("BMS internal warning is active below reference.")
 
                 if 'Lower cell volt warn' in cleaned or 'Below lower limit' in cleaned:
                     under = self._format_cells_over_under(cells_v, cell_low, 'below')
-                    lines.append(f"Low cell reference: {cell_low:.2f} V")
+                    lines.append(f"Reference low cell: {cell_low:.2f} V")
                     if under and self.config.get('notify_include_all_cells_below_threshold', True):
                         lines.append("Cells below reference:")
                         lines.extend(under)
                     elif not under:
-                        lines.append(f"No cell is below the configured {cell_low:.2f} V reference.")
-                        lines.append("The BMS may use a higher internal warning level.")
+                        lines.append("No cell is below the configured reference.")
+                        lines.append("BMS internal warning is active above reference.")
 
             if self.config.get('notify_include_pack_voltage', True):
                 pack_high = cell_high * cell_count if cell_count else 0.0
@@ -416,12 +483,31 @@ class NotifyState:
     def on_soh_update(self, pack_num: int, soh: float):
         if not self._notify_enabled('notify_soh'):
             return
+
         threshold = float(self.config.get('notify_soh_threshold', 95))
+
+        # SOH is slow-moving. Suppress the startup-only alert by default if the
+        # monitor starts and the pack is already below the threshold. This avoids
+        # a Telegram message on every add-on restart for a known older battery.
+        if pack_num not in self.soh_initialized:
+            self.soh_initialized[pack_num] = True
+            if not bool(self.config.get('notify_soh_on_startup', False)) and soh < threshold:
+                self.soh_notified[pack_num] = True
+                log.info(
+                    "SOH startup alert suppressed for Pack %02d: SOH %.1f%% < %.1f%%",
+                    pack_num, soh, threshold
+                )
+                return
+
+        if soh >= threshold:
+            self.soh_notified[pack_num] = False
+            return
+
         if soh < threshold and not self.soh_notified.get(pack_num, False):
             self.soh_notified[pack_num] = True
             telegram_send(self.config,
                 f"SOH Degradation Alert — Pack {pack_num:02d}\n"
-                f"SOH: {soh:.1f}% (threshold: {threshold}%)\n"
+                f"SOH: {soh:.1f}% (threshold: {threshold:.1f}%)\n"
                 f"Time: {datetime.now().strftime('%H:%M:%S')}")
 
     # ── Energy tracking ───────────────────────────────────────────────────────

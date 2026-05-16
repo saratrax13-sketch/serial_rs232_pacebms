@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.0.26 - 2026-05-16
+
+### Changed
+- Shortened detailed BMS warning Telegram messages.
+- Improved wording from raw BMS warning strings to operator-friendly warning text.
+- Cleaned startup Telegram version text.
+- Telegram log output now shows the message title only.
+
+### Added
+- Added `notify_soc_high_on_startup` to prevent fully charged alerts on every add-on restart.
+- Added `notify_soh_on_startup` to prevent SOH threshold alerts on every add-on restart.
+
+### Notes
+- Default behaviour suppresses startup-only SOC high and SOH alerts.
+- Alerts still trigger again after SOC drops below `notify_soc_high_reset`, or SOH recovers above and later drops below the configured threshold.
+
 ## 2.0.25 - 2026-05-16
 
 ### Fixed
