@@ -2,7 +2,7 @@
 
 A Python-based bridge for **Pace BMS** battery management systems that publishes real-time battery data to MQTT, with full **Home Assistant auto-discovery** support.
 
-Connects via **TCP/IP or Serial (USB-RS485)**, supports **multiple packs** (auto-detected), and runs as a **Home Assistant addon**, standalone **Docker container**, or direct Python script.
+Connects via **TCP/IP or Serial (RS232)**, supports **multiple packs** (auto-detected), and runs as a **Home Assistant addon**, standalone **Docker container**, or direct Python script.
 
 ---
 
@@ -40,7 +40,6 @@ Connects via **TCP/IP or Serial (USB-RS485)**, supports **multiple packs** (auto
 |-----|-----------|--------|
 | Pace BMS P16S200A | Serial (USB) | Yes |
 | Pace BMS AM-x series (Hubble AM2) | Serial (USB-RS232) | Yes |
-| Pace BMS AM-x series | TCP/IP | Yes |
 
 The protocol is compatible with other Pace-based BMS units using the same RS232/UART frame format.
 
