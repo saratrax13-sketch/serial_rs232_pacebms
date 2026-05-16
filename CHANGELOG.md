@@ -1,22 +1,13 @@
-## 2.1.0 - 2026-05-16
-
-### Added
-- Added tabbed web UI layout: Status, Config and Events.
-- Added event history clear button.
-- Added event history export as JSON.
-- Added event history export as CSV.
-- Added `/api/status` JSON endpoint for current monitor and battery status.
-- Added `/api/events` JSON endpoint for event history.
-- Added warning severity grouping for pack cards.
-- Added severity labels such as Normal, Voltage Warning, Protection, Fault, Stale and Offline.
+## 2.1.1 - 2026-05-16
 
 ### Changed
-- Moved configuration overview into a dedicated Config tab.
-- Moved Last Events / Status History into a dedicated Events tab.
-- Improved warning display with severity labels while keeping detailed reference checks.
+- Improved Home Assistant Ingress web UI responsiveness.
+- Config and Events tabs no longer fetch a live MQTT snapshot before rendering.
+- Live MQTT status is now fetched only on the Status tab and `/api/status` endpoint.
+- Reduced MQTT snapshot wait time to make the Status tab feel faster.
 
 ### Notes
-- This is a web UI and support-tooling release.
+- This is a web UI performance polish release.
 - No BMS protocol changes were made.
 - No BMS write/control commands were added.
 - The add-on remains read-only to the BMS.

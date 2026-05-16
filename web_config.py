@@ -261,7 +261,7 @@ def classify_warning_severity(warnings: str, availability: str = "online", stale
     return "warning", "Warning"
 
 
-def fetch_mqtt_snapshot(options, timeout=1.2):
+def fetch_mqtt_snapshot(options, timeout=0.45):
     """Read retained MQTT values for a live status overview.
 
     This connects briefly to the configured MQTT broker and subscribes to the
@@ -551,7 +551,11 @@ def build_grouped_config(options):
 def render_index(action_result="", action_message="", active_tab="status"):
     options, error = load_options()
     grouped = build_grouped_config(options)
-    live = fetch_mqtt_snapshot(options) if options else None
+
+    # Performance note:
+    # Fetching the live MQTT snapshot requires a short MQTT subscribe window.
+    # Only do this on the Status tab. Config and Events should open quickly.
+    live = fetch_mqtt_snapshot(options) if options and active_tab == "status" else None
 
     return render_template(
         "index.html",
