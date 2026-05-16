@@ -1,8 +1,10 @@
 # =============================================================================
 # bms_monitor.py — Pace BMS to MQTT Bridge
-# Version : 2.0.35
+# Version : 2.0.38
 # Changed : 2026-05-16
 # Changes :
+#   - Fixed MQTT availability staying offline while monitor is running
+#   - Publishes availability online after successful startup/read/recovery
 #   - Added persistent last-events history for web UI
 #   - Logs startup, shutdown, disconnect, recovery, stale and fresh events
 #   - Added stale data detection for analog and warning reads
@@ -1014,6 +1016,16 @@ def main():
         except Exception as e:
             log.debug("Monitor status publish failed for %s: %s", key, e)
 
+    def publish_availability(value: str):
+        """Publish retained MQTT availability for Home Assistant and web UI.
+
+        This is MQTT-only status telemetry. It does not write to the BMS.
+        """
+        try:
+            client.publish(f"{base}/availability", value, qos=1, retain=True)
+        except Exception as e:
+            log.debug("Availability publish failed: %s", e)
+
     publish_monitor_status("state", "starting")
     publish_monitor_status("started_at", int(time.time()))
 
@@ -1053,7 +1065,7 @@ def main():
 
     append_event("startup", "Monitor starting", f"SN: {bms_sn}", "info")
 
-    client.publish(f"{base}/availability", "offline", qos=1, retain=True)
+    publish_availability("offline")
     client.publish(f"{base}/bms_version",  bms_version, qos=1, retain=True)
     client.publish(f"{base}/bms_sn",       bms_sn, qos=1, retain=True)
     client.publish(f"{base}/pack_sn",      pack_sn, qos=1, retain=True)
@@ -1067,6 +1079,7 @@ def main():
     client.publish(f"{base}/bms_status", startup_payload, qos=1, retain=True)
     log.info("Startup notification published")
     publish_monitor_status("state", "running")
+    publish_availability("online")
     append_event("startup", "Monitor started", f"SN: {bms_sn}", "ok")
 
     scan_interval      = float(config.get('scan_interval', 30))
@@ -1087,7 +1100,7 @@ def main():
         try:
             shutdown_payload = json.dumps({"status": "shutdown", "bms_sn": bms_sn, "timestamp": int(time.time())})
             client.publish(f"{base}/bms_status", shutdown_payload, qos=1, retain=True)
-            client.publish(f"{base}/availability", "offline", qos=1, retain=True)
+            publish_availability("offline")
             publish_monitor_status("state", "stopped")
             append_event("shutdown", "Monitor stopped", f"SN: {bms_sn}", "warn")
             client.loop(timeout=1.0)
@@ -1201,7 +1214,7 @@ def main():
         log.warning("BMS communication failed — retry %d, offline %s, reason: %s",
                     bms_retry_count, offline_str, reason)
 
-        client.publish(f"{base}/availability", "offline", qos=1, retain=True)
+        publish_availability("offline")
         publish_monitor_status("state", "disconnected")
         append_event("disconnect", "BMS disconnected", reason, "danger")
 
@@ -1265,6 +1278,7 @@ def main():
                     notify.on_recovery(bms_retry_count, offline_str)
                     log.info("BMS recovered after %s (%d retries)", offline_str, bms_retry_count)
                     publish_monitor_status("state", "running")
+                    publish_availability("online")
                     publish_monitor_status("last_recovery_epoch", int(time.time()))
                     append_event("recovery", "BMS reconnected", f"Offline: {offline_str}; retries: {bms_retry_count}", "ok")
                     bms_error_published  = False
@@ -1277,6 +1291,7 @@ def main():
                 last_analog_success = time.time()
                 publish_monitor_status("last_analog_read_epoch", int(last_analog_success))
                 publish_monitor_status("last_analog_read", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(last_analog_success)))
+                publish_availability("online")
 
                 now = time.time()
                 force_state = (now - last_state_force) >= state_force_seconds
@@ -1304,7 +1319,7 @@ def main():
                 # read so cell/pack counts are known; also guards the startup race
                 if first_analog_ready and time.time() - last_discovery > DISCOVERY_TTL:
                     publish_ha_discovery(client, config, bms_sn, bms_version, analog_data)
-                    client.publish(f"{base}/availability", "online", qos=1, retain=True)
+                    publish_availability("online")
                     last_discovery = time.time()
             else:
                 log.error("Analog data error: %s", result)
