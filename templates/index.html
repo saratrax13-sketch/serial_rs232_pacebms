@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Pace BMS Settings</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main>
+    <header class="page-header">
+      <div>
+        <h1>Pace BMS Settings</h1>
+        <p>Read-only configuration overview for the Home Assistant add-on.</p>
+      </div>
+      <div class="badge">Read-only</div>
+    </header>
+
+    {% if error %}
+      <div class="alert">{{ error }}</div>
+    {% endif %}
+
+    <section class="grid">
+      {% for group_name, items in grouped.items() %}
+      <article class="card">
+        <h2>{{ group_name }}</h2>
+
+        {% for item in items %}
+        <div class="row">
+          <div class="key">{{ item.key }}</div>
+          <div class="value {{ item.class }}">{{ item.value }}</div>
+        </div>
+        {% endfor %}
+      </article>
+      {% endfor %}
+    </section>
+
+    <footer>
+      Last refreshed: {{ generated_at }}
+    </footer>
+  </main>
+</body>
+</html>

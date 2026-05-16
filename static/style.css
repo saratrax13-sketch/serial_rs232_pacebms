@@ -1,0 +1,143 @@
+:root {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #e5e7eb;
+  background: #0f172a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 32rem),
+    #0f172a;
+}
+
+main {
+  max-width: 1220px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 22px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 32px;
+  letter-spacing: -0.03em;
+}
+
+p {
+  margin: 8px 0 0;
+  color: #94a3b8;
+}
+
+.badge {
+  border: 1px solid #38bdf8;
+  background: rgba(14, 165, 233, 0.12);
+  color: #bae6fd;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.alert {
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #fde68a;
+  padding: 14px 16px;
+  border-radius: 14px;
+  margin-bottom: 18px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  background: rgba(30, 41, 59, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.22);
+}
+
+.card h2 {
+  margin: 0 0 12px;
+  color: #93c5fd;
+  font-size: 20px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.key {
+  color: #cbd5e1;
+  font-size: 14px;
+  word-break: break-word;
+}
+
+.value {
+  color: #f8fafc;
+  font-weight: 700;
+  text-align: right;
+  word-break: break-word;
+}
+
+.value.ok {
+  color: #86efac;
+}
+
+.value.off {
+  color: #cbd5e1;
+}
+
+.value.warn {
+  color: #fcd34d;
+}
+
+footer {
+  color: #64748b;
+  margin-top: 22px;
+  font-size: 13px;
+}
+
+@media (max-width: 620px) {
+  body {
+    padding: 16px;
+  }
+
+  .page-header {
+    flex-direction: column;
+  }
+
+  .row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .value {
+    text-align: left;
+  }
+}

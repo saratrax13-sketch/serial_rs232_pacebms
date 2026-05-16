@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.0.20 - 2026-05-16
+
+### Added
+- Added read-only Home Assistant Ingress web UI.
+- Added grouped configuration overview page inside the add-on.
+- Added configuration sections for Telegram, Notifications, Warning Detail, MQTT, BMS Connection, and Advanced.
+- Added masking of sensitive values such as Telegram token, chat ID, and MQTT password.
+- Added `/health` endpoint for the web configuration UI.
+
+### Changed
+- Updated `run.sh` to start the web configuration UI in the background before starting the BMS monitor.
+- Added Flask to `requirements.txt` for the web UI.
+- Added Home Assistant Ingress settings to `config.yaml`.
+- Bumped add-on version to `2.0.20`.
+
+### Notes
+- The web UI is read-only in this version.
+- Settings must still be edited from the normal Home Assistant add-on Configuration tab.
+
 ## 2.0.19 - 2026-05-16
 
 ### Added
