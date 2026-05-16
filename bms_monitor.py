@@ -1,8 +1,10 @@
 # =============================================================================
 # bms_monitor.py — Pace BMS to MQTT Bridge
-# Version : 2.2.3
+# Version : 2.0.27
 # Changed : 2026-05-16
 # Changes :
+#   - Added retained MQTT monitor status topics for web UI live status
+#   - Added last successful analog/warning read timestamps
 #   - Fixed warning-frame parser alignment for Pace frames with prefix byte + pack count
 #   - Corrected false Unknown(0x0D), false FET OFF, and false Undefined fault states
 #   - Full notification engine via bms_notify.py
@@ -746,6 +748,19 @@ def log_warn_summary(warn_list: list[WarnData]):
 
 def publish_analog_data(client, config: dict, data: AnalogData, force: bool = False):
     base = config['mqtt_base_topic']
+
+    def publish_monitor_status(key: str, value: str | int | float):
+        """Publish retained monitor status values for the web UI.
+
+        This is MQTT-only status telemetry. It does not write to the BMS.
+        """
+        try:
+            client.publish(f"{base}/monitor/{key}", str(value), qos=1, retain=True)
+        except Exception as e:
+            log.debug("Monitor status publish failed for %s: %s", key, e)
+
+    publish_monitor_status("state", "starting")
+    publish_monitor_status("started_at", int(time.time()))
     zp   = _zpad(config, 'zero_pad_number_packs')
     zc   = _zpad(config, 'zero_pad_number_cells')
 
@@ -994,6 +1009,8 @@ def main():
 
     base = config['mqtt_base_topic']
     client.publish(f"{base}/availability", "offline", qos=1, retain=True)
+                publish_monitor_status("state", "disconnected")
+            publish_monitor_status("state", "stopped")
     # Retain static identity topics so the Web UI and Home Assistant can read
     # them immediately after reconnect/restart without waiting for a fresh publish.
     client.publish(f"{base}/bms_version",  bms_version, qos=1, retain=True)
@@ -1008,6 +1025,7 @@ def main():
     })
     client.publish(f"{base}/bms_status", startup_payload, qos=1, retain=True)
     log.info("Startup notification published")
+    publish_monitor_status("state", "running")
 
     scan_interval      = float(config.get('scan_interval', 30))
 
@@ -1129,12 +1147,17 @@ def main():
                     client.publish(f"{base}/bms_error", recovery_payload, qos=1, retain=True)
                     notify.on_recovery(bms_retry_count, offline_str)
                     log.info("BMS recovered after %s (%d retries)", offline_str, bms_retry_count)
+                    publish_monitor_status("state", "running")
+                    publish_monitor_status("last_recovery_epoch", int(time.time()))
                     bms_error_published  = False
                     bms_retry_count      = 0
                     bms_disconnect_time  = None
 
                 analog_data        = result
                 first_analog_ready = True
+
+                publish_monitor_status("last_analog_read_epoch", int(time.time()))
+                publish_monitor_status("last_analog_read", time.strftime("%Y-%m-%d %H:%M:%S"))
 
                 now = time.time()
                 force_state = (now - last_state_force) >= state_force_seconds
@@ -1184,6 +1207,8 @@ def main():
             packs           = analog_data.packs if analog_data else 1
             success, result = bms_get_warn_info(bms, config, packs)
             if success:
+                publish_monitor_status("last_warn_read_epoch", int(time.time()))
+                publish_monitor_status("last_warn_read", time.strftime("%Y-%m-%d %H:%M:%S"))
                 now = time.time()
                 force_warn = (now - last_warn_force) >= warn_force_seconds
                 publish_warn_data(client, config, result, force=force_warn)

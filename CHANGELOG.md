@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.0.27 - 2026-05-16
+
+### Added
+- Added Test Telegram button to the Home Assistant Ingress web UI.
+- Added Test MQTT button to the Home Assistant Ingress web UI.
+- Added retained MQTT monitor status topics under `pacebms/monitor/`.
+- Added last successful analog read timestamp to the web UI.
+- Added last successful warning read timestamp to the web UI.
+- Added monitor state tile to the web UI.
+
+### Notes
+- Test buttons do not write to the BMS.
+- Monitor status topics are MQTT-only status telemetry.
+
 ## 2.0.26 - 2026-05-16
 
 ### Changed

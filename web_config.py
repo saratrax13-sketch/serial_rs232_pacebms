@@ -1,8 +1,9 @@
 import json
 import os
 import time
+import urllib.request
 from datetime import datetime
-from flask import Flask, render_template
+from flask import Flask, render_template, request, redirect, url_for
 
 import paho.mqtt.client as mqtt
 
@@ -21,7 +22,9 @@ GROUPS = {
     "Notifications": [
         "notify_soc_low",
         "notify_soc_high",
+        "notify_soc_high_on_startup",
         "notify_soh",
+        "notify_soh_on_startup",
         "notify_warnings",
         "notify_fet",
         "notify_daily_summary",
@@ -113,6 +116,51 @@ def parse_json_or_raw(raw):
         return raw
 
 
+def test_telegram(options):
+    if not options.get("notify_enabled", True):
+        return False, "Notifications are disabled."
+    token = options.get("telegram_bot_token", "")
+    chat_id = options.get("telegram_chat_id", "")
+    if not token or not chat_id:
+        return False, "Telegram bot token or chat ID is not configured."
+
+    message = (
+        "Pace BMS Test Message\n"
+        "Telegram is working from the Home Assistant add-on web UI.\n"
+        f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    )
+
+    try:
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        payload = json.dumps({"chat_id": chat_id, "text": message}).encode()
+        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+        urllib.request.urlopen(req, timeout=8)
+        return True, "Telegram test sent successfully."
+    except Exception as exc:
+        return False, f"Telegram test failed: {exc}"
+
+
+def test_mqtt(options):
+    host = options.get("mqtt_host")
+    port = int(options.get("mqtt_port", 1883) or 1883)
+    user = options.get("mqtt_user", "")
+    password = options.get("mqtt_password", "")
+    if not host:
+        return False, "MQTT host is not configured."
+
+    client_id = f"pacebms-web-test-{int(time.time() * 1000)}"
+    client = mqtt.Client(client_id=client_id)
+    if user or password:
+        client.username_pw_set(user, password)
+
+    try:
+        client.connect(host, port, keepalive=10)
+        client.disconnect()
+        return True, f"MQTT connection test passed: {host}:{port}"
+    except Exception as exc:
+        return False, f"MQTT connection test failed: {exc}"
+
+
 def fetch_mqtt_snapshot(options, timeout=1.2):
     """Read retained MQTT values for a live status overview.
 
@@ -131,6 +179,9 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
         "error": "",
         "base_topic": base_topic,
         "availability": "Unknown",
+        "monitor_state": "Unknown",
+        "last_analog_read": "Unknown",
+        "last_warn_read": "Unknown",
         "bms_status": "Not available",
         "bms_error": "Not available",
         "bms_version": "Unknown",
@@ -179,6 +230,9 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
 
     result["ok"] = bool(messages)
     result["availability"] = messages.get(f"{base_topic}/availability", "Unknown")
+    result["monitor_state"] = messages.get(f"{base_topic}/monitor/state", "Unknown")
+    result["last_analog_read"] = messages.get(f"{base_topic}/monitor/last_analog_read", "Unknown")
+    result["last_warn_read"] = messages.get(f"{base_topic}/monitor/last_warn_read", "Unknown")
 
     status_raw = messages.get(f"{base_topic}/bms_status", "")
     error_raw = messages.get(f"{base_topic}/bms_error", "")
@@ -186,19 +240,16 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
     result["bms_status"] = parse_json_or_raw(status_raw)
     result["bms_error"] = parse_json_or_raw(error_raw)
 
-    # Direct topics first. These may not be retained on older versions.
     result["bms_version"] = messages.get(f"{base_topic}/bms_version", "Unknown")
     result["bms_sn"] = messages.get(f"{base_topic}/bms_sn", "Unknown")
     result["pack_sn"] = messages.get(f"{base_topic}/pack_sn", "Unknown")
 
-    # Fallback to retained bms_status JSON if direct serial/version topics were not retained.
     if isinstance(result["bms_status"], dict):
         if result["bms_sn"] == "Unknown":
             result["bms_sn"] = result["bms_status"].get("bms_sn", "Unknown")
         if result["bms_version"] == "Unknown":
             result["bms_version"] = result["bms_status"].get("bms_version", "Unknown")
 
-    # Discover pack topics from retained values.
     pack_ids = set()
     prefix = f"{base_topic}/pack_"
     for topic in messages:
@@ -211,7 +262,7 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
     packs = []
     for pack_id in sorted(pack_ids, key=lambda x: int(x)):
         pfx = f"{base_topic}/pack_{pack_id}"
-        pack = {
+        packs.append({
             "id": pack_id,
             "soc": messages.get(f"{pfx}/soc", "Unknown"),
             "soh": messages.get(f"{pfx}/soh", "Unknown"),
@@ -222,8 +273,7 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
             "charge_fet": messages.get(f"{pfx}/charge_fet", "Unknown"),
             "discharge_fet": messages.get(f"{pfx}/discharge_fet", "Unknown"),
             "fully": messages.get(f"{pfx}/fully", "Unknown"),
-        }
-        packs.append(pack)
+        })
 
     result["packs"] = packs
     result["pack_count"] = len(packs)
@@ -234,9 +284,12 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
     return result
 
 
-@app.route("/")
+@app.route("/", methods=["GET"])
 def index():
     options, error = load_options()
+
+    action_result = request.args.get("result", "")
+    action_message = request.args.get("message", "")
 
     grouped = {}
     for group_name, keys in GROUPS.items():
@@ -256,8 +309,28 @@ def index():
         grouped=grouped,
         live=live,
         error=error,
+        action_result=action_result,
+        action_message=action_message,
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     )
+
+
+@app.route("/test-telegram", methods=["POST"])
+def route_test_telegram():
+    options, error = load_options()
+    if error:
+        return redirect(url_for("index", result="warn", message=error))
+    ok, message = test_telegram(options)
+    return redirect(url_for("index", result="ok" if ok else "warn", message=message))
+
+
+@app.route("/test-mqtt", methods=["POST"])
+def route_test_mqtt():
+    options, error = load_options()
+    if error:
+        return redirect(url_for("index", result="warn", message=error))
+    ok, message = test_mqtt(options)
+    return redirect(url_for("index", result="ok" if ok else "warn", message=message))
 
 
 @app.route("/health")
