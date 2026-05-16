@@ -12,9 +12,7 @@
       background: #0f172a;
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -25,10 +23,7 @@
         #0f172a;
     }
 
-    main {
-      max-width: 1220px;
-      margin: 0 auto;
-    }
+    main { max-width: 1220px; margin: 0 auto; }
 
     .page-header {
       display: flex;
@@ -45,10 +40,7 @@
       color: #f8fafc;
     }
 
-    p {
-      margin: 8px 0 0;
-      color: #94a3b8;
-    }
+    p { margin: 8px 0 0; color: #94a3b8; }
 
     .badge {
       border: 1px solid #38bdf8;
@@ -69,6 +61,37 @@
       margin-bottom: 18px;
     }
 
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .status-tile {
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 16px;
+      padding: 14px;
+    }
+
+    .tile-label {
+      color: #94a3b8;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .tile-value {
+      color: #f8fafc;
+      font-weight: 800;
+      font-size: 18px;
+      word-break: break-word;
+    }
+
+    .tile-value.online, .value.ok { color: #86efac; }
+    .tile-value.offline, .value.warn { color: #fcd34d; }
+    .value.off { color: #cbd5e1; }
+
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
@@ -81,6 +104,10 @@
       border-radius: 18px;
       padding: 18px;
       box-shadow: 0 18px 45px rgba(0, 0, 0, 0.22);
+    }
+
+    .wide-card {
+      margin-bottom: 16px;
     }
 
     .card h2 {
@@ -98,9 +125,7 @@
       border-bottom: 1px solid rgba(148, 163, 184, 0.16);
     }
 
-    .row:last-child {
-      border-bottom: none;
-    }
+    .row:last-child { border-bottom: none; }
 
     .key {
       color: #cbd5e1;
@@ -115,16 +140,40 @@
       word-break: break-word;
     }
 
-    .value.ok {
-      color: #86efac;
+    .pack-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6px;
+      overflow: hidden;
+      border-radius: 14px;
     }
 
-    .value.off {
-      color: #cbd5e1;
+    .pack-table th,
+    .pack-table td {
+      border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+      padding: 10px 8px;
+      text-align: left;
+      font-size: 14px;
+      vertical-align: top;
     }
 
-    .value.warn {
+    .pack-table th {
+      color: #93c5fd;
+      font-weight: 800;
+      background: rgba(15, 23, 42, 0.45);
+    }
+
+    .pack-table td {
+      color: #e5e7eb;
+    }
+
+    .warning-text {
       color: #fcd34d;
+      max-width: 360px;
+    }
+
+    .normal-text {
+      color: #86efac;
     }
 
     footer {
@@ -133,23 +182,12 @@
       font-size: 13px;
     }
 
-    @media (max-width: 620px) {
-      body {
-        padding: 16px;
-      }
-
-      .page-header {
-        flex-direction: column;
-      }
-
-      .row {
-        grid-template-columns: 1fr;
-        gap: 4px;
-      }
-
-      .value {
-        text-align: left;
-      }
+    @media (max-width: 760px) {
+      body { padding: 16px; }
+      .page-header { flex-direction: column; }
+      .row { grid-template-columns: 1fr; gap: 4px; }
+      .value { text-align: left; }
+      .pack-table { display: block; overflow-x: auto; white-space: nowrap; }
     }
   </style>
 </head>
@@ -158,13 +196,81 @@
     <header class="page-header">
       <div>
         <h1>Pace BMS Settings</h1>
-        <p>Read-only configuration overview for the Home Assistant add-on.</p>
+        <p>Configuration overview and live MQTT status for the Home Assistant add-on.</p>
       </div>
       <div class="badge">Read-only</div>
     </header>
 
     {% if error %}
       <div class="alert">{{ error }}</div>
+    {% endif %}
+
+    {% if live %}
+    <section class="card wide-card">
+      <h2>Live Status</h2>
+
+      {% if live.error %}
+        <div class="alert">{{ live.error }}</div>
+      {% endif %}
+
+      <div class="status-grid">
+        <div class="status-tile">
+          <div class="tile-label">Availability</div>
+          <div class="tile-value {{ live.availability|lower }}">{{ live.availability }}</div>
+        </div>
+        <div class="status-tile">
+          <div class="tile-label">Detected Packs</div>
+          <div class="tile-value">{{ live.pack_count }}</div>
+        </div>
+        <div class="status-tile">
+          <div class="tile-label">BMS Serial</div>
+          <div class="tile-value">{{ live.bms_sn }}</div>
+        </div>
+        <div class="status-tile">
+          <div class="tile-label">MQTT Base Topic</div>
+          <div class="tile-value">{{ live.base_topic }}</div>
+        </div>
+      </div>
+
+      {% if live.packs %}
+      <table class="pack-table">
+        <thead>
+          <tr>
+            <th>Pack</th>
+            <th>SOC</th>
+            <th>SOH</th>
+            <th>Voltage</th>
+            <th>Current</th>
+            <th>Delta</th>
+            <th>FETs</th>
+            <th>Warnings</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for pack in live.packs %}
+          <tr>
+            <td>Pack {{ pack.id }}</td>
+            <td>{{ pack.soc }}%</td>
+            <td>{{ pack.soh }}%</td>
+            <td>{{ pack.voltage }} V</td>
+            <td>{{ pack.current }} A</td>
+            <td>{{ pack.delta }} mV</td>
+            <td>
+              Charge: {{ pack.charge_fet }}<br>
+              Discharge: {{ pack.discharge_fet }}<br>
+              Full: {{ pack.fully }}
+            </td>
+            <td class="{% if pack.warnings == 'Normal' %}normal-text{% else %}warning-text{% endif %}">
+              {{ pack.warnings }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+      <footer>Live status fetched from MQTT at {{ live.fetched_at }}</footer>
+    </section>
     {% endif %}
 
     <section class="grid">
@@ -183,7 +289,7 @@
     </section>
 
     <footer>
-      Last refreshed: {{ generated_at }}
+      Page refreshed: {{ generated_at }}
     </footer>
   </main>
 </body>

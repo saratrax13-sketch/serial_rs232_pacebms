@@ -1,7 +1,10 @@
 import json
 import os
+import time
 from datetime import datetime
 from flask import Flask, render_template
+
+import paho.mqtt.client as mqtt
 
 app = Flask(__name__)
 
@@ -101,11 +104,128 @@ def status_class(key, value):
     return ""
 
 
+def fetch_mqtt_snapshot(options, timeout=1.2):
+    """Read retained MQTT values for a live status overview.
+
+    This connects briefly to the configured MQTT broker and subscribes to the
+    add-on base topic. It only reads retained/current MQTT states. It does not
+    publish anything and it does not communicate with the BMS directly.
+    """
+    host = options.get("mqtt_host")
+    port = int(options.get("mqtt_port", 1883) or 1883)
+    user = options.get("mqtt_user", "")
+    password = options.get("mqtt_password", "")
+    base_topic = options.get("mqtt_base_topic", "pacebms").strip().strip("/")
+
+    result = {
+        "ok": False,
+        "error": "",
+        "base_topic": base_topic,
+        "availability": "Unknown",
+        "bms_status": "Not available",
+        "bms_error": "Not available",
+        "bms_version": "Unknown",
+        "bms_sn": "Unknown",
+        "pack_count": 0,
+        "packs": [],
+        "fetched_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+    if not host:
+        result["error"] = "MQTT host is not configured."
+        return result
+
+    messages = {}
+
+    def on_connect(client, userdata, flags, rc):
+        if rc == 0:
+            client.subscribe(f"{base_topic}/#", qos=0)
+        else:
+            result["error"] = f"MQTT connection failed with rc={rc}"
+
+    def on_message(client, userdata, msg):
+        try:
+            messages[msg.topic] = msg.payload.decode("utf-8", errors="replace")
+        except Exception:
+            messages[msg.topic] = str(msg.payload)
+
+    client_id = f"pacebms-web-status-{int(time.time() * 1000)}"
+    client = mqtt.Client(client_id=client_id)
+    client.on_connect = on_connect
+    client.on_message = on_message
+
+    if user or password:
+        client.username_pw_set(user, password)
+
+    try:
+        client.connect(host, port, keepalive=10)
+        client.loop_start()
+        time.sleep(timeout)
+        client.loop_stop()
+        client.disconnect()
+    except Exception as exc:
+        result["error"] = f"MQTT read failed: {exc}"
+        return result
+
+    result["ok"] = bool(messages)
+    result["availability"] = messages.get(f"{base_topic}/availability", "Unknown")
+    result["bms_version"] = messages.get(f"{base_topic}/bms_version", "Unknown")
+    result["bms_sn"] = messages.get(f"{base_topic}/bms_sn", "Unknown")
+
+    # Parse JSON status/error if possible, otherwise show raw text.
+    for key, topic in (
+        ("bms_status", f"{base_topic}/bms_status"),
+        ("bms_error", f"{base_topic}/bms_error"),
+    ):
+        raw = messages.get(topic, "")
+        if raw:
+            try:
+                parsed = json.loads(raw)
+                result[key] = parsed
+            except Exception:
+                result[key] = raw
+
+    # Discover pack topics from retained values.
+    pack_ids = set()
+    prefix = f"{base_topic}/pack_"
+    for topic in messages:
+        if topic.startswith(prefix):
+            remainder = topic[len(prefix):]
+            pack_id = remainder.split("/", 1)[0]
+            if pack_id.isdigit():
+                pack_ids.add(pack_id)
+
+    packs = []
+    for pack_id in sorted(pack_ids, key=lambda x: int(x)):
+        pfx = f"{base_topic}/pack_{pack_id}"
+        pack = {
+            "id": pack_id,
+            "soc": messages.get(f"{pfx}/soc", "Unknown"),
+            "soh": messages.get(f"{pfx}/soh", "Unknown"),
+            "voltage": messages.get(f"{pfx}/v_pack", "Unknown"),
+            "current": messages.get(f"{pfx}/i_pack", "Unknown"),
+            "delta": messages.get(f"{pfx}/cells_max_diff_calc", "Unknown"),
+            "warnings": messages.get(f"{pfx}/warnings", "Normal") or "Normal",
+            "charge_fet": messages.get(f"{pfx}/charge_fet", "Unknown"),
+            "discharge_fet": messages.get(f"{pfx}/discharge_fet", "Unknown"),
+            "fully": messages.get(f"{pfx}/fully", "Unknown"),
+        }
+        packs.append(pack)
+
+    result["packs"] = packs
+    result["pack_count"] = len(packs)
+
+    if not messages and not result["error"]:
+        result["error"] = "No retained MQTT values were received. Check mqtt_retain_state and MQTT connection."
+
+    return result
+
+
 @app.route("/")
 def index():
     options, error = load_options()
-    grouped = {}
 
+    grouped = {}
     for group_name, keys in GROUPS.items():
         grouped[group_name] = []
         for key in keys:
@@ -116,9 +236,12 @@ def index():
                 "class": status_class(key, raw_value),
             })
 
+    live = fetch_mqtt_snapshot(options) if options else None
+
     return render_template(
         "index.html",
         grouped=grouped,
+        live=live,
         error=error,
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     )

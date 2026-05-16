@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.0.23 - 2026-05-16
+
+### Added
+- Added Live Status section to the Home Assistant Ingress web UI.
+- Added MQTT-read status overview for BMS availability, detected packs, pack SOC, SOH, voltage, current, cell delta, FET states, and warnings.
+
+### Notes
+- Live Status reads MQTT values only.
+- This feature does not write to the BMS.
+
 ## 2.0.22 - 2026-05-16
 
 ### Fixed
