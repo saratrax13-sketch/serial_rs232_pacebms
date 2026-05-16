@@ -1,9 +1,11 @@
+import csv
+import io
 import json
 import os
 import time
 import urllib.request
 from datetime import datetime
-from flask import Flask, render_template
+from flask import Flask, Response, jsonify, render_template, request
 
 import paho.mqtt.client as mqtt
 
@@ -104,6 +106,22 @@ def load_events():
         return []
 
 
+def save_events(events):
+    try:
+        if not isinstance(events, list):
+            events = []
+        events = events[:MAX_EVENT_LOG_ENTRIES]
+        with open(EVENT_LOG_PATH, "w", encoding="utf-8") as f:
+            json.dump(events, f, indent=2)
+        return True
+    except Exception:
+        return False
+
+
+def clear_events():
+    return save_events([])
+
+
 def append_event(event_type: str, title: str, detail: str = "", level: str = "info"):
     try:
         event = {
@@ -117,10 +135,7 @@ def append_event(event_type: str, title: str, detail: str = "", level: str = "in
 
         events = load_events()
         events.insert(0, event)
-        events = events[:MAX_EVENT_LOG_ENTRIES]
-
-        with open(EVENT_LOG_PATH, "w", encoding="utf-8") as f:
-            json.dump(events, f, indent=2)
+        save_events(events)
     except Exception:
         pass
 
@@ -214,6 +229,38 @@ def _to_float(value, default=None):
         return default
 
 
+def classify_warning_severity(warnings: str, availability: str = "online", stale: str = "OFF"):
+    """Return a severity class and label for warning/status display."""
+    warning_text = str(warnings or "Normal")
+    lower = warning_text.lower()
+
+    if str(availability).lower() == "offline":
+        return "offline", "Offline"
+
+    if str(stale).upper() == "ON":
+        return "stale", "Stale"
+
+    if warning_text == "Normal" or not warning_text.strip():
+        return "healthy", "Normal"
+
+    if "fault state" in lower:
+        return "fault", "Fault"
+
+    if "protection state" in lower or "short circuit" in lower:
+        return "protection", "Protection"
+
+    if "above cell volt" in lower or "above total volt" in lower:
+        return "voltage", "Voltage Warning"
+
+    if "temp" in lower:
+        return "temperature", "Temperature Warning"
+
+    if "fet" in lower:
+        return "fet", "FET Warning"
+
+    return "warning", "Warning"
+
+
 def fetch_mqtt_snapshot(options, timeout=1.2):
     """Read retained MQTT values for a live status overview.
 
@@ -250,6 +297,7 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
         "overall_status": "Unknown",
         "overall_class": "unknown",
         "warning_count": 0,
+        "severity_summary": {},
         "cell_high_ref": options.get("notify_cell_high_warn_voltage", 4.20),
         "cell_low_ref": options.get("notify_cell_low_warn_voltage", 3.00),
         "packs": [],
@@ -331,6 +379,7 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
     packs = []
     warning_count = 0
     total_cells = 0
+    severity_summary = {}
 
     for pack_id in sorted(pack_ids, key=lambda x: int(x)):
         pfx = f"{base_topic}/pack_{pack_id}"
@@ -343,7 +392,6 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
             if topic.startswith(cell_prefix):
                 try:
                     cell_num = int(topic.rsplit("_", 1)[1])
-                    # Cell topics are published in mV.
                     cell_mv = _to_float(value)
                     if cell_mv is not None:
                         cell_numbers.append(cell_num)
@@ -358,6 +406,13 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
         has_warning = warnings != "Normal"
         if has_warning:
             warning_count += 1
+
+        severity_class, severity_label = classify_warning_severity(
+            warnings,
+            result["availability"],
+            result["stale"],
+        )
+        severity_summary[severity_label] = severity_summary.get(severity_label, 0) + 1
 
         voltage = messages.get(f"{pfx}/v_pack", "Unknown")
         current = messages.get(f"{pfx}/i_pack", "Unknown")
@@ -429,6 +484,8 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
             "delta": delta,
             "warnings": warnings,
             "has_warning": has_warning,
+            "severity_class": severity_class,
+            "severity_label": severity_label,
             "highest_cell": highest_cell,
             "lowest_cell": lowest_cell,
             "cell_high_ref": f"{cell_high_ref:.2f}",
@@ -445,6 +502,7 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
     result["pack_count"] = len(packs)
     result["total_cells"] = total_cells
     result["warning_count"] = warning_count
+    result["severity_summary"] = severity_summary
 
     if packs:
         cell_layout = ", ".join(f"Pack {p['id']}: {p['cell_count']} cells" for p in packs)
@@ -476,9 +534,7 @@ def fetch_mqtt_snapshot(options, timeout=1.2):
     return result
 
 
-def render_index(action_result="", action_message=""):
-    options, error = load_options()
-
+def build_grouped_config(options):
     grouped = {}
     for group_name, keys in GROUPS.items():
         grouped[group_name] = []
@@ -489,46 +545,107 @@ def render_index(action_result="", action_message=""):
                 "value": safe_value(key, raw_value),
                 "class": status_class(key, raw_value),
             })
+    return grouped
 
+
+def render_index(action_result="", action_message="", active_tab="status"):
+    options, error = load_options()
+    grouped = build_grouped_config(options)
     live = fetch_mqtt_snapshot(options) if options else None
 
     return render_template(
         "index.html",
         grouped=grouped,
         live=live,
+        events=load_events(),
         error=error,
         action_result=action_result,
         action_message=action_message,
-        events=load_events(),
+        active_tab=active_tab,
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     )
 
 
 @app.route("/", methods=["GET"])
 def index():
-    return render_index()
+    tab = request.args.get("tab", "status")
+    return render_index(active_tab=tab)
 
 
 @app.route("/test-telegram", methods=["POST"])
 def route_test_telegram():
     options, error = load_options()
     if error:
-        return render_index("warn", error)
+        return render_index("warn", error, active_tab="status")
 
     ok, message = test_telegram(options)
     append_event("telegram_test", "Telegram test", message, "ok" if ok else "warn")
-    return render_index("ok" if ok else "warn", message)
+    return render_index("ok" if ok else "warn", message, active_tab="status")
 
 
 @app.route("/test-mqtt", methods=["POST"])
 def route_test_mqtt():
     options, error = load_options()
     if error:
-        return render_index("warn", error)
+        return render_index("warn", error, active_tab="status")
 
     ok, message = test_mqtt(options)
     append_event("mqtt_test", "MQTT test", message, "ok" if ok else "warn")
-    return render_index("ok" if ok else "warn", message)
+    return render_index("ok" if ok else "warn", message, active_tab="status")
+
+
+@app.route("/clear-events", methods=["POST"])
+def route_clear_events():
+    ok = clear_events()
+    if ok:
+        append_event("events", "Event history cleared", "Previous event history was cleared from the web UI.", "warn")
+        return render_index("ok", "Event history cleared.", active_tab="events")
+    return render_index("warn", "Could not clear event history.", active_tab="events")
+
+
+@app.route("/export-events.json", methods=["GET"])
+def route_export_events_json():
+    events = load_events()
+    payload = json.dumps(events, indent=2)
+    return Response(
+        payload,
+        mimetype="application/json",
+        headers={"Content-Disposition": "attachment; filename=pacebms-events.json"},
+    )
+
+
+@app.route("/export-events.csv", methods=["GET"])
+def route_export_events_csv():
+    events = load_events()
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=["time", "type", "level", "title", "detail"])
+    writer.writeheader()
+    for event in events:
+        writer.writerow({
+            "time": event.get("time", ""),
+            "type": event.get("type", ""),
+            "level": event.get("level", ""),
+            "title": event.get("title", ""),
+            "detail": event.get("detail", ""),
+        })
+    return Response(
+        buffer.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=pacebms-events.csv"},
+    )
+
+
+@app.route("/api/status", methods=["GET"])
+def api_status():
+    options, error = load_options()
+    if error:
+        return jsonify({"ok": False, "error": error}), 500
+    return jsonify(fetch_mqtt_snapshot(options))
+
+
+@app.route("/api/events", methods=["GET"])
+def api_events():
+    return jsonify({"ok": True, "events": load_events()})
 
 
 @app.route("/health")

@@ -19,6 +19,7 @@
       --yellow: #fcd34d;
       --red: #fca5a5;
       --cyan: #bae6fd;
+      --purple: #c4b5fd;
     }
 
     * { box-sizing: border-box; }
@@ -40,7 +41,7 @@
       justify-content: space-between;
       gap: 16px;
       align-items: flex-start;
-      margin-bottom: 22px;
+      margin-bottom: 18px;
     }
 
     h1 {
@@ -80,6 +81,32 @@
       background: rgba(34, 197, 94, 0.12);
       color: #bbf7d0;
     }
+
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .tab-button {
+      text-decoration: none;
+      color: #cbd5e1;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: rgba(15, 23, 42, 0.60);
+      font-weight: 900;
+    }
+
+    .tab-button.active {
+      color: #e0f2fe;
+      border-color: rgba(56, 189, 248, 0.7);
+      background: rgba(14, 165, 233, 0.18);
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
 
     .alert {
       background: rgba(245, 158, 11, 0.14);
@@ -161,7 +188,7 @@
       margin-top: 14px;
     }
 
-    button {
+    button, .button-link {
       cursor: pointer;
       border: 1px solid rgba(56, 189, 248, 0.7);
       background: rgba(14, 165, 233, 0.16);
@@ -169,9 +196,20 @@
       padding: 10px 14px;
       border-radius: 12px;
       font-weight: 800;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
     }
 
-    button:hover { background: rgba(14, 165, 233, 0.28); }
+    button:hover, .button-link:hover { background: rgba(14, 165, 233, 0.28); }
+
+    .danger-button {
+      border-color: rgba(248, 113, 113, 0.55);
+      background: rgba(248, 113, 113, 0.12);
+      color: #fecaca;
+    }
 
     .status-grid {
       display: grid;
@@ -216,10 +254,11 @@
       background: rgba(15, 23, 42, 0.65);
     }
 
-    .pill.ok { color: var(--green); border-color: rgba(34, 197, 94, 0.35); }
-    .pill.warn { color: var(--yellow); border-color: rgba(245, 158, 11, 0.35); }
+    .pill.ok, .pill.healthy { color: var(--green); border-color: rgba(34, 197, 94, 0.35); }
+    .pill.warn, .pill.warning, .pill.voltage, .pill.temperature, .pill.stale { color: var(--yellow); border-color: rgba(245, 158, 11, 0.35); }
+    .pill.protection, .pill.fault, .pill.danger, .pill.offline { color: var(--red); border-color: rgba(248, 113, 113, 0.35); }
     .pill.off { color: #cbd5e1; }
-    .pill.danger { color: var(--red); border-color: rgba(248, 113, 113, 0.35); }
+    .pill.fet { color: var(--purple); border-color: rgba(196, 181, 253, 0.35); }
 
     .pack-grid {
       display: grid;
@@ -435,6 +474,12 @@
       </div>
     </header>
 
+    <nav class="tabs">
+      <a class="tab-button {% if active_tab == 'status' %}active{% endif %}" href="?tab=status">Status</a>
+      <a class="tab-button {% if active_tab == 'config' %}active{% endif %}" href="?tab=config">Config</a>
+      <a class="tab-button {% if active_tab == 'events' %}active{% endif %}" href="?tab=events">Events</a>
+    </nav>
+
     {% if error %}
       <div class="alert">{{ error }}</div>
     {% endif %}
@@ -443,198 +488,217 @@
       <div class="alert {{ action_result }}">{{ action_message }}</div>
     {% endif %}
 
-    {% if live %}
-    <section class="card wide-card summary-card">
-      <div class="status-hero">
-        <div class="status-label">Overall Status</div>
-        <div class="status-value {{ live.overall_class }}">{{ live.overall_status }}</div>
-        <div class="summary-meta">
-          Availability: {{ live.availability }}<br>
-          Monitor: {{ live.monitor_state }}<br>
-          Stale: {{ live.stale }}
-        </div>
-      </div>
-
-      <div class="status-hero">
-        <div class="status-label">Detected Battery Layout</div>
-        <div class="layout-text">{{ live.layout }}</div>
-        <div class="summary-meta">
-          BMS Serial: {{ live.bms_sn }}<br>
-          MQTT Base: {{ live.base_topic }}<br>
-          Last refreshed: {{ live.fetched_at }}
-        </div>
-      </div>
-
-      <div class="status-hero">
-        <div class="status-label">Tools</div>
-        <p>Test Telegram and MQTT only. No BMS commands are sent.</p>
-        <div class="actions">
-          <form method="post" action="test-telegram">
-            <button type="submit">Test Telegram</button>
-          </form>
-          <form method="post" action="test-mqtt">
-            <button type="submit">Test MQTT</button>
-          </form>
-        </div>
-      </div>
-    </section>
-
-    <section class="card wide-card">
-      <h2>Live Status</h2>
-
-      {% if live.error %}
-        <div class="alert">{{ live.error }}</div>
-      {% endif %}
-
-      <div class="status-grid">
-        <div class="status-tile">
-          <div class="tile-label">Data Stale</div>
-          <div class="tile-value {{ live.stale|lower }}">{{ live.stale }}</div>
-        </div>
-        <div class="status-tile">
-          <div class="tile-label">Stale Reason</div>
-          <div class="tile-value">{{ live.stale_reason }}</div>
-        </div>
-        <div class="status-tile">
-          <div class="tile-label">Last Analog Read</div>
-          <div class="tile-value">{{ live.last_analog_read }}</div>
-        </div>
-        <div class="status-tile">
-          <div class="tile-label">Last Warning Read</div>
-          <div class="tile-value">{{ live.last_warn_read }}</div>
-        </div>
-        <div class="status-tile">
-          <div class="tile-label">Analog Age</div>
-          <div class="tile-value">{{ live.analog_age_seconds }}s</div>
-        </div>
-        <div class="status-tile">
-          <div class="tile-label">Warning Age</div>
-          <div class="tile-value">{{ live.warn_age_seconds }}s</div>
-        </div>
-      </div>
-
-      {% if live.packs %}
-      <div class="pack-grid">
-        {% for pack in live.packs %}
-        <article class="pack-card">
-          <div class="pack-header">
-            <div>
-              <div class="pack-title">Pack {{ pack.id }}</div>
-              <div class="summary-meta">{{ pack.cell_count }} cells detected</div>
-            </div>
-            {% if pack.has_warning %}
-              <span class="pill warn">Warning</span>
-            {% else %}
-              <span class="pill ok">Normal</span>
-            {% endif %}
+    <section class="tab-panel {% if active_tab == 'status' %}active{% endif %}">
+      {% if live %}
+      <section class="card wide-card summary-card">
+        <div class="status-hero">
+          <div class="status-label">Overall Status</div>
+          <div class="status-value {{ live.overall_class }}">{{ live.overall_status }}</div>
+          <div class="summary-meta">
+            Availability: {{ live.availability }}<br>
+            Monitor: {{ live.monitor_state }}<br>
+            Stale: {{ live.stale }}
           </div>
-
-          <div class="metric-grid">
-            <div class="metric">
-              <div class="metric-label">SOC</div>
-              <div class="metric-value">{{ pack.soc }}%</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">SOH</div>
-              <div class="metric-value">{{ pack.soh }}%</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Pack Voltage</div>
-              <div class="metric-value">{{ pack.voltage }} V</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Current</div>
-              <div class="metric-value">{{ pack.current }} A</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Highest Cell</div>
-              <div class="metric-value">Cell {{ pack.highest_cell.number }} = {{ pack.highest_cell.voltage }} V</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Lowest Cell</div>
-              <div class="metric-value">Cell {{ pack.lowest_cell.number }} = {{ pack.lowest_cell.voltage }} V</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Cell Delta</div>
-              <div class="metric-value">{{ pack.delta }} mV</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Cell High Ref</div>
-              <div class="metric-value">{{ pack.cell_high_ref }} V</div>
-            </div>
-            <div class="metric">
-              <div class="metric-label">Pack High Ref</div>
-              <div class="metric-value">{{ pack.pack_high_ref }} V</div>
-            </div>
-          </div>
-
-          <div class="fet-row">
-            <span class="pill {% if pack.charge_fet == 'ON' %}ok{% else %}off{% endif %}">Charge FET: {{ pack.charge_fet }}</span>
-            <span class="pill {% if pack.discharge_fet == 'ON' %}ok{% else %}danger{% endif %}">Discharge FET: {{ pack.discharge_fet }}</span>
-            <span class="pill {% if pack.fully == 'ON' %}ok{% else %}off{% endif %}">Full: {{ pack.fully }}</span>
-          </div>
-
-          {% if pack.warnings == 'Normal' %}
-            <div class="normal-box">No active BMS warnings.</div>
-          {% else %}
-            <div class="warning-box">
-              <strong>BMS internal warning active:</strong><br>
-              {{ pack.warnings }}
-            </div>
-          {% endif %}
-
-          <div class="reference-box">
-            <div class="reference-title">Reference Check</div>
-            <ul class="reference-list">
-              {% for check in pack.reference_checks %}
-              <li>{{ check }}</li>
-              {% endfor %}
-            </ul>
-          </div>
-        </article>
-        {% endfor %}
-      </div>
-      {% endif %}
-    </section>
-    {% endif %}
-
-    <section class="grid">
-      {% for group_name, items in grouped.items() %}
-      <article class="card">
-        <h2>{{ group_name }}</h2>
-
-        {% for item in items %}
-        <div class="row">
-          <div class="key">{{ item.key }}</div>
-          <div class="value {{ item.class }}">{{ item.value }}</div>
         </div>
-        {% endfor %}
-      </article>
-      {% endfor %}
-    </section>
 
-    <section class="card wide-card">
-      <h2>Last Events</h2>
-      {% if events %}
-        <div class="events-list">
-          {% for event in events[:10] %}
-          <div class="event-item">
-            <div class="event-time">{{ event.time }}</div>
-            <div>
-              <div class="event-title">{{ event.title }}</div>
-              {% if event.detail %}
-              <div class="event-detail">{{ event.detail }}</div>
-              {% endif %}
-            </div>
-            <div class="event-level {{ event.level }}">{{ event.level }}</div>
+        <div class="status-hero">
+          <div class="status-label">Detected Battery Layout</div>
+          <div class="layout-text">{{ live.layout }}</div>
+          <div class="summary-meta">
+            BMS Serial: {{ live.bms_sn }}<br>
+            MQTT Base: {{ live.base_topic }}<br>
+            Last refreshed: {{ live.fetched_at }}
           </div>
+        </div>
+
+        <div class="status-hero">
+          <div class="status-label">Tools</div>
+          <p>Test Telegram and MQTT only. No BMS commands are sent.</p>
+          <div class="actions">
+            <form method="post" action="test-telegram">
+              <button type="submit">Test Telegram</button>
+            </form>
+            <form method="post" action="test-mqtt">
+              <button type="submit">Test MQTT</button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section class="card wide-card">
+        <h2>Live Status</h2>
+
+        {% if live.error %}
+          <div class="alert">{{ live.error }}</div>
+        {% endif %}
+
+        <div class="status-grid">
+          <div class="status-tile">
+            <div class="tile-label">Data Stale</div>
+            <div class="tile-value {{ live.stale|lower }}">{{ live.stale }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Stale Reason</div>
+            <div class="tile-value">{{ live.stale_reason }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Last Analog Read</div>
+            <div class="tile-value">{{ live.last_analog_read }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Last Warning Read</div>
+            <div class="tile-value">{{ live.last_warn_read }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Analog Age</div>
+            <div class="tile-value">{{ live.analog_age_seconds }}s</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Warning Age</div>
+            <div class="tile-value">{{ live.warn_age_seconds }}s</div>
+          </div>
+        </div>
+
+        {% if live.severity_summary %}
+        <div class="fet-row">
+          {% for label, count in live.severity_summary.items() %}
+            <span class="pill">{{ label }}: {{ count }}</span>
           {% endfor %}
         </div>
-      {% else %}
-        <p>No events logged yet. Events will appear after startup, tests, disconnects, stale-data alerts, and recoveries.</p>
+        {% endif %}
+
+        {% if live.packs %}
+        <div class="pack-grid">
+          {% for pack in live.packs %}
+          <article class="pack-card">
+            <div class="pack-header">
+              <div>
+                <div class="pack-title">Pack {{ pack.id }}</div>
+                <div class="summary-meta">{{ pack.cell_count }} cells detected</div>
+              </div>
+              <span class="pill {{ pack.severity_class }}">{{ pack.severity_label }}</span>
+            </div>
+
+            <div class="metric-grid">
+              <div class="metric">
+                <div class="metric-label">SOC</div>
+                <div class="metric-value">{{ pack.soc }}%</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">SOH</div>
+                <div class="metric-value">{{ pack.soh }}%</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">Pack Voltage</div>
+                <div class="metric-value">{{ pack.voltage }} V</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">Current</div>
+                <div class="metric-value">{{ pack.current }} A</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">Highest Cell</div>
+                <div class="metric-value">Cell {{ pack.highest_cell.number }} = {{ pack.highest_cell.voltage }} V</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">Lowest Cell</div>
+                <div class="metric-value">Cell {{ pack.lowest_cell.number }} = {{ pack.lowest_cell.voltage }} V</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">Cell Delta</div>
+                <div class="metric-value">{{ pack.delta }} mV</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">Cell High Ref</div>
+                <div class="metric-value">{{ pack.cell_high_ref }} V</div>
+              </div>
+              <div class="metric">
+                <div class="metric-label">Pack High Ref</div>
+                <div class="metric-value">{{ pack.pack_high_ref }} V</div>
+              </div>
+            </div>
+
+            <div class="fet-row">
+              <span class="pill {% if pack.charge_fet == 'ON' %}ok{% else %}off{% endif %}">Charge FET: {{ pack.charge_fet }}</span>
+              <span class="pill {% if pack.discharge_fet == 'ON' %}ok{% else %}danger{% endif %}">Discharge FET: {{ pack.discharge_fet }}</span>
+              <span class="pill {% if pack.fully == 'ON' %}ok{% else %}off{% endif %}">Full: {{ pack.fully }}</span>
+            </div>
+
+            {% if pack.warnings == 'Normal' %}
+              <div class="normal-box">No active BMS warnings.</div>
+            {% else %}
+              <div class="warning-box">
+                <strong>BMS internal warning active:</strong><br>
+                {{ pack.warnings }}
+              </div>
+            {% endif %}
+
+            <div class="reference-box">
+              <div class="reference-title">Reference Check</div>
+              <ul class="reference-list">
+                {% for check in pack.reference_checks %}
+                <li>{{ check }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </section>
       {% endif %}
     </section>
 
+    <section class="tab-panel {% if active_tab == 'config' %}active{% endif %}">
+      <section class="grid">
+        {% for group_name, items in grouped.items() %}
+        <article class="card">
+          <h2>{{ group_name }}</h2>
+
+          {% for item in items %}
+          <div class="row">
+            <div class="key">{{ item.key }}</div>
+            <div class="value {{ item.class }}">{{ item.value }}</div>
+          </div>
+          {% endfor %}
+        </article>
+        {% endfor %}
+      </section>
+    </section>
+
+    <section class="tab-panel {% if active_tab == 'events' %}active{% endif %}">
+      <section class="card wide-card">
+        <h2>Last Events</h2>
+        <p>Latest events are stored locally in <code>/data/events.json</code>. The latest 50 are kept.</p>
+
+        <div class="actions">
+          <a class="button-link" href="export-events.json">Export JSON</a>
+          <a class="button-link" href="export-events.csv">Export CSV</a>
+          <form method="post" action="clear-events" onsubmit="return confirm('Clear all event history?');">
+            <button class="danger-button" type="submit">Clear Event History</button>
+          </form>
+        </div>
+
+        {% if events %}
+          <div class="events-list">
+            {% for event in events %}
+            <div class="event-item">
+              <div class="event-time">{{ event.time }}</div>
+              <div>
+                <div class="event-title">{{ event.title }}</div>
+                {% if event.detail %}
+                <div class="event-detail">{{ event.detail }}</div>
+                {% endif %}
+              </div>
+              <div class="event-level {{ event.level }}">{{ event.level }}</div>
+            </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p>No events logged yet. Events will appear after startup, tests, disconnects, stale-data alerts, and recoveries.</p>
+        {% endif %}
+      </section>
+    </section>
 
     <footer>
       Page refreshed: {{ generated_at }}
