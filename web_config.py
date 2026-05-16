@@ -3,6 +3,7 @@ import io
 import json
 import os
 import time
+import urllib.error
 import urllib.request
 from datetime import datetime
 from flask import Flask, Response, jsonify, render_template, request
@@ -534,6 +535,18 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
     return result
 
 
+def input_type_for_value(key, value):
+    if isinstance(value, bool):
+        return "checkbox"
+    if isinstance(value, int) and not isinstance(value, bool):
+        return "number"
+    if isinstance(value, float):
+        return "number"
+    if key in SENSITIVE_KEYS:
+        return "password"
+    return "text"
+
+
 def build_grouped_config(options):
     grouped = {}
     for group_name, keys in GROUPS.items():
@@ -542,6 +555,10 @@ def build_grouped_config(options):
             raw_value = options.get(key, "")
             grouped[group_name].append({
                 "key": key,
+                "raw_value": raw_value,
+                "input_type": input_type_for_value(key, raw_value),
+                "is_bool": isinstance(raw_value, bool),
+                "is_sensitive": key in SENSITIVE_KEYS,
                 "value": safe_value(key, raw_value),
                 "class": status_class(key, raw_value),
             })
@@ -610,6 +627,109 @@ def generate_config_yaml(options):
         lines.append("")
 
     return "\n".join(lines).strip() + "\n"
+
+
+def parse_form_value(key, raw_value, current_value):
+    """Parse web form values back to the expected option type."""
+    if isinstance(current_value, bool):
+        return raw_value == "on"
+
+    if key in SENSITIVE_KEYS:
+        # Blank sensitive fields mean keep the current saved value.
+        if raw_value is None or str(raw_value).strip() == "":
+            return current_value
+        return str(raw_value).strip()
+
+    if isinstance(current_value, int) and not isinstance(current_value, bool):
+        try:
+            return int(str(raw_value).strip())
+        except Exception:
+            return current_value
+
+    if isinstance(current_value, float):
+        try:
+            return float(str(raw_value).strip())
+        except Exception:
+            return current_value
+
+    return "" if raw_value is None else str(raw_value)
+
+
+def build_options_from_form(form, current_options):
+    """Build a new options dictionary from the Config tab form."""
+    new_options = dict(current_options)
+
+    for group_name, keys in GROUPS.items():
+        for key in keys:
+            if key not in current_options:
+                continue
+
+            current_value = current_options.get(key)
+
+            if isinstance(current_value, bool):
+                raw_value = "on" if key in form else "off"
+            else:
+                raw_value = form.get(key)
+
+            new_options[key] = parse_form_value(key, raw_value, current_value)
+
+    return new_options
+
+
+def supervisor_request(path, payload=None, method="POST", timeout=10):
+    """Call the Home Assistant Supervisor API from inside the add-on."""
+    token = os.environ.get("SUPERVISOR_TOKEN")
+    if not token:
+        return False, "SUPERVISOR_TOKEN is not available. Check add-on Supervisor API permissions."
+
+    url = f"http://supervisor{path}"
+    data = None
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+
+    if payload is not None:
+        data = json.dumps(payload).encode("utf-8")
+
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            body = response.read().decode("utf-8", errors="replace")
+            return True, body or "OK"
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        return False, f"HTTP {exc.code}: {body}"
+    except Exception as exc:
+        return False, str(exc)
+
+
+def save_addon_options(new_options):
+    """Save add-on options through the Supervisor self endpoint.
+
+    This saves Home Assistant add-on options only. It does not write to the BMS.
+    """
+    payload = {"options": new_options}
+
+    # Supervisor versions commonly support POST here. Try PUT as a fallback.
+    ok, message = supervisor_request("/addons/self/options", payload=payload, method="POST")
+    if ok:
+        return True, "Configuration saved to Home Assistant add-on options."
+
+    fallback_ok, fallback_message = supervisor_request("/addons/self/options", payload=payload, method="PUT")
+    if fallback_ok:
+        return True, "Configuration saved to Home Assistant add-on options."
+
+    return False, f"Could not save configuration. POST failed: {message}; PUT failed: {fallback_message}"
+
+
+def restart_addon():
+    """Ask Supervisor to restart this add-on."""
+    ok, message = supervisor_request("/addons/self/restart", payload={}, method="POST", timeout=5)
+    if ok:
+        return True, "Restart requested. The web UI may disconnect briefly."
+    return False, f"Restart request failed: {message}"
 
 
 def render_index(action_result="", action_message="", active_tab="status"):
@@ -703,6 +823,35 @@ def route_export_events_csv():
         headers={"Content-Disposition": "attachment; filename=pacebms-events.csv"},
     )
 
+
+
+
+@app.route("/save-config", methods=["POST"])
+def route_save_config():
+    options, error = load_options()
+    if error:
+        return render_index("warn", error, active_tab="config")
+
+    new_options = build_options_from_form(request.form, options)
+    ok, message = save_addon_options(new_options)
+
+    append_event("config_save", "Configuration save", message, "ok" if ok else "warn")
+
+    if ok:
+        return render_index(
+            "ok",
+            message + " Restart the add-on for monitor runtime changes to apply.",
+            active_tab="config",
+        )
+
+    return render_index("warn", message, active_tab="config")
+
+
+@app.route("/restart-addon", methods=["POST"])
+def route_restart_addon():
+    ok, message = restart_addon()
+    append_event("restart", "Add-on restart requested", message, "warn" if ok else "danger")
+    return render_index("ok" if ok else "warn", message, active_tab="config")
 
 
 @app.route("/export-config.yaml", methods=["GET"])

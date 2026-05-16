@@ -1,15 +1,18 @@
-## 2.1.3 - 2026-05-17
+## 2.2.0 - 2026-05-17
 
 ### Added
-- Added Config Helper card to the Config tab.
-- Added sanitized YAML output generated from current add-on options.
-- Added Copy YAML button.
-- Added Download YAML button at `/export-config.yaml`.
-- Sensitive values are replaced with placeholders in the generated YAML.
+- Added direct Home Assistant add-on configuration saving from the web UI.
+- Added editable Config tab fields for current add-on options.
+- Added Save Configuration button.
+- Added Restart Add-on button using the Supervisor self endpoint.
+- Sensitive fields can be left blank to keep existing saved values.
+- Configuration save and restart actions are logged in Last Events.
+
+### Changed
+- Replaced the Config Helper card with an editable add-on configuration form.
 
 ### Notes
-- This is a safe configuration-helper release.
-- The web UI still does not save configuration directly.
-- Settings must still be changed in the Home Assistant add-on Configuration tab.
+- This writes Home Assistant add-on options only.
+- This does not write to the BMS.
 - No BMS protocol changes were made.
-- No BMS write/control commands were added.
+- Restart the add-on after saving changes that affect monitor runtime.

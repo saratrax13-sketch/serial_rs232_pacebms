@@ -409,19 +409,31 @@
     .event-level.warn { color: var(--yellow); }
     .event-level.danger { color: var(--red); }
 
-    .config-helper-textarea {
+    .config-input {
       width: 100%;
-      min-height: 360px;
-      resize: vertical;
-      border-radius: 14px;
-      border: 1px solid rgba(148, 163, 184, 0.22);
-      background: rgba(15, 23, 42, 0.82);
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.24);
+      background: rgba(15, 23, 42, 0.78);
       color: #e5e7eb;
-      padding: 14px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      padding: 8px 10px;
+      font-weight: 800;
+      min-width: 0;
+    }
+
+    .config-input[type="password"] {
+      color: #bbf7d0;
+    }
+
+    .config-checkbox {
+      width: 20px;
+      height: 20px;
+      accent-color: #38bdf8;
+    }
+
+    .config-form-note {
+      color: #cbd5e1;
       font-size: 13px;
-      line-height: 1.45;
-      white-space: pre;
+      line-height: 1.5;
     }
 
     .helper-note {
@@ -678,32 +690,53 @@
 
     <section class="tab-panel {% if active_tab == 'config' %}active{% endif %}">
       <section class="card wide-card">
-        <h2>Config Helper</h2>
-        <p>This generates a sanitized YAML view from the current add-on options. It does not save settings and it does not write to the BMS.</p>
+        <h2>Editable Add-on Configuration</h2>
+        <p>Edit and save the Home Assistant add-on options directly from this page.</p>
         <div class="helper-note">
-          Sensitive values are replaced with placeholders. Use the Home Assistant add-on Configuration tab to edit and save real settings.
+          This saves Home Assistant add-on configuration only. It does not write to the BMS. Leave password/token fields blank to keep the existing saved value. Restart the add-on after saving changes that affect the monitor runtime.
         </div>
-        <div class="actions">
-          <a class="button-link" href="export-config.yaml">Download YAML</a>
-          <button type="button" onclick="copyConfigYaml()">Copy YAML</button>
-        </div>
-        <textarea id="config-yaml" class="config-helper-textarea" spellcheck="false" readonly>{{ config_yaml }}</textarea>
-        <div id="copy-config-message" class="summary-meta"></div>
-      </section>
 
-      <section class="grid">
-        {% for group_name, items in grouped.items() %}
-        <article class="card">
-          <h2>{{ group_name }}</h2>
+        <form method="post" action="save-config">
+          <section class="grid">
+            {% for group_name, items in grouped.items() %}
+            <article class="card">
+              <h2>{{ group_name }}</h2>
 
-          {% for item in items %}
-          <div class="row">
-            <div class="key">{{ item.key }}</div>
-            <div class="value {{ item.class }}">{{ item.value }}</div>
+              {% for item in items %}
+              <div class="row">
+                <label class="key" for="cfg_{{ item.key }}">{{ item.key }}</label>
+                <div class="value">
+                  {% if item.input_type == 'checkbox' %}
+                    <input id="cfg_{{ item.key }}" class="config-checkbox" type="checkbox" name="{{ item.key }}" {% if item.raw_value %}checked{% endif %}>
+                  {% elif item.is_sensitive %}
+                    <input id="cfg_{{ item.key }}" class="config-input" type="password" name="{{ item.key }}" placeholder="Leave blank to keep existing value">
+                  {% elif item.input_type == 'number' %}
+                    <input id="cfg_{{ item.key }}" class="config-input" type="number" step="any" name="{{ item.key }}" value="{{ item.raw_value }}">
+                  {% else %}
+                    <input id="cfg_{{ item.key }}" class="config-input" type="text" name="{{ item.key }}" value="{{ item.raw_value }}">
+                  {% endif %}
+                </div>
+              </div>
+              {% endfor %}
+            </article>
+            {% endfor %}
+          </section>
+
+          <div class="actions">
+            <button type="submit">Save Configuration</button>
+            <a class="button-link" href="export-config.yaml">Download Sanitized YAML</a>
           </div>
-          {% endfor %}
-        </article>
-        {% endfor %}
+        </form>
+
+        <form method="post" action="restart-addon" onsubmit="return confirm('Restart this add-on now? The web UI may disconnect briefly.');">
+          <div class="actions">
+            <button class="danger-button" type="submit">Restart Add-on</button>
+          </div>
+        </form>
+
+        <p class="config-form-note">
+          Sensitive values are not shown. Enter a new value only when you want to change it.
+        </p>
       </section>
     </section>
 
