@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.0.28 - 2026-05-16
+
+### Fixed
+- Fixed indentation error in monitor status publishing added in 2.0.27.
+
 ## 2.0.27 - 2026-05-16
 
 ### Added

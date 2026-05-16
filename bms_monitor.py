@@ -21,7 +21,6 @@
 #   - Delta report at configurable time (worst spread in window)
 #   - All notifications togglable via config
 #   - Timestamp added to MQTT error payload to prevent stale retain
-#   - BMS version, BMS serial and pack serial are now retained MQTT topics
 # =============================================================================
 import paho.mqtt.client as mqtt
 import socket
@@ -749,7 +748,7 @@ def log_warn_summary(warn_list: list[WarnData]):
 def publish_analog_data(client, config: dict, data: AnalogData, force: bool = False):
     base = config['mqtt_base_topic']
 
-    def publish_monitor_status(key: str, value: str | int | float):
+    def publish_monitor_status(key: str, value):
         """Publish retained monitor status values for the web UI.
 
         This is MQTT-only status telemetry. It does not write to the BMS.
@@ -1009,13 +1008,9 @@ def main():
 
     base = config['mqtt_base_topic']
     client.publish(f"{base}/availability", "offline", qos=1, retain=True)
-                publish_monitor_status("state", "disconnected")
-            publish_monitor_status("state", "stopped")
-    # Retain static identity topics so the Web UI and Home Assistant can read
-    # them immediately after reconnect/restart without waiting for a fresh publish.
     client.publish(f"{base}/bms_version",  bms_version, qos=1, retain=True)
-    client.publish(f"{base}/bms_sn",       bms_sn,      qos=1, retain=True)
-    client.publish(f"{base}/pack_sn",      pack_sn,     qos=1, retain=True)
+    client.publish(f"{base}/bms_sn",       bms_sn, qos=1, retain=True)
+    client.publish(f"{base}/pack_sn",      pack_sn, qos=1, retain=True)
 
     # ── Startup notification ──────────────────────────────────────────────────
     startup_payload = json.dumps({
@@ -1046,6 +1041,7 @@ def main():
             shutdown_payload = json.dumps({"status": "shutdown", "bms_sn": bms_sn, "timestamp": int(time.time())})
             client.publish(f"{base}/bms_status", shutdown_payload, qos=1, retain=True)
             client.publish(f"{base}/availability", "offline", qos=1, retain=True)
+            publish_monitor_status("state", "stopped")
             client.loop(timeout=1.0)
             notify.on_shutdown(bms_sn)
             time.sleep(0.5)
