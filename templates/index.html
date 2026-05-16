@@ -553,6 +553,21 @@
     </section>
     {% endif %}
 
+    <section class="grid">
+      {% for group_name, items in grouped.items() %}
+      <article class="card">
+        <h2>{{ group_name }}</h2>
+
+        {% for item in items %}
+        <div class="row">
+          <div class="key">{{ item.key }}</div>
+          <div class="value {{ item.class }}">{{ item.value }}</div>
+        </div>
+        {% endfor %}
+      </article>
+      {% endfor %}
+    </section>
+
     <section class="card wide-card">
       <h2>Last Events</h2>
       {% if events %}
@@ -575,20 +590,6 @@
       {% endif %}
     </section>
 
-    <section class="grid">
-      {% for group_name, items in grouped.items() %}
-      <article class="card">
-        <h2>{{ group_name }}</h2>
-
-        {% for item in items %}
-        <div class="row">
-          <div class="key">{{ item.key }}</div>
-          <div class="value {{ item.class }}">{{ item.value }}</div>
-        </div>
-        {% endfor %}
-      </article>
-      {% endfor %}
-    </section>
 
     <footer>
       Page refreshed: {{ generated_at }}
