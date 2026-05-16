@@ -10,7 +10,7 @@ Connects via **TCP/IP or Serial (USB-RS485)**, supports **multiple packs** (auto
 
 | File | Version | Changed | Notes |
 |------|---------|---------|-------|
-| `bms_monitor.py` | 2.1.0 | 2026-05-16 | Added Telegram notifications, BMS status/error MQTT topics, startup/shutdown events |
+| `bms_monitor.py` | 2.1.0 | 2026-05-16 | Added Telegram notifications, BMS status/error MQTT topics, startup/shutdown events. Confirmed working on Hubble AM2 via RS232 |
 | `constants.py` | 1.0.0 | 2026-05-16 | Pace BMS protocol constants, CID2 codes, warning/protection state maps |
 | `config.yaml` | 2.0.6 | 2026-05-16 | Added Telegram token/chat_id, switched to Serial mode, zero_pad_number_packs=0 |
 | `automations.yaml` | 1.0.0 | 2026-05-16 | HA automations for BMS startup, shutdown, disconnect, and recovery notifications |
@@ -29,7 +29,7 @@ Connects via **TCP/IP or Serial (USB-RS485)**, supports **multiple packs** (auto
 - **BMS error MQTT topic** — disconnect and recovery events with retry count and offline duration published to `pacebms/bms_error`
 - **HA automations** — phone and Telegram notifications for all BMS events
 - Runs as an HA addon, standalone Docker container, or direct Python script
-- Serial (USB-RS485) and TCP/IP connection modes
+- Serial (USB-RS232 or USB-RS485) and TCP/IP connection modes
 - Structured logging with configurable debug levels
 
 ---
@@ -39,19 +39,20 @@ Connects via **TCP/IP or Serial (USB-RS485)**, supports **multiple packs** (auto
 | BMS | Connection | Tested |
 |-----|-----------|--------|
 | Pace BMS P16S200A | Serial (USB) | Yes |
-| Pace BMS AM-x series (Hubble AM2) | Serial (USB-RS485) | Yes |
+| Pace BMS AM-x series (Hubble AM2) | Serial (USB-RS232) | Yes |
 | Pace BMS AM-x series | TCP/IP | Yes |
 
-The protocol is compatible with other Pace-based BMS units using the same RS485/UART frame format.
+The protocol is compatible with other Pace-based BMS units using the same RS232/UART frame format.
 
 ### Hubble AM2 Notes
 
-- The AM2 has two communication ports: RS485 and RS232
-- Connect only to the **RS485 port** on the **master battery** using a USB-RS485 adapter with RJ45 connector
+- The AM2 has two communication ports: **RS485** and **RS232**
+- Connect to the **RS232 port** on the **master battery** using a USB-RS232 adapter
+- The **RS232 port** uses the Pace BMS ASCII protocol — this is what `bms_monitor.py` speaks
+- The **RS485 port** uses Modbus RTU and is officially reserved for firmware updates only
 - Link multiple batteries together using standard RJ45 LAN cables via the Battery Link port
 - Set DIP switches: master = address 1, slave = address 2
-- The RS485 port uses the **Pace BMS protocol** (not Modbus)
-- Hubble officially reserves the RS485 port for firmware updates — use at your own risk
+- Both packs are read through the master battery's RS232 port — no need to connect to the slave
 
 ---
 
@@ -60,7 +61,7 @@ The protocol is compatible with other Pace-based BMS units using the same RS485/
 - Python 3.11+
 - MQTT broker (e.g. Mosquitto)
 - Home Assistant (optional — for auto-discovery and notifications)
-- USB-to-RS485 adapter with RJ45 connector (for Hubble AM2 and similar)
+- USB-to-RS232 adapter (for Hubble AM2 RS232 port)
 
 Python dependencies (see `requirements.txt`):
 ```
@@ -160,23 +161,23 @@ All topics are published under `{mqtt_base_topic}/` (default: `pacebms/`).
 
 | Topic | Unit | Description |
 |-------|------|-------------|
-| `pacebms/pack_1/v_cells/cell_01` | mV | Individual cell voltage |
-| `pacebms/pack_1/temps/temp_1` | °C | Temperature sensor |
-| `pacebms/pack_1/v_pack` | V | Pack voltage |
-| `pacebms/pack_1/i_pack` | A | Pack current (negative = charging) |
-| `pacebms/pack_1/soc` | % | State of charge |
-| `pacebms/pack_1/soh` | % | State of health |
-| `pacebms/pack_1/i_remain_cap` | Ah | Remaining capacity |
-| `pacebms/pack_1/i_full_cap` | Ah | Full charge capacity |
-| `pacebms/pack_1/i_design_cap` | Ah | Design capacity |
-| `pacebms/pack_1/cycles` | — | Charge cycle count |
-| `pacebms/pack_1/cells_max_diff_calc` | mV | Max cell voltage spread |
-| `pacebms/pack_1/warnings` | — | Active warning string |
-| `pacebms/pack_1/balancing1` | — | Cell balancing state bits |
-| `pacebms/pack_1/balancing2` | — | Cell balancing state bits |
-| `pacebms/pack_1/charge_fet` | ON/OFF | Charge FET state |
-| `pacebms/pack_1/discharge_fet` | ON/OFF | Discharge FET state |
-| `pacebms/pack_1/prot_short_circuit` | ON/OFF | Short circuit protection active |
+| `pacebms/pack_01/v_cells/cell_01` | mV | Individual cell voltage |
+| `pacebms/pack_01/temps/temp_1` | °C | Temperature sensor |
+| `pacebms/pack_01/v_pack` | V | Pack voltage |
+| `pacebms/pack_01/i_pack` | A | Pack current (negative = charging) |
+| `pacebms/pack_01/soc` | % | State of charge |
+| `pacebms/pack_01/soh` | % | State of health |
+| `pacebms/pack_01/i_remain_cap` | Ah | Remaining capacity |
+| `pacebms/pack_01/i_full_cap` | Ah | Full charge capacity |
+| `pacebms/pack_01/i_design_cap` | Ah | Design capacity |
+| `pacebms/pack_01/cycles` | — | Charge cycle count |
+| `pacebms/pack_01/cells_max_diff_calc` | mV | Max cell voltage spread |
+| `pacebms/pack_01/warnings` | — | Active warning string |
+| `pacebms/pack_01/balancing1` | — | Cell balancing state bits |
+| `pacebms/pack_01/balancing2` | — | Cell balancing state bits |
+| `pacebms/pack_01/charge_fet` | ON/OFF | Charge FET state |
+| `pacebms/pack_01/discharge_fet` | ON/OFF | Discharge FET state |
+| `pacebms/pack_01/prot_short_circuit` | ON/OFF | Short circuit protection active |
 
 ### Aggregate topics
 
@@ -285,7 +286,7 @@ Discovery topics are re-published automatically every hour and immediately after
 ```
 BMS Hardware (Hubble AM2 / Pace BMS)
     |
-    +-- Serial USB-RS485 (master battery only)
+    +-- Serial USB-RS232 (master battery RS232 port only)
     +-- TCP/IP
             |
     +-------+--------+
@@ -349,10 +350,13 @@ The parser auto-detects pack boundaries. Set `debug_output: 1` to see skipped by
 Causes topics like `cell_1`, `cell_10`, `cell_2` which sort incorrectly. Keep at `2` for `cell_01`-`cell_16`.
 
 **Serial not connecting**
-Use the full `by-id` path for `bms_serial`. Check the HA addon has `uart: true` and `usb: true` in config.
+Use the full `by-id` path for `bms_serial`. Check the HA addon has `uart: true` and `usb: true` in config. For Hubble AM2, ensure you are connected to the **RS232 port**, not the RS485 port.
 
 **Checksum errors in logs**
-Usually indicates a noisy serial connection or wrong baud rate. Try `bms_baudrate: 9600`. Set `debug_output: 3` to inspect raw frames. Add termination (120 ohm) and bias resistors to the RS485 line.
+Usually indicates a noisy serial connection or wrong baud rate. Try `bms_baudrate: 9600`. Set `debug_output: 3` to inspect raw frames.
+
+**RS485 port not responding**
+The Hubble AM2 RS485 port uses Modbus RTU, not the Pace BMS protocol. `bms_monitor.py` will not work on the RS485 port. Use the RS232 port instead.
 
 **`Could not retrieve BMS version` warning**
 The BMS may still be booting. The monitor will continue and attempt to read the serial number. A Telegram notification is sent directly if `telegram_bot_token` and `telegram_chat_id` are configured.
