@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2.0.22 - 2026-05-16
+
+### Fixed
+- Fixed Home Assistant Ingress web UI styling by embedding CSS directly into the page.
+- Removed dependency on loading a separate static CSS file through the Ingress proxy.
+
 ## 2.0.21 - 2026-05-16
 
 ### Fixed
