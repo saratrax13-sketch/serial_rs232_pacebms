@@ -1,13 +1,13 @@
-## 2.1.1 - 2026-05-16
+## 2.1.2 - 2026-05-16
 
-### Changed
-- Improved Home Assistant Ingress web UI responsiveness.
-- Config and Events tabs no longer fetch a live MQTT snapshot before rendering.
-- Live MQTT status is now fetched only on the Status tab and `/api/status` endpoint.
-- Reduced MQTT snapshot wait time to make the Status tab feel faster.
+### Added
+- Added Refresh Status button to the Status tab.
+- Added client-side refresh using the existing `/api/status` endpoint.
+- Added live update of Overall Status, availability, monitor state, stale status, last read timestamps, read ages, layout and BMS serial without a full page reload.
 
 ### Notes
-- This is a web UI performance polish release.
+- This is a web UI convenience release.
+- No Python monitor logic changes were made.
 - No BMS protocol changes were made.
 - No BMS write/control commands were added.
 - The add-on remains read-only to the BMS.

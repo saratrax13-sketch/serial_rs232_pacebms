@@ -493,21 +493,21 @@
       <section class="card wide-card summary-card">
         <div class="status-hero">
           <div class="status-label">Overall Status</div>
-          <div class="status-value {{ live.overall_class }}">{{ live.overall_status }}</div>
+          <div id="overall-status" class="status-value {{ live.overall_class }}">{{ live.overall_status }}</div>
           <div class="summary-meta">
-            Availability: {{ live.availability }}<br>
-            Monitor: {{ live.monitor_state }}<br>
-            Stale: {{ live.stale }}
+            Availability: <span id="availability-value">{{ live.availability }}</span><br>
+            Monitor: <span id="monitor-state-value">{{ live.monitor_state }}</span><br>
+            Stale: <span id="stale-summary-value">{{ live.stale }}</span>
           </div>
         </div>
 
         <div class="status-hero">
           <div class="status-label">Detected Battery Layout</div>
-          <div class="layout-text">{{ live.layout }}</div>
+          <div id="layout-text" class="layout-text">{{ live.layout }}</div>
           <div class="summary-meta">
-            BMS Serial: {{ live.bms_sn }}<br>
-            MQTT Base: {{ live.base_topic }}<br>
-            Last refreshed: {{ live.fetched_at }}
+            BMS Serial: <span id="bms-serial-value">{{ live.bms_sn }}</span><br>
+            MQTT Base: <span id="mqtt-base-value">{{ live.base_topic }}</span><br>
+            Last refreshed: <span id="fetched-at-value">{{ live.fetched_at }}</span>
           </div>
         </div>
 
@@ -515,6 +515,7 @@
           <div class="status-label">Tools</div>
           <p>Test Telegram and MQTT only. No BMS commands are sent.</p>
           <div class="actions">
+            <button type="button" onclick="refreshStatus()">Refresh Status</button>
             <form method="post" action="test-telegram">
               <button type="submit">Test Telegram</button>
             </form>
@@ -522,6 +523,7 @@
               <button type="submit">Test MQTT</button>
             </form>
           </div>
+          <div id="refresh-message" class="summary-meta"></div>
         </div>
       </section>
 
@@ -535,27 +537,27 @@
         <div class="status-grid">
           <div class="status-tile">
             <div class="tile-label">Data Stale</div>
-            <div class="tile-value {{ live.stale|lower }}">{{ live.stale }}</div>
+            <div id="stale-value" class="tile-value {{ live.stale|lower }}">{{ live.stale }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Stale Reason</div>
-            <div class="tile-value">{{ live.stale_reason }}</div>
+            <div id="stale-reason-value" class="tile-value">{{ live.stale_reason }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Last Analog Read</div>
-            <div class="tile-value">{{ live.last_analog_read }}</div>
+            <div id="last-analog-read-value" class="tile-value">{{ live.last_analog_read }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Last Warning Read</div>
-            <div class="tile-value">{{ live.last_warn_read }}</div>
+            <div id="last-warn-read-value" class="tile-value">{{ live.last_warn_read }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Analog Age</div>
-            <div class="tile-value">{{ live.analog_age_seconds }}s</div>
+            <div id="analog-age-value" class="tile-value">{{ live.analog_age_seconds }}s</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Warning Age</div>
-            <div class="tile-value">{{ live.warn_age_seconds }}s</div>
+            <div id="warn-age-value" class="tile-value">{{ live.warn_age_seconds }}s</div>
           </div>
         </div>
 
@@ -704,5 +706,66 @@
       Page refreshed: {{ generated_at }}
     </footer>
   </main>
+
+  <script>
+    function setText(id, value) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.textContent = value ?? "Unknown";
+      }
+    }
+
+    function setClass(id, baseClass, statusClass) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.className = baseClass + " " + String(statusClass || "unknown").toLowerCase();
+      }
+    }
+
+    async function refreshStatus() {
+      const msg = document.getElementById("refresh-message");
+      if (msg) {
+        msg.textContent = "Refreshing live MQTT status...";
+      }
+
+      try {
+        const response = await fetch("api/status", { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error("HTTP " + response.status);
+        }
+
+        const data = await response.json();
+
+        setText("overall-status", data.overall_status);
+        setClass("overall-status", "status-value", data.overall_class);
+
+        setText("availability-value", data.availability);
+        setText("monitor-state-value", data.monitor_state);
+        setText("stale-summary-value", data.stale);
+        setText("layout-text", data.layout);
+        setText("bms-serial-value", data.bms_sn);
+        setText("mqtt-base-value", data.base_topic);
+        setText("fetched-at-value", data.fetched_at);
+
+        setText("stale-value", data.stale);
+        setClass("stale-value", "tile-value", String(data.stale || "").toLowerCase());
+
+        setText("stale-reason-value", data.stale_reason);
+        setText("last-analog-read-value", data.last_analog_read);
+        setText("last-warn-read-value", data.last_warn_read);
+        setText("analog-age-value", (data.analog_age_seconds ?? "Unknown") + "s");
+        setText("warn-age-value", (data.warn_age_seconds ?? "Unknown") + "s");
+
+        if (msg) {
+          msg.textContent = "Live status refreshed at " + (data.fetched_at || new Date().toLocaleTimeString());
+        }
+      } catch (err) {
+        if (msg) {
+          msg.textContent = "Refresh failed: " + err.message;
+        }
+      }
+    }
+  </script>
+
 </body>
 </html>
