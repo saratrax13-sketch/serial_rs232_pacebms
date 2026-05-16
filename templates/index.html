@@ -44,6 +44,23 @@
       margin-bottom: 18px;
     }
 
+    .app-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+
+    .app-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.26);
+      flex: 0 0 auto;
+      background: rgba(15, 23, 42, 0.55);
+    }
+
     h1 {
       margin: 0;
       font-size: 34px;
@@ -707,6 +724,7 @@
       body { padding: 16px; }
       .page-header { flex-direction: column; }
       .header-badges { justify-content: flex-start; }
+      .app-icon { width: 48px; height: 48px; border-radius: 14px; }
       .row { grid-template-columns: 1fr; gap: 4px; }
       .value { text-align: left; }
       .metric-grid { grid-template-columns: repeat(2, 1fr); }
@@ -718,9 +736,12 @@
 <body>
   <main>
     <header class="page-header">
-      <div>
-        <h1>Pace BMS Settings</h1>
-        <p>Configuration overview, test tools and live MQTT status for the Home Assistant add-on.</p>
+      <div class="app-title-wrap">
+        <img class="app-icon" src="icon.png" alt="Pace BMS icon">
+        <div>
+          <h1>Pace BMS Settings</h1>
+          <p>Configuration overview, test tools and live MQTT status for the Home Assistant add-on.</p>
+        </div>
       </div>
       <div class="header-badges">
         <div class="badge safety">Read-only BMS</div>
