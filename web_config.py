@@ -7,7 +7,7 @@ import time
 import urllib.error
 import urllib.request
 from datetime import datetime
-from flask import Flask, Response, jsonify, render_template, request
+from flask import Flask, Response, jsonify, render_template, request, send_file
 
 import paho.mqtt.client as mqtt
 
@@ -136,12 +136,24 @@ def list_config_backups():
         for path in Path(CONFIG_BACKUP_DIR).glob("options-backup-*.json"):
             try:
                 stat = path.stat()
+                name = path.name
+
+                reason = "Unknown"
+                if name.endswith("-manual.json"):
+                    reason = "Manual"
+                elif name.endswith("-before-save.json"):
+                    reason = "Before Save"
+                elif name.endswith("-before-restore.json"):
+                    reason = "Before Restore"
+
                 items.append({
-                    "filename": path.name,
+                    "filename": name,
                     "path": str(path),
                     "size": stat.st_size,
                     "created_ts": int(stat.st_mtime),
                     "created": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+                    "created_short": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M"),
+                    "reason": reason,
                 })
             except Exception:
                 pass
@@ -1122,6 +1134,15 @@ def route_export_config_yaml():
         mimetype="text/yaml",
         headers={"Content-Disposition": "attachment; filename=pacebms-config-helper.yaml"},
     )
+
+
+
+@app.route("/icon.png", methods=["GET"])
+def route_icon_png():
+    icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icon.png")
+    if os.path.exists(icon_path):
+        return send_file(icon_path, mimetype="image/png")
+    return Response("Icon not found.", mimetype="text/plain", status=404)
 
 
 @app.route("/api/status", methods=["GET"])

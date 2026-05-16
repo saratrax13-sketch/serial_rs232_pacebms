@@ -59,6 +59,9 @@
       box-shadow: 0 12px 28px rgba(0, 0, 0, 0.26);
       flex: 0 0 auto;
       background: rgba(15, 23, 42, 0.55);
+      object-fit: contain;
+      display: block;
+      padding: 4px;
     }
 
     h1 {
@@ -402,6 +405,51 @@
       border: 1px solid rgba(148, 163, 184, 0.16);
     }
 
+    .backup-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 10px;
+      margin-top: 12px;
+    }
+
+    .backup-table th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      text-align: left;
+      padding: 0 12px 2px;
+    }
+
+    .backup-table td {
+      background: rgba(15, 23, 42, 0.66);
+      border-top: 1px solid rgba(148, 163, 184, 0.16);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+      padding: 12px;
+      vertical-align: middle;
+    }
+
+    .backup-table td:first-child {
+      border-left: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: 14px 0 0 14px;
+    }
+
+    .backup-table td:last-child {
+      border-right: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: 0 14px 14px 0;
+    }
+
+    .backup-type {
+      display: inline-flex;
+      border-radius: 999px;
+      padding: 5px 9px;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: #bae6fd;
+      background: rgba(14, 165, 233, 0.10);
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
     .backup-name {
       color: #f8fafc;
       font-weight: 900;
@@ -419,6 +467,47 @@
       flex-wrap: wrap;
       gap: 8px;
       justify-content: flex-end;
+    }
+
+    @media (max-width: 860px) {
+      .backup-table,
+      .backup-table tbody,
+      .backup-table tr,
+      .backup-table td {
+        display: block;
+        width: 100%;
+      }
+
+      .backup-table thead {
+        display: none;
+      }
+
+      .backup-table tr {
+        margin-bottom: 12px;
+        background: rgba(15, 23, 42, 0.66);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 14px;
+        overflow: hidden;
+      }
+
+      .backup-table td {
+        border: none;
+        border-radius: 0 !important;
+      }
+
+      .backup-table td::before {
+        content: attr(data-label);
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      .backup-actions {
+        justify-content: flex-start;
+      }
     }
 
     .events-list {
@@ -737,7 +826,7 @@
   <main>
     <header class="page-header">
       <div class="app-title-wrap">
-        <img class="app-icon" src="icon.png" alt="Pace BMS icon">
+        <img class="app-icon" src="icon.png" alt="" onerror="this.style.display='none';">
         <div>
           <h1>Pace BMS Settings</h1>
           <p>Configuration overview, test tools and live MQTT status for the Home Assistant add-on.</p>
@@ -951,22 +1040,38 @@
           </div>
 
           {% if config_backups %}
-          <div class="backup-list">
-            {% for backup in config_backups %}
-            <div class="backup-item">
-              <div>
-                <div class="backup-name">{{ backup.filename }}</div>
-                <div class="backup-meta">Created: {{ backup.created }} | Size: {{ backup.size }} bytes</div>
-              </div>
-              <div class="backup-actions">
-                <a class="button-link" href="download-config-backup/{{ backup.filename }}">Download</a>
-                <form method="post" action="restore-config-backup/{{ backup.filename }}" onsubmit="return confirm('Restore this configuration backup? A backup of the current config will be created first. Restart will be required afterwards.');">
-                  <button class="danger-button" type="submit">Restore</button>
-                </form>
-              </div>
-            </div>
-            {% endfor %}
-          </div>
+          <table class="backup-table">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Created</th>
+                <th>Backup File</th>
+                <th>Size</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for backup in config_backups %}
+              <tr>
+                <td data-label="Type"><span class="backup-type">{{ backup.reason }}</span></td>
+                <td data-label="Created">{{ backup.created_short }}</td>
+                <td data-label="Backup File">
+                  <div class="backup-name">{{ backup.filename }}</div>
+                  <div class="backup-meta">This row is the selected backup for the action buttons.</div>
+                </td>
+                <td data-label="Size">{{ backup.size }} bytes</td>
+                <td data-label="Actions">
+                  <div class="backup-actions">
+                    <a class="button-link" href="download-config-backup/{{ backup.filename }}">Download</a>
+                    <form method="post" action="restore-config-backup/{{ backup.filename }}" onsubmit="return confirm(`Restore this configuration backup?\n\nFile: {{ backup.filename }}\nCreated: {{ backup.created }}\nType: {{ backup.reason }}\n\nA backup of the current config will be created first.\nRestart is required afterwards.`);">
+                      <button class="danger-button" type="submit">Restore</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
           {% else %}
           <p>No configuration backups yet. A backup will be created before the next web config save.</p>
           {% endif %}
