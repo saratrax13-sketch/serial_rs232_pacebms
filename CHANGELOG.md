@@ -1,14 +1,14 @@
-## 2.6.18 - 2026-05-17
+## 2.6.19 - 2026-05-17
 
-### Fixed
-- Fixed Required / Optional badges not being visible on Config cards.
-- Added visible badges directly beside each Config card heading.
-- BMS Connection, MQTT and Advanced now show `Required`.
-- All other Config cards now show `Optional`.
+### Changed
+- Replaced the bulky Config tab top area with a compact header.
+- Moved Save, Discard, Create Backup, Manage Backups and Format Help into one compact area.
+- Converted Backup Safety into a compact backup status row.
+- Removed the large Backup Safety card and large explanatory box.
+- Kept Required / Optional badges and Config card order unchanged.
 
 ### Notes
-- The top Config explanatory note remains removed.
-- Card order remains unchanged.
-- `bms_ip` and `bms_port` were not re-added.
+- Functionality is unchanged.
+- Config saves still do not write to the BMS.
 - No BMS protocol changes were made.
 - No BMS write/control commands were added.

@@ -1506,6 +1506,84 @@
       }
     }
 
+  
+    .compact-config-header {
+      margin-bottom: 16px;
+      padding: 14px;
+    }
+
+    .compact-config-header h2 {
+      margin: 0 0 6px;
+      color: #93c5fd;
+      font-size: 20px;
+    }
+
+    .compact-config-subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+      margin-bottom: 12px;
+    }
+
+    .compact-config-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .compact-backup-status {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      color: #dbeafe;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .compact-backup-status .compact-pill {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: rgba(15, 23, 42, 0.62);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-weight: 900;
+      color: #dbeafe;
+    }
+
+    .compact-format-help {
+      width: 100%;
+      margin-top: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.20);
+      background: rgba(15, 23, 42, 0.55);
+      border-radius: 12px;
+      padding: 8px 10px;
+    }
+
+    .compact-format-help summary {
+      cursor: pointer;
+      color: #93c5fd;
+      font-weight: 950;
+      font-size: 13px;
+      list-style: none;
+    }
+
+    .compact-format-help summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .compact-format-help summary::after {
+      content: " +";
+      color: var(--muted);
+    }
+
+    .compact-format-help[open] summary::after {
+      content: " -";
+    }
+
   </style>
 </head>
 <body>
@@ -1959,57 +2037,40 @@
     </section>
 
     <section class="tab-panel {% if active_tab == 'config' %}active{% endif %}">
-<details class="compact-help">
-          <summary>Config format help</summary>
-          <div class="helper-note">
-            <strong>Multiple threshold format:</strong> use comma-separated numbers only.
-            Example: <code>75,50,25,15</code>. Do not add percentage signs.
-          </div>
-          <div class="helper-note">
-            <strong>Time format:</strong> use 24-hour <code>HH:MM</code> format.
-            Examples: <code>19:00</code>, <code>10:15</code>, <code>00:00</code>.
-          </div>
-        </details>
 
-
-      <section class="card wide-card">
-        <h2>Editable Add-on Configuration</h2>
-        <p>Edit and save the Home Assistant add-on options directly from this page.</p>
-        <div class="helper-note">
-          This saves Home Assistant add-on configuration only. It does not write to the BMS. Leave password/token fields blank to keep the existing saved value. Restart the add-on after saving changes that affect the monitor runtime.
-        </div>
-        <div id="restart-required-banner" class="restart-required">
-          Unsaved changes detected. Save Configuration, then restart the add-on for runtime changes to apply.
-        </div>
-        <div class="actions">
-          <button id="discard-all-button" class="danger-button" type="button" onclick="discardAllConfigChanges()" disabled>Discard All Unsaved Changes</button>
-        </div>
-
-        <section class="card wide-card" style="margin-top: 16px; margin-bottom: 16px;">
-          <h2>Backup Safety</h2>
-          <p>A backup is created before every web config save and before every restore.</p>
-
-          <div class="status-grid">
-            <div class="status-tile">
-              <div class="tile-label">Backups Stored</div>
-              <div class="tile-value">{{ config_backup_summary.count }} / {{ config_backup_summary.keep_count }}</div>
-            </div>
-            <div class="status-tile">
-              <div class="tile-label">Latest Backup</div>
-              <div class="tile-value">{{ config_backup_summary.latest }}</div>
-            </div>
+        <section class="card wide-card compact-config-header">
+          <h2>Editable Add-on Configuration</h2>
+          <div class="compact-config-subtitle">
+            Saves Home Assistant add-on options only. This does not write to the BMS. Restart the add-on after saving changes that affect runtime.
           </div>
 
-          <div class="actions">
-            <form method="post" action="create-config-backup">
-              <input type="hidden" name="active_tab" value="config">
-              <button type="submit">Create Backup Now</button>
-            </form>
+          <div class="compact-config-toolbar">
+            <button type="submit" form="config-save-form">Save Configuration</button>
+            <button type="button" class="danger-button" onclick="discardAllConfigChanges()">Discard Changes</button>
+            <button type="submit" form="config-save-form" formaction="create-config-backup" formmethod="post" name="active_tab" value="config">Create Backup</button>
             <a class="button-link" href="?tab=backups">Manage Backups</a>
           </div>
+
+          <div class="compact-backup-status">
+            <span class="compact-pill">Backups: {{ config_backup_summary.count }} / {{ config_backup_summary.keep_count }}</span>
+            <span class="compact-pill">Latest: {{ config_backup_summary.latest }}</span>
+          </div>
+
+          <details class="compact-format-help">
+            <summary>Format Help</summary>
+            <div class="helper-note">
+              <strong>Multiple threshold format:</strong> use comma-separated numbers only.
+              Example: <code>75,50,25,15</code>. Do not add percentage signs.
+            </div>
+            <div class="helper-note">
+              <strong>Time format:</strong> use 24-hour <code>HH:MM</code> format.
+              Examples: <code>19:00</code>, <code>10:15</code>, <code>00:00</code>.
+            </div>
+          </details>
         </section>
 
-        <form id="config-save-form" method="post" action="save-config" onsubmit="return confirmSaveConfig();">
+
+<form id="config-save-form" method="post" action="save-config" onsubmit="return confirmSaveConfig();">
           <section class="grid">
             {% for group_name, items in grouped.items() %}
             <article class="card config-card" data-config-group="{{ group_name }}">

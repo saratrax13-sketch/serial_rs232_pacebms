@@ -1,8 +1,9 @@
 # =============================================================================
 # bms_monitor.py — Pace BMS to MQTT Bridge
-# Version : 2.6.18
+# Version : 2.6.19
 # Changed : 2026-05-17
 # Changes :
+#   - Compacted Config tab header and backup controls
 #   - Fixed visible Config card Required/Optional badges
 #   - Removed Config base polling note and kept card badges
 #   - Added Config required/optional badges and reordered cards
