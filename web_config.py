@@ -1140,7 +1140,7 @@ def render_index(action_result="", action_message="", active_tab="status", compa
     # Performance note:
     # Fetching the live MQTT snapshot requires a short MQTT subscribe window.
     # Only do this on the Status tab. Config and Events should open quickly.
-    live = fetch_mqtt_snapshot(options) if options and active_tab in ("status", "diagnostics") else None
+    live = fetch_mqtt_snapshot(options) if options and active_tab in ("status", "dashboard", "diagnostics") else None
 
     return render_template(
         "index.html",
@@ -1222,26 +1222,32 @@ def index():
     )
 
 
-@app.route("/test-telegram", methods=["POST"])
+@app.route("/test-telegram", methods=["GET", "POST"])
 def route_test_telegram():
+    if request.method == "GET":
+        return redirect_to_tab("status")
+
     options, error = load_options()
     if error:
-        return render_index("warn", error, active_tab="status")
+        return redirect_to_tab("status", "warn", error)
 
     ok, message = test_telegram(options)
     append_event("telegram_test", "Telegram test", message, "ok" if ok else "warn")
-    return render_index("ok" if ok else "warn", message, active_tab="status")
+    return redirect_to_tab("status", "ok" if ok else "warn", message)
 
 
-@app.route("/test-mqtt", methods=["POST"])
+@app.route("/test-mqtt", methods=["GET", "POST"])
 def route_test_mqtt():
+    if request.method == "GET":
+        return redirect_to_tab("status")
+
     options, error = load_options()
     if error:
-        return render_index("warn", error, active_tab="status")
+        return redirect_to_tab("status", "warn", error)
 
     ok, message = test_mqtt(options)
     append_event("mqtt_test", "MQTT test", message, "ok" if ok else "warn")
-    return render_index("ok" if ok else "warn", message, active_tab="status")
+    return redirect_to_tab("status", "ok" if ok else "warn", message)
 
 
 @app.route("/clear-events", methods=["POST"])
