@@ -1,6 +1,6 @@
 name: "Pace BMS RS232 Monitor"
 description: "Read-only Pace BMS RS232 to MQTT bridge with Home Assistant discovery and Telegram notifications"
-version: "2.6.29"
+version: "2.6.30"
 slug: "pace_bms_rs232"
 url: "https://github.com/saratrax13-sketch/serial_rs232_pacebms"
 init: false
@@ -23,101 +23,13 @@ uart: true
 usb: true
 
 options:
-  # ─────────────────────────────────────────────
-  # Telegram
-  # ─────────────────────────────────────────────
-  telegram_bot_token: "YOUR_TELEGRAM_BOT_TOKEN"
-  telegram_chat_id: "YOUR_TELEGRAM_CHAT_ID"
+  # Basic Required - BMS connection
+  connection_type: "Serial"
+  bms_serial: "/dev/serial/by-id/usb-Prolific_Technology_Inc._USB-Serial_Controller_D-if00-port0"
+  bms_baudrate: 9600
+  scan_interval: 5
 
-  # ─────────────────────────────────────────────
-  # Notifications - Main Toggles
-  # ─────────────────────────────────────────────
-  notify_enabled: true
-  notify_startup: true
-  notify_disconnect: true
-  notify_soc_low: true
-  notify_soc_high: true
-  notify_soc_high_on_startup: false
-  notify_soh: true
-  notify_soh_on_startup: false
-  notify_warnings: true
-  notify_warning_detail_enabled: true
-  notify_fet: true
-  notify_daily_summary: true
-  notify_delta_report: true
-
-  # ─────────────────────────────────────────────
-  # Notifications - SOC / SOH
-  # ─────────────────────────────────────────────
-  notify_soc_low_thresholds: "75,50,25,10"
-  notify_soc_high_threshold: 98
-  notify_soc_high_reset: 95
-  notify_soh_threshold: 95
-
-  # ─────────────────────────────────────────────
-  # Notifications - Disconnect
-  # Recommended for serial connections: 1
-  # ─────────────────────────────────────────────
-  notify_retry_count: 1
-
-  # ─────────────────────────────────────────────
-  # Notifications - Stale Data / Repeat Cooldowns
-  # This checks the age of successful BMS reads, not whether values changed.
-  # It does not write to or configure the BMS.
-  # notify_warning_repeat_seconds controls how often the same active BMS warning
-  # may repeat on Telegram. 1800 seconds = 30 minutes.
-  # Severity-specific repeats override the legacy repeat value:
-  # caution = BMS warning below references, warning = near/at references,
-  # critical = protection/fault or measured values outside references.
-  # ─────────────────────────────────────────────
-  notify_stale_data: true
-  notify_stale_recovery: true
-  notify_stale_data_seconds: 120
-  notify_stale_data_repeat_seconds: 1800
-  notify_warning_repeat_seconds: 1800
-  notify_warning_repeat_caution_seconds: 21600
-  notify_warning_repeat_warning_seconds: 3600
-  notify_warning_repeat_critical_seconds: 900
-
-  # ─────────────────────────────────────────────
-  # Notifications - Warning Detail Reference Values
-  # These are read-only reference values used only to enrich Telegram messages.
-  # They do not write to or configure the BMS.
-  # Pack high/low thresholds should be calculated from detected cell count.
-  # Example: 4.20 V x 13 cells = 54.60 V
-  # ─────────────────────────────────────────────
-  notify_cell_high_warn_voltage: 4.20
-  notify_cell_low_warn_voltage: 3.00
-  notify_cell_delta_warn_mv: 100
-  notify_temp_high_warn_c: 55
-  notify_temp_low_warn_c: 0
-
-  # ─────────────────────────────────────────────
-  # Notifications - Warning Message Detail
-  # ─────────────────────────────────────────────
-  notify_include_all_cells_above_threshold: true
-  notify_include_all_cells_below_threshold: true
-  notify_include_highest_and_lowest_cell: true
-  notify_include_pack_voltage: true
-  notify_include_soc_soh: true
-
-  # ─────────────────────────────────────────────
-  # Notifications - FET Handling
-  # ─────────────────────────────────────────────
-  notify_ignore_charge_fet_off_when_full: true
-  notify_alert_discharge_fet_off: true
-
-  # ─────────────────────────────────────────────
-  # Scheduled Reports
-  # ─────────────────────────────────────────────
-  notify_daily_summary_time: "19:00"
-  notify_delta_report_time: "10:15"
-  notify_delta_window_start: "00:00"
-  notify_delta_window_end: "10:00"
-
-  # ─────────────────────────────────────────────
-  # MQTT
-  # ─────────────────────────────────────────────
+  # Basic Required - MQTT and Home Assistant discovery
   mqtt_host: "192.168.10.16"
   mqtt_port: 1883
   mqtt_user: "YOUR_MQTT_USER"
@@ -129,28 +41,98 @@ options:
   state_force_republish_seconds: 300
   warn_force_republish_seconds: 300
 
-  # ─────────────────────────────────────────────
-  # BMS Connection
-  # ─────────────────────────────────────────────
-  connection_type: "Serial"
-  bms_serial: "/dev/serial/by-id/usb-Prolific_Technology_Inc._USB-Serial_Controller_D-if00-port0"
-  bms_baudrate: 9600
-  scan_interval: 5
-
-  # ─────────────────────────────────────────────
-  # Advanced
-  # ─────────────────────────────────────────────
+  # Basic Required - safe defaults
   debug_output: 0
   zero_pad_number_cells: 2
   zero_pad_number_packs: 2
 
+  # Full Monitoring - Telegram
+  telegram_bot_token: "YOUR_TELEGRAM_BOT_TOKEN"
+  telegram_chat_id: "YOUR_TELEGRAM_CHAT_ID"
+
+  # Full Monitoring - notification toggles
+  notify_enabled: true
+  notify_startup: true
+  notify_disconnect: true
+  notify_stale_data: true
+  notify_stale_recovery: true
+  notify_soc_low: true
+  notify_soc_high: true
+  notify_soc_high_on_startup: false
+  notify_soh: true
+  notify_soh_on_startup: false
+  notify_warnings: true
+  notify_warning_detail_enabled: true
+  notify_fet: true
+  notify_daily_summary: true
+  notify_delta_report: true
+
+  # Full Monitoring - SOC, SOH, stale data and repeat timing
+  notify_soc_low_thresholds: "75,50,25,10"
+  notify_soc_high_threshold: 98
+  notify_soc_high_reset: 95
+  notify_soh_threshold: 95
+  notify_retry_count: 1
+  notify_stale_data_seconds: 120
+  notify_stale_data_repeat_seconds: 1800
+  notify_warning_repeat_seconds: 1800
+  notify_warning_repeat_caution_seconds: 21600
+  notify_warning_repeat_warning_seconds: 3600
+  notify_warning_repeat_critical_seconds: 900
+
+  # Full Monitoring - read-only warning reference values
+  notify_cell_high_warn_voltage: 4.20
+  notify_cell_low_warn_voltage: 3.00
+  notify_cell_delta_warn_mv: 100
+  notify_temp_high_warn_c: 55
+  notify_temp_low_warn_c: 0
+
+  # Full Monitoring - warning message detail
+  notify_include_all_cells_above_threshold: true
+  notify_include_all_cells_below_threshold: true
+  notify_include_highest_and_lowest_cell: true
+  notify_include_pack_voltage: true
+  notify_include_soc_soh: true
+
+  # Full Monitoring - FET handling
+  notify_ignore_charge_fet_off_when_full: true
+  notify_alert_discharge_fet_off: true
+
+  # Full Monitoring - scheduled reports
+  notify_daily_summary_time: "19:00"
+  notify_delta_report_time: "10:15"
+  notify_delta_window_start: "00:00"
+  notify_delta_window_end: "10:00"
+
 schema:
+  connection_type: list(Serial)
+  bms_serial: str
+  bms_baudrate: int
+  scan_interval: int
+
+  mqtt_host: str
+  mqtt_port: int
+  mqtt_user: str
+  mqtt_password: password
+  mqtt_base_topic: str
+  mqtt_ha_discovery: bool
+  mqtt_ha_discovery_topic: str
+  mqtt_retain_state: bool
+  state_force_republish_seconds: int
+  warn_force_republish_seconds: int
+
+  debug_output: int
+  zero_pad_number_cells: int
+  zero_pad_number_packs: int
+
   telegram_bot_token: password
   telegram_chat_id: password
 
   notify_enabled: bool
   notify_startup: bool
   notify_disconnect: bool
+  notify_stale_data: bool
+  notify_stale_recovery: bool
   notify_soc_low: bool
   notify_soc_high: bool
   notify_soc_high_on_startup: bool
@@ -167,9 +149,6 @@ schema:
   notify_soc_high_reset: int
   notify_soh_threshold: int
   notify_retry_count: int
-
-  notify_stale_data: bool
-  notify_stale_recovery: bool
   notify_stale_data_seconds: int
   notify_stale_data_repeat_seconds: int
   notify_warning_repeat_seconds: int
@@ -196,23 +175,3 @@ schema:
   notify_delta_report_time: str
   notify_delta_window_start: str
   notify_delta_window_end: str
-
-  mqtt_host: str
-  mqtt_port: int
-  mqtt_user: str
-  mqtt_password: password
-  mqtt_base_topic: str
-  mqtt_ha_discovery: bool
-  mqtt_ha_discovery_topic: str
-  mqtt_retain_state: bool
-  state_force_republish_seconds: int
-  warn_force_republish_seconds: int
-
-  connection_type: list(Serial)
-  bms_serial: str
-  bms_baudrate: int
-  scan_interval: int
-
-  debug_output: int
-  zero_pad_number_cells: int
-  zero_pad_number_packs: int

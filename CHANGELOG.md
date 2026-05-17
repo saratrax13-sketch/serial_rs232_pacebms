@@ -1,3 +1,15 @@
+## 2.6.30 - 2026-05-17
+
+### Changed
+- Reordered Home Assistant add-on Configuration fields so Basic Required connection and MQTT options appear first.
+- Moved Telegram, notification, warning-detail and report schedule fields after the required setup fields.
+- Cleaned `config.yaml` comments to plain ASCII for easier repo maintenance.
+- Updated README current version and setup guidance for the Home Assistant Configuration tab.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.29 - 2026-05-17
 
 ### Added

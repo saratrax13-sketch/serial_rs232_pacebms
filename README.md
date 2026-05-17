@@ -21,7 +21,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.29"
+version: "2.6.30"
 ```
 
 ---
@@ -247,6 +247,8 @@ With only Basic Required configured:
 - Direct Telegram notifications, daily reports, stale-data Telegram alerts and FET Telegram alerts are not useful unless Telegram and notification options are configured.
 
 In the web UI, choose **Basic Required** on the Config tab to focus on only these required connection and publishing fields.
+
+The Home Assistant add-on Configuration tab also lists these Basic Required options first. That page is rendered by Home Assistant, so it remains a plain form, but the order is arranged to make first setup easier.
 
 ### Full Monitoring Package
 
