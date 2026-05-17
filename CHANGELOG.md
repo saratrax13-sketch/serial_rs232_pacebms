@@ -1,13 +1,14 @@
-## 2.6.10 - 2026-05-17
+## 2.6.11 - 2026-05-17
 
 ### Fixed
-- Restored Config info button JavaScript handler.
-- Restored `openConfigHelp(groupName)` compatibility with the original Config help modal.
-- Kept Notification Thresholds and Report Schedules inside the original `configHelpContent` object.
-- Added aliases for older info/close functions so existing buttons continue to work.
+- Restored the original Config help modal system.
+- Removed the bad modal override/workaround behaviour from the previous help fixes.
+- Added `Notification Thresholds` directly into the original `configHelpContent` object.
+- Added `Report Schedules` directly into the original `configHelpContent` object.
+- Fixed the issue where info buttons opened a different/bad-looking modal.
 
 ### Notes
-- This keeps the original Config help modal look and feel.
+- This keeps the same original look and feel as the working MQTT help modal.
 - `bms_ip` and `bms_port` were not re-added.
 - No BMS protocol changes were made.
 - No BMS write/control commands were added.

@@ -1899,7 +1899,7 @@
     </section>
 
     <section class="tab-panel {% if active_tab == 'config' %}active{% endif %}">
-<details class="compact-help">
+        <details class="compact-help">
           <summary>Config format help</summary>
           <div class="helper-note">
             <strong>Multiple threshold format:</strong> use comma-separated numbers only.
@@ -2728,7 +2728,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
           </ul>
           <p>These settings only decide what the add-on reports. They do not change BMS behaviour.</p>
         `
-      },,
+      },
       "Notification Thresholds": {
         title: "Notification Thresholds Settings",
         html: `
@@ -2764,7 +2764,8 @@ Restart the add-on afterwards for runtime changes to apply.`);
           <h3>Important note</h3>
           <p>These values only control notifications. They do not change the BMS, battery thresholds, charge settings or discharge settings.</p>
         `
-      }
+      },
+
       "Warning Detail": {
         title: "Warning Detail Settings",
         html: `
@@ -2805,7 +2806,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
           <p>These values are used only for display and notification explanations. They do not configure the battery, they do not change BMS thresholds, and they are not written to the BMS.</p>
           <p>The BMS may trigger an internal warning before your configured reference is exceeded. The web UI separates <strong>BMS internal warning active</strong> from the configured <strong>Reference Check</strong> so you can see the difference.</p>
         `
-      },,
+      },
       "Report Schedules": {
         title: "Report Schedules Settings",
         html: `
@@ -2833,7 +2834,8 @@ Restart the add-on afterwards for runtime changes to apply.`);
           <h3>Important note</h3>
           <p>These schedule values only control report timing. They do not change BMS settings and they do not write anything to the battery.</p>
         `
-      }
+      },
+
       "MQTT": {
         title: "MQTT Settings",
         html: `
@@ -3282,81 +3284,6 @@ Restart the add-on afterwards for runtime changes to apply.`);
 
 
   </script>
-<script>
 
-    // 2.6.10 restore Config info button handler
-    function openConfigHelp(groupName) {
-      const help = (typeof configHelpContent !== "undefined" && configHelpContent[groupName])
-        ? configHelpContent[groupName]
-        : {
-            title: groupName + " Settings",
-            html: "<p>No help text is available for this section yet.</p>"
-          };
-
-      const titleEl =
-        document.getElementById("configHelpTitle") ||
-        document.getElementById("config-help-title") ||
-        document.getElementById("info-modal-title") ||
-        document.getElementById("modal-title") ||
-        document.querySelector(".modal-title");
-
-      const bodyEl =
-        document.getElementById("configHelpBody") ||
-        document.getElementById("config-help-body") ||
-        document.getElementById("info-modal-body") ||
-        document.getElementById("modal-body") ||
-        document.querySelector(".modal-body");
-
-      const modalEl =
-        document.getElementById("configHelpModal") ||
-        document.getElementById("config-help-modal") ||
-        document.getElementById("info-modal") ||
-        document.getElementById("modal") ||
-        document.querySelector(".modal");
-
-      if (titleEl) {
-        titleEl.textContent = help.title || (groupName + " Settings");
-      }
-
-      if (bodyEl) {
-        bodyEl.innerHTML = help.html || "<p>No help text is available for this section yet.</p>";
-      }
-
-      if (modalEl) {
-        modalEl.style.display = "flex";
-        modalEl.classList.add("open");
-        modalEl.removeAttribute("hidden");
-      } else {
-        const plain = (help.html || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-        alert((help.title || groupName + " Settings") + "\n\n" + plain);
-      }
-    }
-
-    function closeConfigHelp() {
-      const modalEl =
-        document.getElementById("configHelpModal") ||
-        document.getElementById("config-help-modal") ||
-        document.getElementById("info-modal") ||
-        document.getElementById("modal") ||
-        document.querySelector(".modal");
-
-      if (modalEl) {
-        modalEl.style.display = "none";
-        modalEl.classList.remove("open");
-        modalEl.setAttribute("hidden", "hidden");
-      }
-    }
-
-    // Keep older aliases working.
-    window.openConfigHelp = openConfigHelp;
-    window.closeConfigHelp = closeConfigHelp;
-    window.showSectionInfo = openConfigHelp;
-    window.openSectionHelp = openConfigHelp;
-
-
-    window.closeInfoModal = window.closeInfoModal || closeConfigHelp;
-    window.closeModal = window.closeModal || closeConfigHelp;
-
-</script>
 </body>
 </html>

@@ -23,14 +23,8 @@ MAX_EVENT_LOG_ENTRIES = 50
 DEPRECATED_OPTION_KEYS = {"bms_ip", "bms_port"}
 
 SECTION_HELP = {
-    'Telegram': 'Telegram settings control notification delivery, startup messages, disconnect alerts and stale-data notifications.\n\nLeave telegram_bot_token and telegram_chat_id blank in the web UI if you want to keep the existing saved values.',
-    'Notifications': 'Notification settings enable or disable the main alert categories.\n\nThis includes SOC alerts, SOH alerts, BMS warnings, FET alerts, daily summary notifications and cell delta report notifications.',
-    'Notification Thresholds': 'These settings control when SOC, SOH and stale-data notifications trigger.\n\nnotify_soc_low_thresholds format:\nUse comma-separated numbers only.\nExample: 75,50,25,15\nDo not use percentage signs.\n\nnotify_soc_high_threshold uses one percentage number, for example 98.\nnotify_soc_high_reset must be lower than the high threshold, for example 95.\nnotify_soh_threshold uses one percentage number, for example 95.\nnotify_retry_count must be a whole number.\nnotify_stale_data_seconds and notify_stale_data_repeat_seconds are in seconds.',
-    'Warning Detail': 'Warning Detail settings control which extra values are included in warning messages.\n\nThis includes all cells above/below thresholds, highest and lowest cells, pack voltage and SOC/SOH.',
-    'Report Schedules': 'Report Schedules controls notification times for the daily summary and cell delta report.\n\nTime format:\nUse 24-hour HH:MM format.\nExamples: 19:00, 10:15, 00:00\n\nnotify_daily_summary_time controls the daily summary time.\nnotify_delta_report_time controls when the delta report is sent.\nnotify_delta_window_start and notify_delta_window_end define the time range used for the delta report.',
-    'MQTT': 'MQTT settings control the broker connection, base topic, Home Assistant Discovery and retained state publishing.\n\nmqtt_password can be left blank in the web UI to keep the existing saved password.',
-    'BMS Connection': 'BMS Connection settings control the RS232 serial path, baud rate and polling interval.\n\nThis add-on build is focused on Serial RS232. bms_ip and bms_port are not used.',
-    'Advanced': 'Advanced settings are mainly for troubleshooting and topic formatting.\n\ndebug_output should normally be 0. Use higher levels only while troubleshooting because logs can become very verbose.\nzero_pad_number_cells controls cell number formatting, for example cell_01.\nzero_pad_number_packs controls pack number formatting, for example pack_01.',
+    "Notification Thresholds": "Controls when SOC, SOH and stale-data notifications trigger. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale data values are in seconds.",
+    "Report Schedules": "Controls scheduled notification times for the daily summary and cell delta report. Use 24-hour HH:MM format, for example 19:00, 10:15 or 00:00. The delta window start/end values define the time range used for the delta report.",
 }
 
 GROUPS = {
