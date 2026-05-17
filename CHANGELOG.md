@@ -1,23 +1,23 @@
-## 2.6.23 - 2026-05-17
+## 2.6.24 - 2026-05-17
 
 ### Added
-- Added stable release documentation package.
-- Added `docs/RELEASE_NOTES_2.6.23.md`.
-- Added `docs/FIRST_TIME_SETUP.md`.
-- Added `docs/CONFIG_REFERENCE.md`.
+- Added BMS warning deduplication before Telegram notification handling.
+- Added warning-family normalization so slight wording changes are treated as the same active condition.
+- Added repeat cooldown support using optional config value `notify_warning_repeat_seconds`.
+- Added warning clear handling per pack.
+- Added `docs/WARNING_DEDUPLICATION.md`.
 
-### Documented
-- Required vs Optional Config sections.
-- Telegram as an optional monitoring feature.
-- MQTT-only base setup.
-- Config validation rules.
-- Backup and restore behaviour.
-- Restart Add-on route behaviour under Home Assistant Ingress.
-- SOC high startup alert behaviour.
-- Slave serial limitation.
-- Release testing checklist.
+### Behaviour
+- Same active warning family is no longer sent repeatedly every warning read.
+- A new Telegram warning is sent when a warning first appears.
+- A repeat Telegram warning is allowed only after the cooldown period.
+- A clear notification is sent when the warning returns to normal.
+
+### Default
+- `notify_warning_repeat_seconds` defaults to `1800` seconds if not configured.
 
 ### Notes
-- This is a documentation and release cleanup version.
+- This is Telegram spam-control logic only.
+- MQTT warning topics are still published normally.
 - No BMS protocol changes were made.
 - No BMS write/control commands were added.

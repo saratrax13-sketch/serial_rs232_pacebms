@@ -1,8 +1,9 @@
 # =============================================================================
 # bms_monitor.py — Pace BMS to MQTT Bridge
-# Version : 2.6.23
+# Version : 2.6.24
 # Changed : 2026-05-17
 # Changes :
+#   - Added BMS warning deduplication and repeat cooldown
 #   - Stable release documentation cleanup
 #   - Fixed Restart Add-on route for Home Assistant Ingress
 #   - Fixed compact header Restart Add-on button route
@@ -789,6 +790,97 @@ def bms_get_warn_info(bms, config: dict, packs: int) -> tuple[bool, any]:
         log.error("Warn info parse error: %s", e)
         return False, f"Warn info parse error: {e}"
 
+
+# ─── Warning notification deduplication helpers ───────────────────────────────
+
+def normalize_warning_family(warnings: str) -> str:
+    """Normalize BMS warning text into a stable warning family.
+
+    Some Pace warning frames alternate between specific text such as
+    "cell 8 Above upper limit" and generic text such as "Above cell voltage".
+    Telegram should not spam when those represent the same ongoing condition.
+    """
+    text = str(warnings or "").strip()
+    if not text or text.lower() in {"normal", "none", "no warnings"}:
+        return "Normal"
+
+    # Split on comma/newline and remove known non-alarm/noise states.
+    ignore = {
+        "control state: buzzer warn function enabled",
+        "fault state: undefined",
+    }
+    raw_parts = re.split(r"[,\\n]+", text)
+    parts = []
+    for part in raw_parts:
+        clean = re.sub(r"\\s+", " ", part.strip())
+        if not clean:
+            continue
+        if clean.lower() in ignore:
+            continue
+        parts.append(clean)
+
+    if not parts:
+        return "Normal"
+
+    family = set()
+    for part in parts:
+        low = part.lower()
+
+        # Collapse cell-specific upper limit wording and generic wording into
+        # the same family.
+        if "above cell voltage" in low or ("above upper limit" in low and "cell" in low):
+            family.add("Above cell voltage")
+            continue
+
+        if "below cell voltage" in low or ("below lower limit" in low and "cell" in low):
+            family.add("Below cell voltage")
+            continue
+
+        if "temp" in low and ("high" in low or "above" in low or "upper" in low):
+            family.add("High temperature")
+            continue
+
+        if "temp" in low and ("low" in low or "below" in low or "lower" in low):
+            family.add("Low temperature")
+            continue
+
+        if "charge current" in low:
+            family.add("Charge current warning")
+            continue
+
+        if "discharge current" in low:
+            family.add("Discharge current warning")
+            continue
+
+        if "total voltage" in low:
+            family.add("Total voltage warning")
+            continue
+
+        if "protection state" in low:
+            # Keep protection state text, but normalize spacing and case.
+            family.add(re.sub(r"\\s+", " ", part))
+            continue
+
+        family.add(re.sub(r"\\s+", " ", part))
+
+    return " | ".join(sorted(family)) if family else "Normal"
+
+
+def call_warning_notify(notify, pack_num: int, warnings: str, pack_detail=None, force: bool = False):
+    """Call NotifyState warning handler with compatibility for older signatures."""
+    if force and hasattr(notify, "last_warnings"):
+        try:
+            notify.last_warnings[pack_num] = "Normal"
+        except Exception:
+            pass
+
+    try:
+        return notify.on_warnings_update(pack_num, warnings, pack_detail)
+    except TypeError:
+        return notify.on_warnings_update(pack_num, warnings)
+
+
+
 # ─── MQTT publishing with change-detection cache ──────────────────────────────
 
 _publish_cache: dict[str, str] = {}
@@ -1209,6 +1301,10 @@ def main():
     notify = NotifyState(config)
     notify.on_startup(bms_sn, bms_version)
 
+    # ── Warning notification deduplication ───────────────────────────────────
+    warning_repeat_seconds = max(60, float(config.get('notify_warning_repeat_seconds', 1800)))
+    warning_notify_state = {}  # {pack_num: {"family": str, "active": bool, "last_sent": epoch}}
+
     # ── Clean shutdown handling ──────────────────────────────────────────────
     shutdown_sent = False
 
@@ -1475,7 +1571,61 @@ def main():
                 for pack_warn in result:
                     p = pack_warn.pack_number
                     pack_detail = pack_by_number.get(p)
-                    notify.on_warnings_update(p, pack_warn.warnings, pack_detail)
+                    warning_family = normalize_warning_family(pack_warn.warnings)
+                    previous_warning_state = warning_notify_state.get(p, {
+                        "family": "Normal",
+                        "active": False,
+                        "last_sent": 0.0,
+                    })
+
+                    warning_now = time.time()
+                    if warning_family == "Normal":
+                        if previous_warning_state.get("active"):
+                            call_warning_notify(notify, p, "Normal", pack_detail)
+                            log.info("BMS warning cleared for Pack %02d (previous family: %s)", p, previous_warning_state.get("family", "Unknown"))
+                        warning_notify_state[p] = {
+                            "family": "Normal",
+                            "active": False,
+                            "last_sent": previous_warning_state.get("last_sent", 0.0),
+                        }
+                    else:
+                        same_family = (
+                            previous_warning_state.get("active")
+                            and previous_warning_state.get("family") == warning_family
+                        )
+                        elapsed = warning_now - float(previous_warning_state.get("last_sent", 0.0) or 0.0)
+
+                        if (not same_family) or elapsed >= warning_repeat_seconds:
+                            repeat = same_family and elapsed >= warning_repeat_seconds
+                            call_warning_notify(notify, p, pack_warn.warnings, pack_detail, force=repeat)
+                            warning_notify_state[p] = {
+                                "family": warning_family,
+                                "active": True,
+                                "last_sent": warning_now,
+                            }
+                            if repeat:
+                                log.info(
+                                    "BMS warning repeat sent for Pack %02d after %.0fs cooldown: %s",
+                                    p,
+                                    elapsed,
+                                    warning_family,
+                                )
+                            else:
+                                log.info("BMS warning notification sent for Pack %02d: %s", p, warning_family)
+                        else:
+                            warning_notify_state[p] = {
+                                "family": warning_family,
+                                "active": True,
+                                "last_sent": previous_warning_state.get("last_sent", warning_now),
+                            }
+                            log.debug(
+                                "BMS warning duplicate suppressed for Pack %02d: %s (%.0fs since last send, cooldown %.0fs)",
+                                p,
+                                warning_family,
+                                elapsed,
+                                warning_repeat_seconds,
+                            )
+
                     notify.on_fet_update(p,
                         'ON' if pack_warn.charge_fet    else 'OFF',
                         'ON' if pack_warn.discharge_fet else 'OFF',
