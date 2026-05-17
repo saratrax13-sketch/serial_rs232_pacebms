@@ -1,10 +1,10 @@
-## 2.3.10 - 2026-05-17
+## 2.3.11 - 2026-05-17
 
 ### Fixed
-- Fixed backup Delete showing `Method Not Allowed`.
-- Delete now uses a stable POST route with the backup filename sent as a hidden form field.
-- Restore now also uses a stable POST route with the backup filename sent as a hidden form field.
-- Avoids filename-based POST routes that can behave inconsistently through Home Assistant Ingress.
+- Fixed `Method Not Allowed` after deleting a backup.
+- Delete was successful, but the browser was redirected back to the POST action route.
+- POST actions now redirect back to the web UI root using `./?tab=...`.
+- POST redirects now use HTTP 303 so the browser follows with a GET request.
 
 ### Notes
 - Delete only removes selected local backup JSON files.

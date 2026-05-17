@@ -993,17 +993,17 @@ def restart_addon():
 
 
 def redirect_to_tab(tab="status", result="", message=""):
-    """Redirect back to the normal page after POST actions.
+    """Redirect back to the web UI root after POST actions.
 
-    This avoids leaving the browser on action routes such as
-    /delete-config-backup/<file>, which can break the next relative action.
+    Use ./? instead of ? so browsers do not stay on action routes such as
+    /delete-config-backup. Use HTTP 303 so the browser follows with GET.
     """
     params = [f"tab={tab}"]
     if result:
         params.append(f"result={urllib.parse.quote(str(result))}")
     if message:
         params.append(f"message={urllib.parse.quote(str(message))}")
-    return redirect("?" + "&".join(params))
+    return redirect("./?" + "&".join(params), code=303)
 
 
 def render_index(action_result="", action_message="", active_tab="status", compare_data=None, restore_preview=None):
