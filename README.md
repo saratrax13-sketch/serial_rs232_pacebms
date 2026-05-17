@@ -21,7 +21,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.37"
+version: "2.6.38"
 ```
 
 ---
@@ -184,6 +184,7 @@ The web UI includes:
 - Monitoring Health status
 - Detected packs
 - Pack SOC / SOH
+- Pack cycles
 - Pack voltage / current
 - Cell delta
 - FET status

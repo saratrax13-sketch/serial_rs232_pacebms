@@ -430,6 +430,7 @@ class HealthEndpointTests(unittest.TestCase):
                 "cell_count": 16,
                 "soc": "95",
                 "soh": "99",
+                "cycles": "42",
                 "voltage": "54.0",
                 "current": "1.0",
                 "delta": "12",
@@ -457,6 +458,8 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Monitoring Snapshot", response.data)
         self.assertIn(b"dashboard-monitoring-health", response.data)
+        self.assertIn(b"Cycles", response.data)
+        self.assertIn(b"42", response.data)
 
     def test_health_endpoint_fails_when_monitor_heartbeat_is_stale(self):
         with tempfile.TemporaryDirectory() as tmpdir:

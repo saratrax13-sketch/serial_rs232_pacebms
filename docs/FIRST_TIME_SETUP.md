@@ -66,7 +66,7 @@ Open the web UI and check:
 - Status tab: Overall Status should not be Unknown once MQTT retained values are available.
 - Status tab: Monitoring Health should show whether heartbeat, MQTT monitor state, analog age and warning age are healthy.
 - Status tab: Setup Checklist should show Basic Required items as ready.
-- Dashboard tab: detected packs, cell count, SOC, SOH, voltage and warning summary should be visible.
+- Dashboard tab: detected packs, cell count, SOC, SOH, cycles, voltage and warning summary should be visible.
 - Diagnostics tab: use this when you need a support report or deeper troubleshooting.
 
 ### Step 6: Capture setup screenshots

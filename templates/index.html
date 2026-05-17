@@ -2071,6 +2071,10 @@
                 <div class="metric-value">{{ pack.soh }}%</div>
               </div>
               <div class="metric">
+                <div class="metric-label">Cycles</div>
+                <div class="metric-value">{{ pack.cycles }}</div>
+              </div>
+              <div class="metric">
                 <div class="metric-label">Pack Voltage</div>
                 <div class="metric-value">{{ pack.voltage }} V</div>
               </div>
@@ -2229,6 +2233,10 @@
               <div class="pack-metric">
                 <div class="pack-metric-label">SOH</div>
                 <div class="pack-metric-value" data-pack-field="{{ pack.id }}-soh">{{ pack.soh }}%</div>
+              </div>
+              <div class="pack-metric">
+                <div class="pack-metric-label">Cycles</div>
+                <div class="pack-metric-value" data-pack-field="{{ pack.id }}-cycles">{{ pack.cycles }}</div>
               </div>
               <div class="pack-metric">
                 <div class="pack-metric-label">Voltage</div>
@@ -3557,6 +3565,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
 
           setDashboardText(`[data-pack-field="${id}-soc"]`, `${pack.soc}%`);
           setDashboardText(`[data-pack-field="${id}-soh"]`, `${pack.soh}%`);
+          setDashboardText(`[data-pack-field="${id}-cycles"]`, pack.cycles ?? "Unknown");
           setDashboardText(`[data-pack-field="${id}-voltage"]`, `${pack.voltage} V`);
           setDashboardText(`[data-pack-field="${id}-current"]`, `${pack.current} A`);
           setDashboardText(`[data-pack-field="${id}-delta"]`, `${pack.delta} mV`);

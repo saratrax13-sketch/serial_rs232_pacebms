@@ -936,6 +936,7 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
         current = messages.get(f"{pfx}/i_pack", "Unknown")
         soc = messages.get(f"{pfx}/soc", "Unknown")
         soh = messages.get(f"{pfx}/soh", "Unknown")
+        cycles = messages.get(f"{pfx}/cycles", "Unknown")
         delta = messages.get(f"{pfx}/cells_max_diff_calc", "Unknown")
 
         cell_high_ref = _to_float(options.get("notify_cell_high_warn_voltage", 4.20), 4.20)
@@ -1025,6 +1026,7 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
             "cell_count": cell_count,
             "soc": soc,
             "soh": soh,
+            "cycles": cycles,
             "voltage": voltage,
             "current": current,
             "delta": delta,
@@ -1183,6 +1185,7 @@ def build_battery_topology(options, live):
             "cells": pack.get("cell_count", "Unknown"),
             "soc": pack.get("soc", "Unknown"),
             "soh": pack.get("soh", "Unknown"),
+            "cycles": pack.get("cycles", "Unknown"),
             "voltage": pack.get("voltage", "Unknown"),
             "current": pack.get("current", "Unknown"),
             "delta": pack.get("delta", "Unknown"),

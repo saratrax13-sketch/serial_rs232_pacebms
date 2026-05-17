@@ -1,3 +1,18 @@
+## 2.6.38 - 2026-05-17
+
+### Added
+- Added pack cycle count to the web UI Status pack cards.
+- Added pack cycle count to the Dashboard pack comparison cards.
+- Added live Dashboard refresh support for cycle count values.
+
+### Changed
+- Updated README and first-time setup guidance to mention cycle count visibility.
+
+### Notes
+- Cycle count was already parsed from the BMS and published to MQTT as `pack_x/cycles`; this release makes it visible in the web UI.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.37 - 2026-05-17
 
 ### Added
