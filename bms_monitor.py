@@ -1,8 +1,9 @@
 # =============================================================================
 # bms_monitor.py — Pace BMS to MQTT Bridge
-# Version : 2.6.22
+# Version : 2.6.23
 # Changed : 2026-05-17
 # Changes :
+#   - Stable release documentation cleanup
 #   - Fixed Restart Add-on route for Home Assistant Ingress
 #   - Fixed compact header Restart Add-on button route
 #   - Moved Config bottom actions into compact header
