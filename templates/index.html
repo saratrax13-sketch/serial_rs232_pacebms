@@ -1141,17 +1141,28 @@
             <input type="hidden" name="active_tab" value="backups">
             <button type="submit">Create Backup Now</button>
           </form>
+          {% if config_backups %}
           <a class="button-link" href="download-all-config-backups.zip">Download All ZIP</a>
+          {% endif %}
         </div>
 
+        <div class="helper-note">
+          <strong>When to use these buttons:</strong><br>
+          <strong>Create Backup Now</strong> — use before testing config changes or before updating the add-on.<br>
+          <strong>Download All ZIP</strong> — use when you want an offline copy of all saved backups.<br>
+          <strong>Compare</strong> — use before restoring to see what is different from the current config.<br>
+          <strong>Restore Preview</strong> — use when you are considering restoring a backup and want to review the changes first.<br>
+          <strong>Download</strong> — use to save one specific backup file.<br>
+          <strong>Delete</strong> — use to remove an old or test backup you no longer need.
+        </div>
+
+        {% if config_backups %}
         <div class="actions" style="margin-top: 12px;">
           <button type="button" onclick="filterBackups('all')">All</button>
           <button type="button" onclick="filterBackups('manual')">Manual</button>
           <button type="button" onclick="filterBackups('before-save')">Before Save</button>
           <button type="button" onclick="filterBackups('before-restore')">Before Restore</button>
         </div>
-
-        {% if config_backups %}
         <table class="backup-table" id="backup-table">
           <thead>
             <tr>
@@ -1193,7 +1204,7 @@ This cannot be undone.`);">
           </tbody>
         </table>
         {% else %}
-        <p>No configuration backups yet. A backup will be created before the next web config save.</p>
+        <p>No configuration backups yet. Click Create Backup Now to create your first manual backup, or save a config change and the add-on will create one automatically before saving.</p>
         {% endif %}
       </section>
 
