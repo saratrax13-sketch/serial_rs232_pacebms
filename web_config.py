@@ -932,6 +932,8 @@ def build_diagnostics(options, live=None):
         "events_count": len(load_events()),
         "latest_events": load_events()[:10],
         "battery_topology": build_battery_topology(options, live),
+        "clean_bms_serial": clean_bms_serial(live.get("bms_sn", "Unknown")),
+        "clean_bms_version": clean_bms_version(live.get("bms_version", "Unknown"), live.get("bms_sn", "Unknown")),
         "read_only_safety": {
             "bms_writes": False,
             "fet_control": False,
