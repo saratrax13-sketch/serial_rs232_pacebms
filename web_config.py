@@ -22,6 +22,11 @@ MAX_CONFIG_BACKUPS = 10
 MAX_EVENT_LOG_ENTRIES = 50
 DEPRECATED_OPTION_KEYS = {"bms_ip", "bms_port"}
 
+SECTION_HELP = {
+    "Notification Thresholds": "Controls when SOC, SOH and stale-data notifications trigger. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale data values are in seconds.",
+    "Report Schedules": "Controls scheduled notification times for the daily summary and cell delta report. Use 24-hour HH:MM format, for example 19:00, 10:15 or 00:00. The delta window start/end values define the time range used for the delta report.",
+}
+
 GROUPS = {
     "Telegram": [
         "notify_enabled",
@@ -1047,24 +1052,24 @@ It does not send BMS control commands.
 
 
 CARD_HELP = {
-    "Notification Thresholds": "These settings control SOC/SOH alert thresholds, retry count and stale-data timing. SOC low thresholds must be comma-separated numbers, for example 75,50,25,15. Do not use percentage signs.",
-    "Report Schedules": "These settings control the daily summary time, delta report time and the delta report calculation window. Use 24-hour HH:MM format, for example 19:00 or 10:15.",
+    "Notification Thresholds": "Controls when SOC, SOH and stale-data notifications trigger. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale data values are in seconds.",
+    "Report Schedules": "Controls scheduled notification times for the daily summary and cell delta report. Use 24-hour HH:MM format, for example 19:00, 10:15 or 00:00. The delta window start/end values define the time range used for the delta report.",
 }
 
 FIELD_HELP = {
-    "notify_soc_low_thresholds": "Comma-separated SOC low alert thresholds. Use numbers only, no percent signs. Example: 75,50,25,15. The monitor can alert as SOC crosses each threshold.",
-    "notify_soc_high_threshold": "High SOC alert threshold as a percentage number. Example: 98 means alert when SOC is at or above 98%.",
-    "notify_soc_high_reset": "Reset point for the high SOC alert. Example: 95 means the high SOC alert can trigger again after SOC falls below 95%.",
-    "notify_soh_threshold": "SOH alert threshold as a percentage number. Example: 95 means alert when SOH is below 95%.",
-    "notify_retry_count": "Number of retry attempts for supported notifications. Use a whole number such as 0, 1, 2 or 3.",
+    "notify_soc_low_thresholds": "Comma-separated SOC low alert thresholds. Use numbers only, no percent signs. Example: 75,50,25,15.",
+    "notify_soc_high_threshold": "Single SOC high alert threshold. Example: 98 means alert when SOC is at or above 98%.",
+    "notify_soc_high_reset": "High SOC reset point. Example: 95 means the high SOC alert can trigger again after SOC drops below 95%.",
+    "notify_soh_threshold": "Single SOH threshold. Example: 95 means alert when SOH is below 95%.",
+    "notify_retry_count": "Whole number retry count for supported notifications. Example: 1.",
     "notify_stale_data_seconds": "Seconds without fresh BMS data before stale-data notification logic triggers. Example: 120.",
-    "notify_stale_data_repeat_seconds": "Repeat interval in seconds for stale-data notifications while the stale condition remains active. Example: 1800.",
+    "notify_stale_data_repeat_seconds": "Repeat interval in seconds while stale data remains active. Example: 1800.",
     "notify_ignore_charge_fet_off_when_full": "When enabled, Charge FET OFF can be ignored if the pack is full. This helps avoid unnecessary alerts when the BMS disables charging at full SOC.",
     "notify_alert_discharge_fet_off": "When enabled, send an alert if the Discharge FET is OFF.",
-    "notify_daily_summary_time": "Time for the daily summary notification. Use 24-hour HH:MM format. Example: 19:00.",
-    "notify_delta_report_time": "Time for the cell delta report notification. Use 24-hour HH:MM format. Example: 10:15.",
-    "notify_delta_window_start": "Start of the time window used for the delta report. Use 24-hour HH:MM format. Example: 00:00.",
-    "notify_delta_window_end": "End of the time window used for the delta report. Use 24-hour HH:MM format. Example: 10:00.",
+    "notify_daily_summary_time": "Daily summary notification time. Use HH:MM 24-hour format. Example: 19:00.",
+    "notify_delta_report_time": "Cell delta report notification time. Use HH:MM 24-hour format. Example: 10:15.",
+    "notify_delta_window_start": "Start of the delta report calculation window. Use HH:MM 24-hour format. Example: 00:00.",
+    "notify_delta_window_end": "End of the delta report calculation window. Use HH:MM 24-hour format. Example: 10:00.",
 }
 
 def build_grouped_config(options):
@@ -1508,6 +1513,188 @@ def route_export_events_csv():
 
 
 
+
+INTEGER_FIELDS = {
+    "mqtt_port": (1, 65535),
+    "state_force_republish_seconds": (0, 86400),
+    "warn_force_republish_seconds": (0, 86400),
+    "bms_baudrate": (1200, 921600),
+    "scan_interval": (1, 3600),
+    "debug_output": (0, 5),
+    "zero_pad_number_cells": (0, 4),
+    "zero_pad_number_packs": (0, 4),
+    "notify_cell_delta_warn_mv": (0, 5000),
+    "notify_temp_high_warn_c": (-40, 100),
+    "notify_temp_low_warn_c": (-40, 100),
+    "notify_retry_count": (0, 10),
+    "notify_stale_data_seconds": (10, 86400),
+    "notify_stale_data_repeat_seconds": (60, 86400),
+}
+
+FLOAT_FIELDS = {
+    "notify_cell_high_warn_voltage": (0.0, 5.0),
+    "notify_cell_low_warn_voltage": (0.0, 5.0),
+    "notify_soc_high_threshold": (0.0, 100.0),
+    "notify_soc_high_reset": (0.0, 100.0),
+    "notify_soh_threshold": (0.0, 100.0),
+}
+
+TIME_FIELDS = {
+    "notify_daily_summary_time",
+    "notify_delta_report_time",
+    "notify_delta_window_start",
+    "notify_delta_window_end",
+}
+
+REQUIRED_TEXT_FIELDS = {
+    "mqtt_host",
+    "mqtt_user",
+    "mqtt_base_topic",
+    "mqtt_ha_discovery_topic",
+    "connection_type",
+    "bms_serial",
+}
+
+COMMA_NUMBER_LIST_FIELDS = {
+    "notify_soc_low_thresholds": (0.0, 100.0),
+}
+
+BOOLEAN_FIELDS = {
+    "notify_enabled",
+    "notify_startup",
+    "notify_disconnect",
+    "notify_soc_low",
+    "notify_soc_high",
+    "notify_soc_high_on_startup",
+    "notify_soh",
+    "notify_soh_on_startup",
+    "notify_warnings",
+    "notify_warning_detail_enabled",
+    "notify_fet",
+    "notify_daily_summary",
+    "notify_delta_report",
+    "notify_stale_data",
+    "notify_stale_recovery",
+    "notify_include_all_cells_above_threshold",
+    "notify_include_all_cells_below_threshold",
+    "notify_include_highest_and_lowest_cell",
+    "notify_include_pack_voltage",
+    "notify_include_soc_soh",
+    "notify_ignore_charge_fet_off_when_full",
+    "notify_alert_discharge_fet_off",
+    "mqtt_ha_discovery",
+    "mqtt_retain_state",
+}
+
+
+def normalize_decimal_text(value):
+    """Allow comma decimal input such as 4,2 and convert it to 4.2."""
+    if isinstance(value, str):
+        return value.strip().replace(",", ".")
+    return str(value)
+
+
+def is_valid_time_hhmm(value):
+    text = str(value or "").strip()
+    if not re.fullmatch(r"\d{2}:\d{2}", text):
+        return False
+    hour, minute = text.split(":")
+    return 0 <= int(hour) <= 23 and 0 <= int(minute) <= 59
+
+
+def validate_config_options(options):
+    """Validate web config options before saving to Home Assistant."""
+    errors = []
+
+    for key in REQUIRED_TEXT_FIELDS:
+        if key in options and str(options.get(key, "")).strip() == "":
+            errors.append(f"{key} is required and cannot be blank.")
+
+    for key, (minimum, maximum) in INTEGER_FIELDS.items():
+        if key not in options:
+            continue
+        value = options.get(key)
+        try:
+            # Reject booleans and text decimals for integer fields.
+            if isinstance(value, bool):
+                raise ValueError()
+            text = str(value).strip()
+            if not re.fullmatch(r"-?\d+", text):
+                raise ValueError()
+            parsed = int(text)
+            if parsed < minimum or parsed > maximum:
+                errors.append(f"{key} must be a whole number between {minimum} and {maximum}.")
+        except Exception:
+            errors.append(f"{key} must be a whole number between {minimum} and {maximum}.")
+
+    for key, (minimum, maximum) in FLOAT_FIELDS.items():
+        if key not in options:
+            continue
+        value = options.get(key)
+        try:
+            parsed = float(normalize_decimal_text(value))
+            if parsed < minimum or parsed > maximum:
+                errors.append(f"{key} must be a number between {minimum} and {maximum}.")
+        except Exception:
+            errors.append(f"{key} must be a number between {minimum} and {maximum}. Decimal comma is allowed, e.g. 4,2.")
+
+    for key in TIME_FIELDS:
+        if key not in options:
+            continue
+        if not is_valid_time_hhmm(options.get(key)):
+            errors.append(f"{key} must use 24-hour HH:MM format, for example 19:00 or 10:15.")
+
+    for key, (minimum, maximum) in COMMA_NUMBER_LIST_FIELDS.items():
+        if key not in options:
+            continue
+        text = str(options.get(key, "")).strip()
+        if not text:
+            errors.append(f"{key} cannot be blank. Use comma-separated numbers, for example 75,50,25,15.")
+            continue
+
+        parts = [part.strip() for part in text.split(",")]
+        if any(part == "" for part in parts):
+            errors.append(f"{key} has an empty value. Use format like 75,50,25,15.")
+            continue
+
+        parsed_values = []
+        bad = False
+        for part in parts:
+            try:
+                parsed = float(part.replace(",", "."))
+                if parsed < minimum or parsed > maximum:
+                    bad = True
+                parsed_values.append(parsed)
+            except Exception:
+                bad = True
+
+        if bad:
+            errors.append(f"{key} must contain comma-separated numbers between {minimum} and {maximum}. Example: 75,50,25,15.")
+
+    if options.get("connection_type") not in ("Serial", "serial"):
+        errors.append("connection_type must be Serial. IP mode is not enabled in this add-on build.")
+
+    # Logical threshold check
+    try:
+        high = float(normalize_decimal_text(options.get("notify_soc_high_threshold", 98)))
+        reset = float(normalize_decimal_text(options.get("notify_soc_high_reset", 95)))
+        if reset >= high:
+            errors.append("notify_soc_high_reset must be lower than notify_soc_high_threshold.")
+    except Exception:
+        pass
+
+    try:
+        low_cell = float(normalize_decimal_text(options.get("notify_cell_low_warn_voltage", 3.0)))
+        high_cell = float(normalize_decimal_text(options.get("notify_cell_high_warn_voltage", 4.2)))
+        if low_cell >= high_cell:
+            errors.append("notify_cell_low_warn_voltage must be lower than notify_cell_high_warn_voltage.")
+    except Exception:
+        pass
+
+    return errors
+
+
+
 @app.route("/save-config", methods=["POST"])
 def route_save_config():
     options, error = load_options()
@@ -1526,6 +1713,12 @@ def route_save_config():
         message = "Configuration was not saved. Please fix: " + " | ".join(validation_errors)
         append_event("config_save", "Configuration save blocked", message, "warn")
         return redirect_to_tab("config", "warn", message)
+
+    validation_errors = validate_config_options(new_options)
+    if validation_errors:
+        message = "Configuration validation failed:\n" + "\n".join(f"- {error}" for error in validation_errors)
+        append_event("config_save", "Configuration validation failed", message, "warn")
+        return render_index("warn", message, active_tab="config")
 
     backup_ok, backup_message, backup_filename = create_config_backup("before-save")
     append_event("config_backup", "Configuration backup", backup_message, "ok" if backup_ok else "warn")

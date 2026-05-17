@@ -3039,6 +3039,148 @@ Restart the add-on afterwards for runtime changes to apply.`);
     }
 
 
+  
+    const SECTION_HELP_FALLBACK = {
+      "Notification Thresholds": "Controls when SOC, SOH and stale-data notifications trigger.\n\nnotify_soc_low_thresholds format:\nUse comma-separated numbers only.\nExample: 75,50,25,15\nDo not use percentage signs.\n\nSOC high and SOH thresholds use single percentage numbers. Stale data values are in seconds.",
+      "Report Schedules": "Controls scheduled notification times for daily summary and cell delta reports.\n\nTime format:\nUse 24-hour HH:MM format.\nExamples: 19:00, 10:15, 00:00\n\nThe delta window start/end values define the time range used for the delta report."
+    };
+
+
+  
+    function parseDecimalInput(value) {
+      return Number(String(value || "").trim().replace(",", "."));
+    }
+
+    function isWholeNumberText(value) {
+      return /^-?\d+$/.test(String(value || "").trim());
+    }
+
+    function isHHMM(value) {
+      const text = String(value || "").trim();
+      const match = /^(\d{2}):(\d{2})$/.exec(text);
+      if (!match) return false;
+      const hour = Number(match[1]);
+      const minute = Number(match[2]);
+      return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59;
+    }
+
+    function validateConfigFormBeforeSubmit(form) {
+      const errors = [];
+
+      const integerRules = {
+        mqtt_port: [1, 65535],
+        state_force_republish_seconds: [0, 86400],
+        warn_force_republish_seconds: [0, 86400],
+        bms_baudrate: [1200, 921600],
+        scan_interval: [1, 3600],
+        debug_output: [0, 5],
+        zero_pad_number_cells: [0, 4],
+        zero_pad_number_packs: [0, 4],
+        notify_cell_delta_warn_mv: [0, 5000],
+        notify_temp_high_warn_c: [-40, 100],
+        notify_temp_low_warn_c: [-40, 100],
+        notify_retry_count: [0, 10],
+        notify_stale_data_seconds: [10, 86400],
+        notify_stale_data_repeat_seconds: [60, 86400],
+      };
+
+      const decimalRules = {
+        notify_cell_high_warn_voltage: [0, 5],
+        notify_cell_low_warn_voltage: [0, 5],
+        notify_soc_high_threshold: [0, 100],
+        notify_soc_high_reset: [0, 100],
+        notify_soh_threshold: [0, 100],
+      };
+
+      const requiredText = [
+        "mqtt_host",
+        "mqtt_user",
+        "mqtt_base_topic",
+        "mqtt_ha_discovery_topic",
+        "connection_type",
+        "bms_serial",
+      ];
+
+      const timeFields = [
+        "notify_daily_summary_time",
+        "notify_delta_report_time",
+        "notify_delta_window_start",
+        "notify_delta_window_end",
+      ];
+
+      requiredText.forEach((name) => {
+        const field = form.elements[name];
+        if (field && String(field.value || "").trim() === "") {
+          errors.push(`${name} is required and cannot be blank.`);
+        }
+      });
+
+      Object.entries(integerRules).forEach(([name, range]) => {
+        const field = form.elements[name];
+        if (!field) return;
+        const text = String(field.value || "").trim();
+        const parsed = Number(text);
+        if (!isWholeNumberText(text) || parsed < range[0] || parsed > range[1]) {
+          errors.push(`${name} must be a whole number between ${range[0]} and ${range[1]}.`);
+        }
+      });
+
+      Object.entries(decimalRules).forEach(([name, range]) => {
+        const field = form.elements[name];
+        if (!field) return;
+        const parsed = parseDecimalInput(field.value);
+        if (Number.isNaN(parsed) || parsed < range[0] || parsed > range[1]) {
+          errors.push(`${name} must be a number between ${range[0]} and ${range[1]}. Decimal comma is allowed, e.g. 4,2.`);
+        }
+      });
+
+      timeFields.forEach((name) => {
+        const field = form.elements[name];
+        if (field && !isHHMM(field.value)) {
+          errors.push(`${name} must use 24-hour HH:MM format, for example 19:00 or 10:15.`);
+        }
+      });
+
+      const lowThresholds = form.elements["notify_soc_low_thresholds"];
+      if (lowThresholds) {
+        const text = String(lowThresholds.value || "").trim();
+        const parts = text.split(",").map((p) => p.trim());
+        const invalid = !text || parts.some((p) => p === "" || Number.isNaN(Number(p)) || Number(p) < 0 || Number(p) > 100);
+        if (invalid) {
+          errors.push("notify_soc_low_thresholds must use comma-separated numbers between 0 and 100. Example: 75,50,25,15.");
+        }
+      }
+
+      const high = form.elements["notify_soc_high_threshold"] ? parseDecimalInput(form.elements["notify_soc_high_threshold"].value) : null;
+      const reset = form.elements["notify_soc_high_reset"] ? parseDecimalInput(form.elements["notify_soc_high_reset"].value) : null;
+      if (high !== null && reset !== null && !Number.isNaN(high) && !Number.isNaN(reset) && reset >= high) {
+        errors.push("notify_soc_high_reset must be lower than notify_soc_high_threshold.");
+      }
+
+      const cellHigh = form.elements["notify_cell_high_warn_voltage"] ? parseDecimalInput(form.elements["notify_cell_high_warn_voltage"].value) : null;
+      const cellLow = form.elements["notify_cell_low_warn_voltage"] ? parseDecimalInput(form.elements["notify_cell_low_warn_voltage"].value) : null;
+      if (cellHigh !== null && cellLow !== null && !Number.isNaN(cellHigh) && !Number.isNaN(cellLow) && cellLow >= cellHigh) {
+        errors.push("notify_cell_low_warn_voltage must be lower than notify_cell_high_warn_voltage.");
+      }
+
+      const connectionType = form.elements["connection_type"];
+      if (connectionType && !["Serial", "serial"].includes(String(connectionType.value || ""))) {
+        errors.push("connection_type must be Serial. IP mode is not enabled in this add-on build.");
+      }
+
+      if (errors.length) {
+        alert("Please fix these configuration fields before saving:\n\n" + errors.map((e) => "- " + e).join("\n"));
+        return false;
+      }
+
+      return confirm(
+        "Save these Home Assistant add-on configuration changes?\n\n" +
+        "This does not write to the BMS.\n" +
+        "Restart the add-on afterwards for runtime changes to apply."
+      );
+    }
+
+
   </script>
 
 </body>
