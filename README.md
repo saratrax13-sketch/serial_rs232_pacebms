@@ -21,7 +21,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.35"
+version: "2.6.36"
 ```
 
 ---
@@ -181,6 +181,7 @@ The web UI includes:
 - Configuration overview
 - Basic Required / Full Monitoring / Advanced configuration views
 - Live status
+- Monitoring Health status
 - Detected packs
 - Pack SOC / SOH
 - Pack voltage / current
@@ -201,6 +202,27 @@ The test buttons only test external services:
 
 - Test Telegram sends a Telegram test message.
 - Test MQTT checks broker connectivity.
+- Test Full Monitoring checks MQTT, Telegram configuration and notification thresholds without sending a Telegram message.
+
+---
+
+## Web UI Screenshots
+
+The first screen to check after setup is the **Status** tab. It should show three important sections near the top:
+
+- **Overall Status**: the retained MQTT view of the add-on and pack state.
+- **Monitoring Health**: heartbeat, stale-data and last-read confidence checks.
+- **Setup Checklist**: first-run configuration items that are ready or still need attention.
+
+Recommended screenshots to include when asking for support:
+
+- Home Assistant add-on Configuration tab.
+- Pace BMS Status tab showing Overall Status, Monitoring Health and Setup Checklist.
+- Test Full Monitoring result message.
+- Dashboard tab with detected packs.
+- Example Telegram alert if notifications are enabled.
+
+Do not share screenshots that expose the full Telegram bot token, Telegram chat ID or MQTT password.
 
 ---
 
@@ -244,6 +266,16 @@ Use the buttons on the Status tab:
 - **Test Full Monitoring** checks MQTT connectivity, Telegram configuration and notification thresholds without sending a Telegram message and without sending any BMS commands.
 
 If Telegram still contains placeholder values such as `YOUR_TELEGRAM_BOT_TOKEN` or `YOUR_TELEGRAM_CHAT_ID`, the checklist shows a warning and direct Telegram alerts will be skipped.
+
+The Status tab also includes a **Monitoring Health** card. This is the quickest way to answer whether the add-on is still actively watching the battery:
+
+- **Monitor heartbeat** should remain fresh and within the watchdog timeout.
+- **MQTT monitor state** should show the monitor as running and available.
+- **Analog data age** should stay below the stale-data threshold.
+- **Warning data age** should stay below the stale-data threshold.
+- **Detected packs** and **Cell count** should match the connected battery layout.
+
+If Monitoring Health shows stale data or missing MQTT values, the add-on may still be running but the user should investigate before relying on alerts.
 
 ---
 

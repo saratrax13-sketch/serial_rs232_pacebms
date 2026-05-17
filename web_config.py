@@ -601,6 +601,146 @@ def test_full_monitoring(options):
     return True, "Full Monitoring dry check passed: MQTT connects, Telegram values are configured, and notification thresholds look valid. No BMS commands or Telegram messages were sent."
 
 
+def seconds_label(value):
+    seconds = _to_float(value)
+    if seconds is None:
+        return "Unknown"
+    seconds = max(0, int(seconds))
+    if seconds < 60:
+        return f"{seconds}s"
+    minutes, rem = divmod(seconds, 60)
+    if minutes < 60:
+        return f"{minutes}m {rem}s" if rem else f"{minutes}m"
+    hours, minutes = divmod(minutes, 60)
+    if hours < 24:
+        return f"{hours}h {minutes}m" if minutes else f"{hours}h"
+    days, hours = divmod(hours, 24)
+    return f"{days}d {hours}h" if hours else f"{days}d"
+
+
+def build_monitoring_health(options, live=None, heartbeat=None):
+    """Summarize whether the monitor is still watching the battery.
+
+    This combines retained MQTT monitor values with the local heartbeat file.
+    It is status-only and never communicates with the BMS.
+    """
+    options = options or {}
+    live = live or {}
+    heartbeat = heartbeat if heartbeat is not None else load_monitor_health()
+
+    stale_seconds = int(_to_float(options.get("notify_stale_data_seconds"), 120) or 120)
+    stale_repeat_seconds = int(_to_float(options.get("notify_stale_data_repeat_seconds"), 1800) or 1800)
+    heartbeat_timeout = 60
+    heartbeat_age = None
+    heartbeat_state = "Unknown"
+    heartbeat_label = "No heartbeat file yet"
+    heartbeat_class = "warning"
+
+    if isinstance(heartbeat, dict):
+        heartbeat_state = str(heartbeat.get("state", "Unknown") or "Unknown")
+        heartbeat_timeout = int(_to_float(heartbeat.get("health_timeout_seconds"), heartbeat_timeout) or heartbeat_timeout)
+        updated_at = _to_float(heartbeat.get("updated_at"))
+        if updated_at is not None:
+            heartbeat_age = max(0, int(time.time() - updated_at))
+            heartbeat_label = seconds_label(heartbeat_age)
+            if heartbeat_age <= heartbeat_timeout and heartbeat_state.lower() != "stopped":
+                heartbeat_class = "healthy"
+
+    availability = str(live.get("availability", "Unknown"))
+    monitor_state = str(live.get("monitor_state", "Unknown"))
+    stale_state = str(live.get("stale", "Unknown")).upper()
+    analog_age = _to_float(live.get("analog_age_seconds"))
+    warn_age = _to_float(live.get("warn_age_seconds"))
+    live_ok = bool(live.get("ok"))
+
+    monitor_running = (
+        availability.lower() == "online"
+        and monitor_state.lower() == "running"
+        and heartbeat_class == "healthy"
+    )
+    data_fresh = stale_state == "OFF" and analog_age is not None and analog_age <= stale_seconds
+    warnings_fresh = warn_age is not None and warn_age <= stale_seconds
+    pack_count = int(_to_float(live.get("pack_count"), 0) or 0)
+    total_cells = int(_to_float(live.get("total_cells"), 0) or 0)
+
+    if not live_ok:
+        status = "Waiting for MQTT"
+        status_class = "warning"
+        summary = live.get("error") or "No retained MQTT monitor values were received yet."
+    elif not monitor_running:
+        status = "Needs Attention"
+        status_class = "warning"
+        summary = "Monitor status or heartbeat is not confirmed healthy."
+    elif stale_state == "ON" or not data_fresh:
+        status = "Data Stale"
+        status_class = "stale"
+        summary = live.get("stale_reason") or "BMS data is older than the configured stale-data threshold."
+    elif live.get("warning_count", 0):
+        status = "Watching With Warnings"
+        status_class = "warning"
+        summary = "Monitoring is active and one or more packs have BMS warnings."
+    else:
+        status = "Watching"
+        status_class = "healthy"
+        summary = "Monitor heartbeat and retained MQTT data look healthy."
+
+    checks = [
+        {
+            "label": "Monitor heartbeat",
+            "value": heartbeat_label,
+            "class": heartbeat_class,
+            "detail": f"State: {heartbeat_state} | Timeout: {heartbeat_timeout}s",
+        },
+        {
+            "label": "MQTT monitor state",
+            "value": monitor_state,
+            "class": "healthy" if availability.lower() == "online" and monitor_state.lower() == "running" else "warning",
+            "detail": f"Availability: {availability}",
+        },
+        {
+            "label": "Analog data age",
+            "value": seconds_label(analog_age),
+            "class": "healthy" if data_fresh else "warning",
+            "detail": f"Last analog read: {live.get('last_analog_read', 'Unknown')}",
+        },
+        {
+            "label": "Warning data age",
+            "value": seconds_label(warn_age),
+            "class": "healthy" if warnings_fresh else "warning",
+            "detail": f"Last warning read: {live.get('last_warn_read', 'Unknown')}",
+        },
+        {
+            "label": "Detected packs",
+            "value": str(pack_count),
+            "class": "healthy" if pack_count > 0 else "warning",
+            "detail": live.get("layout", "Unknown"),
+        },
+        {
+            "label": "Cell count",
+            "value": str(total_cells),
+            "class": "healthy" if total_cells > 0 else "warning",
+            "detail": "Detected from retained pack cell topics.",
+        },
+    ]
+
+    return {
+        "status": status,
+        "class": status_class,
+        "summary": summary,
+        "checks": checks,
+        "stale_threshold_seconds": stale_seconds,
+        "stale_repeat_seconds": stale_repeat_seconds,
+        "heartbeat_age_seconds": heartbeat_age if heartbeat_age is not None else "Unknown",
+        "heartbeat_timeout_seconds": heartbeat_timeout,
+    }
+
+
+def attach_monitoring_health(options, live):
+    if isinstance(live, dict):
+        live["monitoring_health"] = build_monitoring_health(options, live)
+    return live
+
+
 def _to_float(value, default=None):
     try:
         return float(value)
@@ -1076,7 +1216,9 @@ def build_diagnostics(options, live=None):
     }
 
     if live is None and options:
-        live = fetch_mqtt_snapshot(options)
+        live = attach_monitoring_health(options, fetch_mqtt_snapshot(options))
+    elif isinstance(live, dict) and "monitoring_health" not in live:
+        live = attach_monitoring_health(options, live)
 
     live = live or {}
 
@@ -1562,7 +1704,7 @@ def render_index(action_result="", action_message="", active_tab="status", compa
     # Performance note:
     # Fetching the live MQTT snapshot requires a short MQTT subscribe window.
     # Only do this on the Status tab. Config and Events should open quickly.
-    live = fetch_mqtt_snapshot(options) if options and active_tab in ("status", "dashboard", "diagnostics") else None
+    live = attach_monitoring_health(options, fetch_mqtt_snapshot(options)) if options and active_tab in ("status", "dashboard", "diagnostics") else None
     setup_checklist = build_setup_checklist(options, live) if options else None
 
     return render_template(
@@ -2181,7 +2323,7 @@ def api_status():
     options, error = load_options()
     if error:
         return jsonify({"ok": False, "error": error}), 500
-    return jsonify(fetch_mqtt_snapshot(options))
+    return jsonify(attach_monitoring_health(options, fetch_mqtt_snapshot(options)))
 
 
 @app.route("/api/events", methods=["GET"])

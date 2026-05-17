@@ -324,6 +324,70 @@ class HealthEndpointTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Setup Checklist", response.data)
+        self.assertIn(b"Monitoring Health", response.data)
+
+    def test_monitoring_health_uses_heartbeat_and_live_mqtt(self):
+        options = {
+            "notify_stale_data_seconds": 120,
+            "notify_stale_data_repeat_seconds": 1800,
+        }
+        live = {
+            "ok": True,
+            "availability": "online",
+            "monitor_state": "running",
+            "stale": "OFF",
+            "last_analog_read": "2026-05-17 20:00:00",
+            "last_warn_read": "2026-05-17 20:00:01",
+            "analog_age_seconds": 8,
+            "warn_age_seconds": 9,
+            "warning_count": 0,
+            "pack_count": 2,
+            "total_cells": 32,
+            "layout": "2 pack(s), 32 cells total",
+        }
+        heartbeat = {
+            "updated_at": 1000,
+            "state": "running",
+            "health_timeout_seconds": 60,
+        }
+
+        with patch("web_config.time.time", return_value=1020):
+            health = web_config.build_monitoring_health(options, live, heartbeat)
+
+        self.assertEqual(health["status"], "Watching")
+        self.assertEqual(health["class"], "healthy")
+        heartbeat_check = next(item for item in health["checks"] if item["label"] == "Monitor heartbeat")
+        self.assertEqual(heartbeat_check["class"], "healthy")
+
+    def test_monitoring_health_flags_stale_data(self):
+        options = {
+            "notify_stale_data_seconds": 120,
+            "notify_stale_data_repeat_seconds": 1800,
+        }
+        live = {
+            "ok": True,
+            "availability": "online",
+            "monitor_state": "running",
+            "stale": "ON",
+            "stale_reason": "Analog data is stale",
+            "analog_age_seconds": 180,
+            "warn_age_seconds": 10,
+            "warning_count": 0,
+            "pack_count": 1,
+            "total_cells": 16,
+            "layout": "1 pack(s), 16 cells total",
+        }
+        heartbeat = {
+            "updated_at": 1000,
+            "state": "running",
+            "health_timeout_seconds": 60,
+        }
+
+        with patch("web_config.time.time", return_value=1010):
+            health = web_config.build_monitoring_health(options, live, heartbeat)
+
+        self.assertEqual(health["status"], "Data Stale")
+        self.assertEqual(health["class"], "stale")
 
     def test_health_endpoint_fails_when_monitor_heartbeat_is_stale(self):
         with tempfile.TemporaryDirectory() as tmpdir:

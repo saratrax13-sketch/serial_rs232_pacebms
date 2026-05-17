@@ -1,3 +1,22 @@
+## 2.6.36 - 2026-05-17
+
+### Added
+- Added a dedicated Monitoring Health card on the Status tab.
+- Added monitor heartbeat, MQTT monitor state, analog read age, warning read age, detected pack count and cell count checks to the web UI.
+- Added README guidance for Status screenshots and what the Monitoring Health card means.
+
+### Changed
+- Status refresh now updates the Monitoring Health card from `/api/status`.
+- `/api/status` now includes the same read-only Monitoring Health summary used by the web UI.
+
+### Tests
+- Added regression coverage for healthy and stale Monitoring Health summaries.
+- Extended the Status page render test to confirm the Monitoring Health section loads.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.35 - 2026-05-17
 
 ### Fixed

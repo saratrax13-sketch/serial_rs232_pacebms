@@ -561,6 +561,72 @@
       line-height: 1.45;
     }
 
+    .monitoring-health-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .monitoring-health-status {
+      font-size: 28px;
+      font-weight: 950;
+      letter-spacing: -0.03em;
+    }
+
+    .monitoring-health-status.healthy { color: var(--green); }
+    .monitoring-health-status.warning { color: var(--yellow); }
+    .monitoring-health-status.stale { color: var(--yellow); }
+    .monitoring-health-status.offline { color: var(--red); }
+    .monitoring-health-summary {
+      color: #cbd5e1;
+      line-height: 1.45;
+      margin-top: 6px;
+    }
+
+    .monitoring-health-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 10px;
+    }
+
+    .monitoring-health-item {
+      background: rgba(15, 23, 42, 0.64);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 14px;
+      padding: 12px;
+      min-height: 104px;
+    }
+
+    .monitoring-health-label {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+    }
+
+    .monitoring-health-value {
+      color: #f8fafc;
+      font-size: 20px;
+      font-weight: 950;
+      word-break: break-word;
+    }
+
+    .monitoring-health-value.healthy { color: var(--green); }
+    .monitoring-health-value.warning,
+    .monitoring-health-value.stale { color: var(--yellow); }
+    .monitoring-health-value.offline { color: var(--red); }
+
+    .monitoring-health-detail {
+      color: #cbd5e1;
+      font-size: 13px;
+      line-height: 1.4;
+      margin-top: 7px;
+    }
+
     .topology-table {
       width: 100%;
       border-collapse: separate;
@@ -1822,6 +1888,28 @@
         </div>
       </section>
 
+      {% if live.monitoring_health %}
+      <section class="card wide-card">
+        <div class="monitoring-health-header">
+          <div>
+            <h2>Monitoring Health</h2>
+            <div id="monitoring-health-status" class="monitoring-health-status {{ live.monitoring_health.class }}">{{ live.monitoring_health.status }}</div>
+            <div id="monitoring-health-summary" class="monitoring-health-summary">{{ live.monitoring_health.summary }}</div>
+          </div>
+          <span class="setup-progress">Stale threshold: {{ live.monitoring_health.stale_threshold_seconds }}s</span>
+        </div>
+        <div class="monitoring-health-grid">
+          {% for check in live.monitoring_health.checks %}
+          <article class="monitoring-health-item">
+            <div class="monitoring-health-label">{{ check.label }}</div>
+            <div class="monitoring-health-value {{ check.class }}" data-health-value="{{ check.label }}">{{ check.value }}</div>
+            <div class="monitoring-health-detail" data-health-detail="{{ check.label }}">{{ check.detail }}</div>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
       {% if setup_checklist %}
       <section class="card wide-card">
         <div class="setup-checklist-header">
@@ -2822,6 +2910,24 @@ This cannot be undone.`);">
         setText("last-warn-read-value", data.last_warn_read);
         setText("analog-age-value", (data.analog_age_seconds ?? "Unknown") + "s");
         setText("warn-age-value", (data.warn_age_seconds ?? "Unknown") + "s");
+
+        if (data.monitoring_health) {
+          setText("monitoring-health-status", data.monitoring_health.status);
+          setClass("monitoring-health-status", "monitoring-health-status", data.monitoring_health.class);
+          setText("monitoring-health-summary", data.monitoring_health.summary);
+
+          (data.monitoring_health.checks || []).forEach((check) => {
+            const valueEl = document.querySelector(`[data-health-value="${check.label}"]`);
+            const detailEl = document.querySelector(`[data-health-detail="${check.label}"]`);
+            if (valueEl) {
+              valueEl.className = "monitoring-health-value " + (check.class || "warning");
+              valueEl.textContent = check.value;
+            }
+            if (detailEl) {
+              detailEl.textContent = check.detail;
+            }
+          });
+        }
 
         if (msg) {
           msg.textContent = "Live status refreshed at " + (data.fetched_at || new Date().toLocaleTimeString());
