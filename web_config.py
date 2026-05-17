@@ -725,6 +725,118 @@ def input_type_for_value(key, value):
     return "text"
 
 
+def redact_value_for_report(key, value):
+    if key in SENSITIVE_KEYS:
+        if value in (None, ""):
+            return "not configured"
+        return "redacted"
+    return value
+
+
+def build_diagnostics(options, live=None):
+    """Build a redacted diagnostics summary for the web UI and support report."""
+    backups = list_config_backups() if "list_config_backups" in globals() else []
+    backup_summary = config_backup_summary() if "config_backup_summary" in globals() else {
+        "count": len(backups),
+        "keep_count": 0,
+        "latest": "Unknown",
+        "oldest": "Unknown",
+        "folder": "Unknown",
+    }
+
+    if live is None and options:
+        live = fetch_mqtt_snapshot(options)
+
+    live = live or {}
+
+    telegram_configured = bool(options.get("telegram_bot_token")) and bool(options.get("telegram_chat_id"))
+    mqtt_configured = bool(options.get("mqtt_host"))
+    discovery_enabled = bool(options.get("mqtt_ha_discovery", False))
+
+    stale_state = str(live.get("stale", "Unknown")).upper()
+    availability = str(live.get("availability", "Unknown")).lower()
+    monitor_state = str(live.get("monitor_state", "Unknown")).lower()
+    warning_count = int(live.get("warning_count", 0) or 0)
+
+    mqtt_ok = bool(live.get("ok"))
+    bms_fresh = stale_state == "OFF" and live.get("last_analog_read", "Unknown") not in ("Unknown", "Not available")
+    monitor_ok = availability == "online" and monitor_state == "running"
+
+    health_cards = [
+        {
+            "title": "MQTT Snapshot",
+            "status": "OK" if mqtt_ok else "Check",
+            "class": "healthy" if mqtt_ok else "warning",
+            "detail": "Live MQTT retained values were received." if mqtt_ok else live.get("error", "No retained MQTT values received."),
+        },
+        {
+            "title": "Monitor",
+            "status": "Running" if monitor_ok else "Check",
+            "class": "healthy" if monitor_ok else "warning",
+            "detail": f"Availability: {live.get('availability', 'Unknown')} | State: {live.get('monitor_state', 'Unknown')}",
+        },
+        {
+            "title": "BMS Reads",
+            "status": "Fresh" if bms_fresh else "Stale/Unknown",
+            "class": "healthy" if bms_fresh else "warning",
+            "detail": f"Analog age: {live.get('analog_age_seconds', 'Unknown')}s | Warning age: {live.get('warn_age_seconds', 'Unknown')}s",
+        },
+        {
+            "title": "Warnings",
+            "status": "Active" if warning_count else "Normal",
+            "class": "warning" if warning_count else "healthy",
+            "detail": f"{warning_count} pack(s) with active BMS warnings.",
+        },
+        {
+            "title": "Telegram",
+            "status": "Configured" if telegram_configured and options.get("notify_enabled", True) else "Check",
+            "class": "healthy" if telegram_configured and options.get("notify_enabled", True) else "warning",
+            "detail": "Notifications are enabled and Telegram values are present." if telegram_configured and options.get("notify_enabled", True) else "Telegram is disabled or token/chat ID is missing.",
+        },
+        {
+            "title": "Home Assistant Discovery",
+            "status": "Enabled" if discovery_enabled else "Disabled",
+            "class": "healthy" if discovery_enabled else "off",
+            "detail": f"Discovery topic: {options.get('mqtt_ha_discovery_topic', 'homeassistant')}",
+        },
+        {
+            "title": "Config Backups",
+            "status": f"{backup_summary.get('count', 0)} / {backup_summary.get('keep_count', 0)}",
+            "class": "healthy" if backup_summary.get("count", 0) else "warning",
+            "detail": f"Latest: {backup_summary.get('latest', 'None')}",
+        },
+        {
+            "title": "Read-Only BMS Safety",
+            "status": "Read-only",
+            "class": "healthy",
+            "detail": "The web UI writes Home Assistant add-on options only. It does not write to the BMS.",
+        },
+    ]
+
+    config_summary = {
+        key: redact_value_for_report(key, options.get(key))
+        for group_keys in GROUPS.values()
+        for key in group_keys
+        if key in options
+    }
+
+    return {
+        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "health_cards": health_cards,
+        "live": live,
+        "backup_summary": backup_summary,
+        "config_summary": config_summary,
+        "events_count": len(load_events()),
+        "latest_events": load_events()[:10],
+        "read_only_safety": {
+            "bms_writes": False,
+            "fet_control": False,
+            "threshold_writes": False,
+            "config_writes": "Home Assistant add-on options only",
+        },
+    }
+
+
 def build_grouped_config(options):
     grouped = {}
     for group_name, keys in GROUPS.items():
@@ -1013,7 +1125,7 @@ def render_index(action_result="", action_message="", active_tab="status", compa
     # Performance note:
     # Fetching the live MQTT snapshot requires a short MQTT subscribe window.
     # Only do this on the Status tab. Config and Events should open quickly.
-    live = fetch_mqtt_snapshot(options) if options and active_tab == "status" else None
+    live = fetch_mqtt_snapshot(options) if options and active_tab in ("status", "diagnostics") else None
 
     return render_template(
         "index.html",
@@ -1029,6 +1141,7 @@ def render_index(action_result="", action_message="", active_tab="status", compa
         config_backup_summary=config_backup_summary(),
         compare_data=compare_data,
         restore_preview=restore_preview,
+        diagnostics=build_diagnostics(options, live) if options and active_tab == "diagnostics" else None,
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     )
 
@@ -1402,6 +1515,23 @@ def api_status():
 @app.route("/api/events", methods=["GET"])
 def api_events():
     return jsonify({"ok": True, "events": load_events()})
+
+
+
+@app.route("/download-diagnostics.json", methods=["GET"])
+def route_download_diagnostics_json():
+    options, error = load_options()
+    if error:
+        return Response(error, mimetype="text/plain", status=500)
+
+    report = build_diagnostics(options)
+    payload = json.dumps(report, indent=2)
+
+    return Response(
+        payload,
+        mimetype="application/json",
+        headers={"Content-Disposition": "attachment; filename=pacebms-diagnostics.json"},
+    )
 
 
 @app.route("/health")

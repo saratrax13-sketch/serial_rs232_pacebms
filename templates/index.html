@@ -237,6 +237,46 @@
       color: #fecaca;
     }
 
+    .diagnostics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .diagnostic-card {
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .diagnostic-title {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .diagnostic-status {
+      font-size: 24px;
+      font-weight: 950;
+      margin-bottom: 8px;
+      letter-spacing: -0.03em;
+    }
+
+    .diagnostic-status.healthy { color: var(--green); }
+    .diagnostic-status.warning { color: var(--yellow); }
+    .diagnostic-status.offline { color: var(--red); }
+    .diagnostic-status.off { color: #cbd5e1; }
+
+    .diagnostic-detail {
+      color: #cbd5e1;
+      line-height: 1.45;
+      font-size: 13px;
+    }
+
     .status-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -843,6 +883,7 @@
       <a class="tab-button {% if active_tab == 'config' %}active{% endif %}" href="?tab=config">Config</a>
       <a class="tab-button {% if active_tab == 'events' %}active{% endif %}" href="?tab=events">Events</a>
       <a class="tab-button {% if active_tab == 'backups' %}active{% endif %}" href="?tab=backups">Backups</a>
+      <a class="tab-button {% if active_tab == 'diagnostics' %}active{% endif %}" href="?tab=diagnostics">Diagnostics</a>
     </nav>
 
     {% if error %}
@@ -1321,6 +1362,85 @@ This cannot be undone.`);">
         <div id="help-modal-content" class="help-content"></div>
       </div>
     </div>
+
+    <section class="tab-panel {% if active_tab == 'diagnostics' %}active{% endif %}">
+      <section class="card wide-card">
+        <h2>Diagnostics</h2>
+        <p>Health overview and redacted support information for the add-on. This page reads MQTT/add-on state only and does not write to the BMS.</p>
+
+        <div class="actions">
+          <a class="button-link" href="download-diagnostics.json">Download Diagnostic Report</a>
+          <a class="button-link" href="?tab=status">Open Status</a>
+          <a class="button-link" href="?tab=backups">Open Backups</a>
+        </div>
+      </section>
+
+      {% if diagnostics %}
+      <section class="card wide-card">
+        <h2>Health Checks</h2>
+        <div class="diagnostics-grid">
+          {% for card in diagnostics.health_cards %}
+          <div class="diagnostic-card">
+            <div class="diagnostic-title">{{ card.title }}</div>
+            <div class="diagnostic-status {{ card.class }}">{{ card.status }}</div>
+            <div class="diagnostic-detail">{{ card.detail }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="card wide-card">
+        <h2>Current System Summary</h2>
+        <div class="status-grid">
+          <div class="status-tile">
+            <div class="tile-label">Overall Status</div>
+            <div class="tile-value">{{ diagnostics.live.overall_status }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">BMS Serial</div>
+            <div class="tile-value">{{ diagnostics.live.bms_sn }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">BMS Version</div>
+            <div class="tile-value">{{ diagnostics.live.bms_version }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Detected Layout</div>
+            <div class="tile-value">{{ diagnostics.live.layout }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Last Analog Read</div>
+            <div class="tile-value">{{ diagnostics.live.last_analog_read }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Last Warning Read</div>
+            <div class="tile-value">{{ diagnostics.live.last_warn_read }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Backup Count</div>
+            <div class="tile-value">{{ diagnostics.backup_summary.count }} / {{ diagnostics.backup_summary.keep_count }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Events Stored</div>
+            <div class="tile-value">{{ diagnostics.events_count }}</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card wide-card">
+        <h2>Read-Only Safety</h2>
+        <div class="normal-box">
+          The add-on remains read-only to the BMS. The web UI can save Home Assistant add-on options, but it does not write BMS thresholds, change BMS settings, or control charge/discharge FETs.
+        </div>
+      </section>
+      {% else %}
+      <section class="card wide-card">
+        <h2>Diagnostics unavailable</h2>
+        <p>Diagnostics could not be generated. Check MQTT settings and add-on logs.</p>
+      </section>
+      {% endif %}
+    </section>
+
 
     <footer>
       Page refreshed: {{ generated_at }}
