@@ -1,3 +1,18 @@
+## 2.6.31 - 2026-05-17
+
+### Fixed
+- Hardened analog parsing for 16-cell multi-pack Pace BMS frames.
+- Fixed P16S inter-pack trailer alignment so Pack 2 analog data is found by validating full pack candidates.
+- Added analog frame bounds checks with clearer parser diagnostics.
+- Prevented isolated analog parse errors from immediately causing false disconnect/reconnect Telegram alerts.
+
+### Tests
+- Added a regression test using the captured 16-cell two-pack analog payload.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.30 - 2026-05-17
 
 ### Changed

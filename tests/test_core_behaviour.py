@@ -92,6 +92,24 @@ class PaceFrameTests(unittest.TestCase):
 
 
 class WarningNormalizationTests(unittest.TestCase):
+    def test_p16s_two_pack_analog_frame_with_interpack_trailer_parses(self):
+        payload = (
+            b"0002100D1B0D1C0D1C0D1D0D1D0D1C0D1C0D1C0D1C0D1C0D1C0D1D0D1C0D1C0D1C0D1C"
+            b"080BA90BA30BA40B9E0BA60BA80BB10BCF0579D1EC3E67045348004451404C0000000000000000641510"
+            b"0000100D1D0D1F0D1D0D1D0D1E0D1D0D1E0D1E0D1E0D1E0D1E0D1E0D1E0D1E0D1E0D1D"
+            b"080BA00BA10BA20B9C0B9F0BA10BA70BC904DBD1F63CF104514001D251404B000000000000000062150B0000"
+        )
+
+        with patch("bms_monitor.bms_request", return_value=(True, payload)):
+            ok, data = bms_monitor.bms_get_analog_data(None, {"debug_output": 0})
+
+        self.assertTrue(ok)
+        self.assertEqual(data.packs, 2)
+        self.assertEqual([pack.cells for pack in data.pack_data], [16, 16])
+        self.assertEqual([pack.temps for pack in data.pack_data], [8, 8])
+        self.assertAlmostEqual(data.pack_data[0].v_pack, 53.74)
+        self.assertAlmostEqual(data.pack_data[1].v_pack, 53.75)
+
     def test_warning_state_words_are_not_split_on_letter_n(self):
         family = bms_monitor.normalize_warning_family(
             "Warning State 1: Above cell volt warn | Above total volt warn"

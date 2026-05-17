@@ -1,8 +1,11 @@
 # =============================================================================
 # bms_monitor.py — Pace BMS to MQTT Bridge
-# Version : 2.6.25
+# Version : 2.6.31
 # Changed : 2026-05-17
 # Changes :
+#   - Hardened P16S / 16-cell multi-pack analog parsing
+#   - Added analog frame bounds checks and full candidate validation
+#   - Prevented isolated analog parse errors from causing false disconnect alerts
 #   - Made BMS warning repeat cooldown configurable in the web UI
 #   - Added BMS warning deduplication and repeat cooldown
 #   - Stable release documentation cleanup
@@ -492,72 +495,200 @@ def bms_get_analog_data(bms, config: dict, bat_number: int = 255) -> tuple[bool,
         return False, inc
 
     try:
-        idx        = 2
-        num_packs  = int(inc[idx:idx + 2], 16)
-        idx       += 2
-        pack_list  = []
-        prev_cells = None
+        if not inc:
+            return False, "Analog parse error: empty analog payload"
+        if len(inc) % 2 != 0:
+            return False, f"Analog parse error: odd-length analog payload len={len(inc)}"
 
-        for p in range(1, num_packs + 1):
-            cells = int(inc[idx:idx + 2], 16)
-            if prev_cells is not None and cells != prev_cells:
-                idx  += 2
-                cells = int(inc[idx:idx + 2], 16)
-                if cells != prev_cells:
-                    return False, "Cell count mismatch across packs"
-            idx       += 2
-            prev_cells = cells
+        def read_hex_at(pos: int, width: int, label: str) -> int:
+            part = inc[pos:pos + width]
+            if len(part) != width:
+                raise ValueError(
+                    f"Analog frame ended while reading {label}: "
+                    f"idx={pos}, need={width}, got={len(part)}, frame_len={len(inc)}"
+                )
+            return int(part, 16)
+
+        def is_plausible_pack_count(value: Optional[int]) -> bool:
+            return value is not None and 1 <= value <= 16
+
+        def is_plausible_cell_count(value: Optional[int]) -> bool:
+            return value is not None and 4 <= value <= 32
+
+        def is_plausible_temp_count(value: Optional[int]) -> bool:
+            return value is not None and 0 <= value <= 16
+
+        def peek_hex_at(pos: int, width: int = 2) -> Optional[int]:
+            if pos < 0 or pos + width > len(inc):
+                return None
+            return int(inc[pos:pos + width], 16)
+
+        b0 = peek_hex_at(0)
+        b1 = peek_hex_at(2)
+        b2 = peek_hex_at(4)
+
+        if b0 == 0 and is_plausible_pack_count(b1) and is_plausible_cell_count(b2):
+            idx = 2
+            num_packs = read_hex_at(idx, 2, "pack count")
+            idx += 2
+        elif is_plausible_pack_count(b0) and is_plausible_cell_count(b1):
+            idx = 0
+            num_packs = read_hex_at(idx, 2, "pack count")
+            idx += 2
+        else:
+            idx = 2
+            num_packs = read_hex_at(idx, 2, "pack count")
+            idx += 2
+
+        if not is_plausible_pack_count(num_packs):
+            return False, f"Analog parse error: unexpected pack count {num_packs}"
+
+        if config.get('debug_output', 0) > 1:
+            log.debug("Analog frame len=%d payload=%s", len(inc), inc)
+            log.debug("Analog parser: num_packs=%d first_pack_idx=%d", num_packs, idx)
+
+        def parse_pack_at(start_pos: int, pack_no: int, expected_cells: Optional[int] = None) -> tuple[PackData, int]:
+            """Parse one full analog pack candidate and validate alignment."""
+            pos = start_pos
+            cells = read_hex_at(pos, 2, f"pack {pack_no} cell count")
+            pos += 2
+
+            if not is_plausible_cell_count(cells):
+                raise ValueError(f"Unexpected analog cell count {cells} at pack {pack_no} candidate idx={start_pos}")
+            if expected_cells is not None and cells != expected_cells and not bool(config.get('allow_mixed_pack_cell_counts', False)):
+                raise ValueError(
+                    f"Unexpected analog cell count {cells} at pack {pack_no} candidate idx={start_pos}, expected={expected_cells}"
+                )
 
             v_cells = []
-            for _ in range(cells):
-                v_cells.append(int(inc[idx:idx + 4], 16))
-                idx += 4
+            for c in range(1, cells + 1):
+                mv = read_hex_at(pos, 4, f"pack {pack_no} cell {c} voltage")
+                pos += 4
+                # Broad parser sanity range only. Alarm thresholds remain configurable elsewhere.
+                if mv < 1000 or mv > 5000:
+                    raise ValueError(f"Implausible cell voltage {mv}mV at pack {pack_no} cell {c} candidate idx={start_pos}")
+                v_cells.append(mv)
             cell_max_diff = max(v_cells) - min(v_cells) if v_cells else 0
 
-            num_temps = int(inc[idx:idx + 2], 16)
-            idx      += 2
-            t_cells   = []
-            for _ in range(num_temps):
-                t_cells.append(round((int(inc[idx:idx + 4], 16) - KELVIN_OFFSET) / 10, 1))
-                idx += 4
+            num_temps = read_hex_at(pos, 2, f"pack {pack_no} temperature count")
+            pos += 2
+            if not is_plausible_temp_count(num_temps):
+                raise ValueError(f"Unexpected analog temperature count {num_temps} at pack {pack_no} candidate idx={start_pos}")
 
-            i_pack_raw = int(inc[idx:idx + 4], 16)
-            idx       += 4
+            t_cells = []
+            for t in range(1, num_temps + 1):
+                raw_temp = read_hex_at(pos, 4, f"pack {pack_no} temperature {t}")
+                pos += 4
+                temp_c = round((raw_temp - KELVIN_OFFSET) / 10, 1)
+                if temp_c < -50 or temp_c > 120:
+                    raise ValueError(f"Implausible temperature {temp_c}C at pack {pack_no} temp {t} candidate idx={start_pos}")
+                t_cells.append(temp_c)
+
+            i_pack_raw = read_hex_at(pos, 4, f"pack {pack_no} current")
+            pos += 4
             if i_pack_raw >= UINT16_MID:
-                # Pace BMS current is signed 16-bit, scaled by 0.01A.
-                # Example: 0xFFFF = -0.01A, 0xFF9C = -1.00A
                 i_pack_raw -= (MAX_UINT16 + 1)
             i_pack = i_pack_raw / 100
 
-            v_pack       = int(inc[idx:idx + 4], 16) / 1000;  idx += 4
-            i_remain_cap = int(inc[idx:idx + 4], 16) * 10;    idx += 4
-            idx          += 2   # skip define-number P
-            i_full_cap   = int(inc[idx:idx + 4], 16) * 10;    idx += 4
-            soc          = round(i_remain_cap / i_full_cap * 100, 2) if i_full_cap else 0.0
-            cycles       = int(inc[idx:idx + 4], 16);          idx += 4
-            i_design_cap = int(inc[idx:idx + 4], 16) * 10;    idx += 4
-            soh          = min(round(i_full_cap / i_design_cap * 100, 2), 100.0) if i_design_cap else 0.0
+            v_pack_raw = read_hex_at(pos, 4, f"pack {pack_no} voltage")
+            pos += 4
+            v_pack = v_pack_raw / 1000
+            if v_pack < 5 or v_pack > 120:
+                raise ValueError(f"Implausible pack voltage {v_pack:.3f}V at pack {pack_no} candidate idx={start_pos}")
 
-            # Skip INFOFLAG between packs — scan forward until we find the
-            # next pack header (matching cell count). The old force_pack_offset
-            # config is no longer needed; this loop handles any trailing bytes
-            # automatically. Log skipped bytes so misalignment is easy to diagnose.
-            if p < num_packs:
-                skipped = 0
-                while idx < len(inc) and int(inc[idx:idx + 2], 16) != cells:
-                    idx     += 2
-                    skipped += 2
-                if skipped and config.get('debug_output', 0) > 0:
-                    log.debug("Pack %d: skipped %d bytes locating next pack header", p, skipped)
+            cell_sum_mv = sum(v_cells)
+            if cell_sum_mv and abs(v_pack_raw - cell_sum_mv) > max(3000, cells * 250):
+                raise ValueError(
+                    f"Pack voltage/cell-sum mismatch at pack {pack_no} candidate idx={start_pos}: "
+                    f"pack={v_pack_raw}mV cells_sum={cell_sum_mv}mV"
+                )
 
-            pack_list.append(PackData(
-                pack_number=p, cells=cells, temps=num_temps,
+            i_remain_cap = read_hex_at(pos, 4, f"pack {pack_no} remaining capacity") * 10
+            pos += 4
+            define_number = read_hex_at(pos, 2, f"pack {pack_no} define-number")
+            pos += 2
+            i_full_cap = read_hex_at(pos, 4, f"pack {pack_no} full capacity") * 10
+            pos += 4
+            cycles = read_hex_at(pos, 4, f"pack {pack_no} cycles")
+            pos += 4
+            i_design_cap = read_hex_at(pos, 4, f"pack {pack_no} design capacity") * 10
+            pos += 4
+
+            if i_full_cap <= 0 or i_design_cap <= 0:
+                raise ValueError(f"Invalid capacity values at pack {pack_no} candidate idx={start_pos}")
+            if i_full_cap > 1000000 or i_design_cap > 1000000 or i_remain_cap > 1000000:
+                raise ValueError(f"Implausible capacity values at pack {pack_no} candidate idx={start_pos}")
+            if cycles < 0 or cycles > 50000:
+                raise ValueError(f"Implausible cycle count {cycles} at pack {pack_no} candidate idx={start_pos}")
+
+            soc = round(i_remain_cap / i_full_cap * 100, 2) if i_full_cap else 0.0
+            soh = min(round(i_full_cap / i_design_cap * 100, 2), 100.0) if i_design_cap else 0.0
+            if soc < 0 or soc > 150:
+                raise ValueError(f"Implausible SOC {soc}% at pack {pack_no} candidate idx={start_pos}")
+
+            if config.get('debug_output', 0) > 1:
+                log.debug(
+                    "Analog candidate accepted: pack=%d idx=%d next=%d cells=%d temps=%d V=%.3f I=%.2f define=0x%02X SOC=%.2f",
+                    pack_no, start_pos, pos, cells, num_temps, v_pack, i_pack, define_number, soc,
+                )
+
+            return PackData(
+                pack_number=pack_no, cells=cells, temps=num_temps,
                 v_cells=v_cells, t_cells=t_cells,
                 i_pack=i_pack, v_pack=v_pack,
                 i_remain_cap=i_remain_cap, i_full_cap=i_full_cap,
                 i_design_cap=i_design_cap, cycles=cycles,
                 soc=soc, soh=soh, cell_max_diff=cell_max_diff,
-            ))
+            ), pos
+
+        def find_next_pack(start_pos: int, pack_no: int, expected_cells: Optional[int]) -> tuple[PackData, int, int]:
+            """Find and parse the next pack using full candidate validation."""
+            if pack_no == 1:
+                pack, next_pos = parse_pack_at(start_pos, pack_no, expected_cells)
+                return pack, next_pos, 0
+
+            candidates = []
+            allow_mixed = bool(config.get('allow_mixed_pack_cell_counts', False))
+            max_scan_bytes = int(config.get('analog_interpack_max_scan_bytes', 160) or 160)
+            scan_end = min(len(inc) - 2, start_pos + (max_scan_bytes * 2))
+
+            for candidate_pos in range(start_pos, scan_end + 1, 2):
+                candidate_cell_count = peek_hex_at(candidate_pos)
+                if expected_cells is not None and candidate_cell_count != expected_cells and not allow_mixed:
+                    continue
+                if not is_plausible_cell_count(candidate_cell_count):
+                    continue
+                try:
+                    pack, next_pos = parse_pack_at(candidate_pos, pack_no, expected_cells)
+                    candidates.append((candidate_pos, pack, next_pos))
+                except Exception as exc:
+                    if config.get('debug_output', 0) > 2:
+                        log.debug("Analog candidate rejected: pack=%d idx=%d reason=%s", pack_no, candidate_pos, exc)
+                    continue
+
+            if not candidates:
+                first = peek_hex_at(start_pos)
+                raise ValueError(
+                    f"Could not align analog pack {pack_no}: first_byte={first}, start_idx={start_pos}, "
+                    f"expected_cells={expected_cells}, frame_len={len(inc)}"
+                )
+
+            candidate_pos, pack, next_pos = candidates[0]
+            skipped = candidate_pos - start_pos
+            if skipped and config.get('debug_output', 0) > 0:
+                log.debug(
+                    "Analog parser: skipped %d hex chars (%d byte/s) before pack %d block at idx=%d",
+                    skipped, skipped // 2, pack_no, candidate_pos,
+                )
+            return pack, next_pos, skipped
+
+        pack_list = []
+        prev_cells = None
+
+        for p in range(1, num_packs + 1):
+            pack, idx, skipped = find_next_pack(idx, p, prev_cells)
+            prev_cells = pack.cells
+            pack_list.append(pack)
 
         return True, AnalogData(packs=num_packs, pack_data=pack_list)
 
@@ -1655,6 +1786,13 @@ def main():
                     bms_retry_count      = 0
                     bms_disconnect_time  = None
 
+                elif bms_retry_count > 0:
+                    # Clear isolated transient read/parse failures after a good analog read.
+                    log.info("BMS communication retry counter cleared after successful analog read (%d retries)", bms_retry_count)
+                    bms_retry_count      = 0
+                    bms_disconnect_time  = None
+                    publish_monitor_status("state", "running")
+
                 analog_data        = result
                 first_analog_ready = True
 
@@ -1701,7 +1839,52 @@ def main():
                     last_discovery = time.time()
             else:
                 log.error("Analog data error: %s", result)
-                mark_bms_disconnected(str(result))
+                result_text = str(result)
+                if result_text.startswith("Analog parse error") or "Unexpected analog" in result_text or "unexpected analog" in result_text:
+                    if bms_disconnect_time is None:
+                        bms_disconnect_time = time.time()
+
+                    bms_retry_count += 1
+                    parse_retry_threshold = max(
+                        3,
+                        int(config.get(
+                            "analog_parse_retry_threshold",
+                            config.get("notify_retry_count", 3),
+                        ) or 3),
+                    )
+                    offline_secs = int(time.time() - bms_disconnect_time)
+
+                    log.warning(
+                        "Analog parse failed — retry %d/%d without reconnecting serial, offline %ss, reason: %s",
+                        bms_retry_count,
+                        parse_retry_threshold,
+                        offline_secs,
+                        result_text,
+                    )
+                    publish_monitor_status("state", "analog_parse_error")
+                    publish_monitor_status("last_analog_error", result_text)
+                    publish_monitor_status("analog_parse_retry_count", bms_retry_count)
+                    write_monitor_health(
+                        config,
+                        "analog_parse_error",
+                        result_text,
+                        retry_count=bms_retry_count,
+                        retry_threshold=parse_retry_threshold,
+                        offline_secs=offline_secs,
+                        bms_sn=bms_sn,
+                    )
+
+                    if bms_retry_count >= parse_retry_threshold:
+                        mark_bms_disconnected(result_text)
+                        time.sleep(5)
+                        bms, bms_connected = bms_connect(config)
+                        last_discovery     = 0.0
+                        first_analog_ready = False
+
+                    time.sleep(max(1.0, scan_interval / 3))
+                    continue
+
+                mark_bms_disconnected(result_text)
                 time.sleep(5)
                 bms, bms_connected = bms_connect(config)
                 last_discovery     = 0.0
