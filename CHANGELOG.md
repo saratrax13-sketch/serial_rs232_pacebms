@@ -1,14 +1,13 @@
-## 2.6.19 - 2026-05-17
+## 2.6.20 - 2026-05-17
 
 ### Changed
-- Replaced the bulky Config tab top area with a compact header.
-- Moved Save, Discard, Create Backup, Manage Backups and Format Help into one compact area.
-- Converted Backup Safety into a compact backup status row.
-- Removed the large Backup Safety card and large explanatory box.
-- Kept Required / Optional badges and Config card order unchanged.
+- Moved `Download Sanitized YAML` into the compact Config header toolbar.
+- Moved `Restart Add-on` into the compact Config header toolbar.
+- Removed the duplicate bottom action area from the Config tab.
+- Moved the sensitive-values note into the compact Config header.
+- Kept Save, Discard, Create Backup, Manage Backups and Format Help in the compact header.
 
 ### Notes
-- Functionality is unchanged.
-- Config saves still do not write to the BMS.
+- The bottom of the Config tab should now be cleaner.
 - No BMS protocol changes were made.
 - No BMS write/control commands were added.

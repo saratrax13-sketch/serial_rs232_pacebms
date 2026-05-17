@@ -1584,6 +1584,14 @@
       content: " -";
     }
 
+  
+    .compact-sensitive-note {
+      margin-top: 8px;
+      color: #cbd5e1;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
   </style>
 </head>
 <body>
@@ -2049,6 +2057,8 @@
             <button type="button" class="danger-button" onclick="discardAllConfigChanges()">Discard Changes</button>
             <button type="submit" form="config-save-form" formaction="create-config-backup" formmethod="post" name="active_tab" value="config">Create Backup</button>
             <a class="button-link" href="?tab=backups">Manage Backups</a>
+            <a class="button-link" href="download-sanitized-yaml">Download Sanitized YAML</a>
+            <button type="submit" form="config-save-form" formaction="restart-addon" formmethod="post" class="danger-button">Restart Add-on</button>
           </div>
 
           <div class="compact-backup-status">
@@ -2110,23 +2120,11 @@
             </article>
             {% endfor %}
           </section>
-
-          <div class="actions">
-            <button id="save-config-button" type="submit" disabled>Save Configuration</button>
-            <a class="button-link" href="export-config.yaml">Download Sanitized YAML</a>
-          </div>
-        </form>
+</form>
 
         <form method="post" action="restart-addon" onsubmit="return confirm('Restart this add-on now? The web UI may disconnect briefly.');">
-          <div class="actions">
-            <button class="danger-button" type="submit">Restart Add-on</button>
-          </div>
-        </form>
-
-        <p class="config-form-note">
-          Sensitive values are not shown. Enter a new value only when you want to change it.
-        </p>
-      </section>
+</form>
+</section>
     </section>
 
     <section class="tab-panel {% if active_tab == 'backups' %}active{% endif %}">
