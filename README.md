@@ -21,7 +21,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.0.33"
+version: "2.6.25"
 ```
 
 ---
@@ -547,4 +547,3 @@ Avoid accidental major jumps like:
 ## Credits
 
 Originally inspired by the `bmspace` Pace BMS project and adapted for Home Assistant add-on use, direct Telegram notifications, multi-pack monitoring, Ingress web UI, and operational battery monitoring.
-

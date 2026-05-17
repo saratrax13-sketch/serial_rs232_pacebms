@@ -53,7 +53,6 @@
 #   - Timestamp added to MQTT error payload to prevent stale retain
 # =============================================================================
 import paho.mqtt.client as mqtt
-import socket
 import time
 import yaml
 import os
@@ -65,7 +64,6 @@ import signal
 import sys
 import logging
 import constants
-import urllib.request
 from bms_notify import NotifyState, telegram_send
 from dataclasses import dataclass, field
 from typing import Optional
@@ -106,8 +104,6 @@ SOI_BYTE        = 0x7E
 MAX_UINT16      = 65535
 UINT16_MID      = 32768        # values >= this are negative current
 KELVIN_OFFSET   = 2730         # BMS temp encoding: (raw - 2730) / 10 = °C
-SOCKET_BUF      = 4096
-SOCKET_TIMEOUT  = 3.0          # seconds before recv loop gives up
 FRAME_END       = 13           # \r  (0x0D)
 DISCOVERY_TTL   = 3600         # republish HA discovery every hour
 
@@ -202,82 +198,45 @@ def lchksum_calc(lenid: bytes) -> Optional[str]:
 # ─── BMS transport ────────────────────────────────────────────────────────────
 
 def bms_connect(config: dict):
-    """Open serial or TCP connection to BMS. Returns (comms, connected)."""
-    if config['connection_type'] == "Serial":
-        try:
-            s = serial.Serial(
-                port     = config['bms_serial'],
-                baudrate = config.get('bms_baudrate', 9600),
-                bytesize = serial.EIGHTBITS,
-                parity   = serial.PARITY_NONE,
-                stopbits = serial.STOPBITS_ONE,
-                timeout  = 1,
-            )
-            log.info("BMS serial connected on %s", config['bms_serial'])
-            return s, True
-        except IOError as e:
-            log.error("BMS serial error: %s", e)
-            return None, False
-    else:
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(2)
-            s.connect((config['bms_ip'], config['bms_port']))
-            log.info("BMS TCP connected to %s:%s", config['bms_ip'], config['bms_port'])
-            return s, True
-        except OSError as e:
-            log.error("BMS TCP error: %s", e)
-            return None, False
+    """Open serial connection to BMS. Returns (comms, connected)."""
+    if str(config.get('connection_type', '')).strip().lower() != "serial":
+        log.error("Unsupported BMS connection_type: %s", config.get('connection_type'))
+        return None, False
 
-def bms_send(comms, request: bytes, connection_type: str) -> bool:
+    try:
+        s = serial.Serial(
+            port     = config['bms_serial'],
+            baudrate = config.get('bms_baudrate', 9600),
+            bytesize = serial.EIGHTBITS,
+            parity   = serial.PARITY_NONE,
+            stopbits = serial.STOPBITS_ONE,
+            timeout  = 1,
+        )
+        log.info("BMS serial connected on %s", config['bms_serial'])
+        return s, True
+    except IOError as e:
+        log.error("BMS serial error: %s", e)
+        return None, False
+
+def bms_send(comms, request: bytes) -> bool:
     if not request:
         return False
     try:
-        if connection_type == "Serial":
-            comms.write(request)
-        else:
-            comms.send(request)
+        comms.write(request)
         time.sleep(0.25)
         return True
     except Exception as e:
         log.error("BMS send error: %s", e)
         return False
 
-def bms_recv(comms, connection_type: str, debug: int = 0) -> Optional[bytes]:
-    """Read one complete frame from BMS. Includes timeout guard on TCP."""
+def bms_recv(comms, debug: int = 0) -> Optional[bytes]:
+    """Read one complete frame from the serial BMS connection."""
     try:
-        if connection_type == "Serial":
-            data = comms.readline()
-            if not data:
-                log.error("BMS serial recv: no data received before timeout")
-                return None
-            return data
-
-        # TCP: accumulate until \r, but give up after SOCKET_TIMEOUT seconds
-        temp       = b''
-        deadline   = time.time() + SOCKET_TIMEOUT
-        while time.time() < deadline:
-            chunk = comms.recv(SOCKET_BUF)
-            if not chunk:
-                break
-            temp += chunk
-            if temp.endswith(b'\r'):
-                break
-
-        if not temp:
-            log.error("BMS recv: no data received within %.1fs", SOCKET_TIMEOUT)
+        data = comms.readline()
+        if not data:
+            log.error("BMS serial recv: no data received before timeout")
             return None
-
-        parts = temp.split(b'\r')
-        if len(parts) > 2 and debug > 0:
-            log.debug("Multiple EOIs in frame: %s", temp.hex(' '))
-
-        for part in parts:
-            if part and part[0] == SOI_BYTE:
-                return part + b'\r'
-
-        log.error("BMS recv: no valid SOI found in frame")
-        return None
+        return data
 
     except Exception as e:
         log.error("BMS recv error: %s", e)
@@ -345,8 +304,7 @@ def bms_request(
     info = b"",
     lenid_override: Optional[bytes] = None,
 ) -> tuple[bool, any]:
-    connection_type = config['connection_type']
-    debug           = config.get('debug_output', 0)
+    debug = config.get('debug_output', 0)
 
     request = b'\x7e' + ver + adr + cid1 + cid2
     lenid   = lenid_override or bytes(format(len(info), '03X'), "ASCII")
@@ -364,10 +322,10 @@ def bms_request(
     if debug > 2:
         log.debug("-> %s", request)
 
-    if not bms_send(bms, request, connection_type):
+    if not bms_send(bms, request):
         return False, "Send failed"
 
-    inc_data = bms_recv(bms, connection_type, debug)
+    inc_data = bms_recv(bms, debug)
     if inc_data is None:
         return False, "Receive failed"
 

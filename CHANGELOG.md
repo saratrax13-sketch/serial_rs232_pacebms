@@ -1,17 +1,19 @@
-## 2.6.25 - 2026-05-17
+## 2.6.26 - 2026-05-17
+
+### Changed
+- Removed unused TCP/IP BMS transport code from the monitor runtime.
+- Improved add-on process supervision so the web UI and monitor are both watched.
+- Updated energy tracking to calculate kWh from actual elapsed sample time instead of the configured scan interval.
+- Synced README current version reference.
+
+### Fixed
+- Telegram placeholder credentials are now treated as unconfigured.
+- Telegram failure logs no longer expose detailed exception text.
 
 ### Added
-- Added `notify_warning_repeat_seconds` to the web Config tab under Notification Thresholds.
-- Added validation for `notify_warning_repeat_seconds`.
-- Added help text for `notify_warning_repeat_seconds`.
-- Added `CONFIG_YAML_PATCH_2.6.25.md`.
-
-### Behaviour
-- Controls how often the same active BMS warning may repeat on Telegram.
-- Recommended default is `1800` seconds.
-- Web validation allows `60` to `86400` seconds.
+- Added focused unit tests for Pace frame parsing, Telegram placeholder handling, and energy tracking.
 
 ### Notes
-- This builds on 2.6.24 Warning Deduplication and Repeat Cooldown.
-- No BMS protocol changes were made.
 - No BMS write/control commands were added.
+- No MQTT topic or Home Assistant discovery entity names were changed.
+- Standalone Docker config handling was intentionally left unchanged for a later sprint.

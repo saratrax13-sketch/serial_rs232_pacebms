@@ -24,6 +24,17 @@ from typing import Optional
 
 log = logging.getLogger("bmspace")
 
+TELEGRAM_PLACEHOLDER_VALUES = {
+    "",
+    "YOUR_TELEGRAM_BOT_TOKEN",
+    "YOUR_TELEGRAM_CHAT_ID",
+}
+
+
+def telegram_value_configured(value: str) -> bool:
+    """Return True when a Telegram field contains a real user-provided value."""
+    return str(value or "").strip() not in TELEGRAM_PLACEHOLDER_VALUES
+
 
 # ─── Telegram sender ──────────────────────────────────────────────────────────
 
@@ -31,9 +42,9 @@ def telegram_send(config: dict, message: str):
     """Send a Telegram message directly via Bot API."""
     if not config.get('notify_enabled', True):
         return
-    token   = config.get('telegram_bot_token', '')
-    chat_id = config.get('telegram_chat_id', '')
-    if not token or not chat_id:
+    token   = str(config.get('telegram_bot_token', '') or '').strip()
+    chat_id = str(config.get('telegram_chat_id', '') or '').strip()
+    if not telegram_value_configured(token) or not telegram_value_configured(chat_id):
         log.warning("Telegram not configured — skipping notification")
         return
     try:
@@ -45,7 +56,7 @@ def telegram_send(config: dict, message: str):
         title = str(message or "").splitlines()[0].strip() or "<empty>"
         log.info("Telegram sent: %s", title)
     except Exception as e:
-        log.warning("Telegram failed: %s", e)
+        log.warning("Telegram failed: %s", type(e).__name__)
 
 
 # ─── Notification state ───────────────────────────────────────────────────────
@@ -85,6 +96,7 @@ class NotifyState:
         # Energy tracking — per pack
         self.kwh_charged          = {}   # {pack_num: float}
         self.kwh_discharged       = {}   # {pack_num: float}
+        self.last_energy_update    = {}   # {pack_num: epoch seconds}
         self.energy_reset_day     = datetime.now().date()  # date of last midnight reset
 
         # Worst cell deviation tracking — per pack (for 19:00 report)
@@ -164,6 +176,7 @@ class NotifyState:
             self.energy_reset_day      = today
             self.kwh_charged           = {}
             self.kwh_discharged        = {}
+            self.last_energy_update    = {}
             self.worst_cell_dev        = {}
             # Reset low-SOC threshold notifications daily so a battery that remains
             # low can alert again the next day.
@@ -512,10 +525,21 @@ class NotifyState:
 
     # ── Energy tracking ───────────────────────────────────────────────────────
 
-    def on_energy_update(self, pack_num: int, voltage: float, current: float, scan_interval: float):
-        """Accumulate kWh. Call every poll cycle."""
+    def on_energy_update(self, pack_num: int, voltage: float, current: float, scan_interval: float = 0):
+        """Accumulate kWh using actual elapsed time between successful reads."""
+        now = time.time()
+        last_update = self.last_energy_update.get(pack_num)
+        self.last_energy_update[pack_num] = now
+
+        if last_update is None:
+            return
+
+        elapsed_seconds = max(0.0, now - last_update)
+        if scan_interval:
+            elapsed_seconds = min(elapsed_seconds, max(float(scan_interval) * 3, float(scan_interval)))
+
         power_w   = voltage * current                         # W (negative = charging)
-        kwh_delta = abs(power_w) * (scan_interval / 3600) / 1000  # kWh this interval
+        kwh_delta = abs(power_w) * (elapsed_seconds / 3600) / 1000  # kWh this interval
 
         if pack_num not in self.kwh_charged:
             self.kwh_charged[pack_num]    = 0.0

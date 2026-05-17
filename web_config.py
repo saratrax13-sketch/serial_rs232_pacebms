@@ -13,6 +13,7 @@ from datetime import datetime
 from flask import Flask, Response, jsonify, render_template, request, send_file, redirect
 
 import paho.mqtt.client as mqtt
+from bms_notify import telegram_value_configured
 
 app = Flask(__name__)
 
@@ -387,10 +388,10 @@ def test_telegram(options):
     if not options.get("notify_enabled", True):
         return False, "Notifications are disabled."
 
-    token = options.get("telegram_bot_token", "")
-    chat_id = options.get("telegram_chat_id", "")
+    token = str(options.get("telegram_bot_token", "") or "").strip()
+    chat_id = str(options.get("telegram_chat_id", "") or "").strip()
 
-    if not token or not chat_id:
+    if not telegram_value_configured(token) or not telegram_value_configured(chat_id):
         return False, "Telegram bot token or chat ID is not configured."
 
     message = (
@@ -410,7 +411,7 @@ def test_telegram(options):
         urllib.request.urlopen(req, timeout=8)
         return True, "Telegram test sent successfully."
     except Exception as exc:
-        return False, f"Telegram test failed: {exc}"
+        return False, f"Telegram test failed: {type(exc).__name__}"
 
 
 def test_mqtt(options):
@@ -907,7 +908,10 @@ def build_diagnostics(options, live=None):
 
     live = live or {}
 
-    telegram_configured = bool(options.get("telegram_bot_token")) and bool(options.get("telegram_chat_id"))
+    telegram_configured = (
+        telegram_value_configured(options.get("telegram_bot_token"))
+        and telegram_value_configured(options.get("telegram_chat_id"))
+    )
     mqtt_configured = bool(options.get("mqtt_host"))
     discovery_enabled = bool(options.get("mqtt_ha_discovery", False))
 
