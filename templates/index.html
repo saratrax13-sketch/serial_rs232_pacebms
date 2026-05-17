@@ -1592,6 +1592,12 @@
       line-height: 1.4;
     }
 
+  
+    .compact-config-toolbar .inline-action-form {
+      margin: 0;
+      display: inline-flex;
+    }
+
   </style>
 </head>
 <body>
@@ -2055,10 +2061,16 @@
           <div class="compact-config-toolbar">
             <button type="submit" form="config-save-form">Save Configuration</button>
             <button type="button" class="danger-button" onclick="discardAllConfigChanges()">Discard Changes</button>
-            <button type="submit" form="config-save-form" formaction="create-config-backup" formmethod="post" name="active_tab" value="config">Create Backup</button>
+            <form class="inline-action-form" method="post" action="create-config-backup">
+              <input type="hidden" name="active_tab" value="config">
+              <button type="submit">Create Backup</button>
+            </form>
             <a class="button-link" href="?tab=backups">Manage Backups</a>
             <a class="button-link" href="download-sanitized-yaml">Download Sanitized YAML</a>
-            <button type="submit" form="config-save-form" formaction="restart-addon" formmethod="post" class="danger-button">Restart Add-on</button>
+            <form class="inline-action-form" method="post" action="/restart-addon">
+              <input type="hidden" name="active_tab" value="config">
+              <button type="submit" class="danger-button">Restart Add-on</button>
+            </form>
           </div>
 
           <div class="compact-backup-status">
