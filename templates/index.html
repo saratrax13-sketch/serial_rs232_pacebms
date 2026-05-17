@@ -1899,43 +1899,6 @@
     </section>
 
     <section class="tab-panel {% if active_tab == 'config' %}active{% endif %}">
-        <script id="config-section-help-json" type="application/json">{{ config_section_help_json | safe }}
-    document.addEventListener("click", function (event) {
-      const target = event.target.closest("button, a");
-      if (!target) return;
-
-      const onclick = target.getAttribute("onclick") || "";
-      if (onclick.includes("showConfigSectionHelp") || onclick.includes("showSectionInfo") || onclick.includes("openSectionHelp")) {
-        return;
-      }
-
-      const text = (target.textContent || "").trim().toLowerCase();
-      const cls = String(target.className || "").toLowerCase();
-      const aria = String(target.getAttribute("aria-label") || "").toLowerCase();
-      const title = String(target.getAttribute("title") || "").toLowerCase();
-
-      if (!(text === "i" || text === "ⓘ" || cls.includes("info") || aria.includes("info") || title.includes("info"))) {
-        return;
-      }
-
-      const helpMap = getConfigSectionHelpMap();
-      const card = target.closest(".config-card, .card, section, article, div");
-      if (!card) return;
-
-      const heading = card.querySelector("h2, h3, .card-title, .section-title");
-      if (!heading) return;
-
-      const headingText = heading.textContent.trim();
-      const sectionName = Object.keys(helpMap).find((name) => headingText.includes(name));
-      if (!sectionName) return;
-
-      event.preventDefault();
-      event.stopPropagation();
-      showConfigSectionHelp(sectionName);
-    }, true);
-
-</script>
-
 <details class="compact-help">
           <summary>Config format help</summary>
           <div class="helper-note">
@@ -2765,7 +2728,43 @@ Restart the add-on afterwards for runtime changes to apply.`);
           </ul>
           <p>These settings only decide what the add-on reports. They do not change BMS behaviour.</p>
         `
-      },
+      },,
+      "Notification Thresholds": {
+        title: "Notification Thresholds Settings",
+        html: `
+          <p>These settings control when SOC, SOH and stale-data notifications trigger.</p>
+
+          <h3>SOC low threshold list</h3>
+          <ul>
+            <li><code>notify_soc_low_thresholds</code> — the SOC levels where low battery notifications should trigger.</li>
+            <li>Use comma-separated numbers only. Example: <code>75,50,25,15</code>.</li>
+            <li>Do not use percentage signs. Do not use words or spaces as separators.</li>
+            <li>Correct: <code>75,50,25,15</code></li>
+            <li>Incorrect: <code>75%, 50%, low</code></li>
+          </ul>
+
+          <h3>High SOC settings</h3>
+          <ul>
+            <li><code>notify_soc_high_threshold</code> — the SOC percentage at or above which a high-SOC notification can trigger. Example: <code>98</code>.</li>
+            <li><code>notify_soc_high_reset</code> — the SOC percentage below which the high-SOC alert resets. This must be lower than the high threshold. Example: <code>95</code>.</li>
+          </ul>
+
+          <h3>SOH and retry settings</h3>
+          <ul>
+            <li><code>notify_soh_threshold</code> — the SOH percentage below which a State of Health notification can trigger. Example: <code>95</code>.</li>
+            <li><code>notify_retry_count</code> — how many retry attempts are allowed for supported notifications. Use a whole number, for example <code>1</code>.</li>
+          </ul>
+
+          <h3>Stale data timing</h3>
+          <ul>
+            <li><code>notify_stale_data_seconds</code> — seconds without fresh BMS data before stale-data notification logic triggers. Example: <code>120</code>.</li>
+            <li><code>notify_stale_data_repeat_seconds</code> — repeat interval in seconds while stale data remains active. Example: <code>1800</code>.</li>
+          </ul>
+
+          <h3>Important note</h3>
+          <p>These values only control notifications. They do not change the BMS, battery thresholds, charge settings or discharge settings.</p>
+        `
+      }
       "Warning Detail": {
         title: "Warning Detail Settings",
         html: `
@@ -2806,7 +2805,35 @@ Restart the add-on afterwards for runtime changes to apply.`);
           <p>These values are used only for display and notification explanations. They do not configure the battery, they do not change BMS thresholds, and they are not written to the BMS.</p>
           <p>The BMS may trigger an internal warning before your configured reference is exceeded. The web UI separates <strong>BMS internal warning active</strong> from the configured <strong>Reference Check</strong> so you can see the difference.</p>
         `
-      },
+      },,
+      "Report Schedules": {
+        title: "Report Schedules Settings",
+        html: `
+          <p>These settings control when scheduled Telegram reports are sent.</p>
+
+          <h3>Time format</h3>
+          <ul>
+            <li>Use 24-hour <code>HH:MM</code> format.</li>
+            <li>Correct examples: <code>19:00</code>, <code>10:15</code>, <code>00:00</code>.</li>
+            <li>Incorrect examples: <code>7pm</code>, <code>25:99</code>, <code>10h15</code>.</li>
+          </ul>
+
+          <h3>Daily summary</h3>
+          <ul>
+            <li><code>notify_daily_summary_time</code> — the time the daily summary notification is sent. Example: <code>19:00</code>.</li>
+          </ul>
+
+          <h3>Cell delta report</h3>
+          <ul>
+            <li><code>notify_delta_report_time</code> — the time the cell delta report is sent. Example: <code>10:15</code>.</li>
+            <li><code>notify_delta_window_start</code> — the start of the time window used for the delta report. Example: <code>00:00</code>.</li>
+            <li><code>notify_delta_window_end</code> — the end of the time window used for the delta report. Example: <code>10:00</code>.</li>
+          </ul>
+
+          <h3>Important note</h3>
+          <p>These schedule values only control report timing. They do not change BMS settings and they do not write anything to the battery.</p>
+        `
+      }
       "MQTT": {
         title: "MQTT Settings",
         html: `
@@ -3255,48 +3282,5 @@ Restart the add-on afterwards for runtime changes to apply.`);
 
 
   </script>
-<script>
-
-    function getConfigSectionHelpMap() {
-      const el = document.getElementById("config-section-help-json");
-      if (!el) return {};
-      try {
-        return JSON.parse(el.textContent || "{}");
-      } catch (err) {
-        return {};
-      }
-    }
-
-    function findModalParts() {
-      return {
-        modal: document.getElementById("info-modal") || document.getElementById("modal") || document.querySelector(".modal"),
-        title: document.getElementById("info-modal-title") || document.getElementById("modal-title") || document.querySelector(".modal-title") || document.querySelector("[data-modal-title]"),
-        body: document.getElementById("info-modal-body") || document.getElementById("modal-body") || document.querySelector(".modal-body") || document.querySelector("[data-modal-body]")
-      };
-    }
-
-    function showConfigSectionHelp(sectionName) {
-      const helpMap = getConfigSectionHelpMap();
-      const text = helpMap[sectionName] || "No help text is available for this section yet.";
-      const parts = findModalParts();
-
-      if (parts.title) parts.title.textContent = sectionName + " Settings";
-      if (parts.body) parts.body.textContent = text;
-
-      if (parts.modal) {
-        parts.modal.style.display = "flex";
-        parts.modal.classList.add("open");
-        parts.modal.removeAttribute("hidden");
-      } else {
-        alert(sectionName + " Settings\n\n" + text);
-      }
-    }
-
-    // Unified route for all Config card info buttons.
-    window.showConfigSectionHelp = showConfigSectionHelp;
-    window.showSectionInfo = showConfigSectionHelp;
-    window.openSectionHelp = showConfigSectionHelp;
-
-</script>
 </body>
 </html>

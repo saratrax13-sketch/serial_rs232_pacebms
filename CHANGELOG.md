@@ -1,24 +1,13 @@
-## 2.6.8 - 2026-05-17
-
-### Changed
-- Unified the Config section help system.
-- All Config card info buttons now use the same `SECTION_HELP` mapping.
-- Removed the direct 2.6.7 frontend workaround.
-- Added canonical help text for all Config sections:
-  - Telegram
-  - Notifications
-  - Notification Thresholds
-  - Warning Detail
-  - Report Schedules
-  - MQTT
-  - BMS Connection
-  - Advanced
+## 2.6.9 - 2026-05-17
 
 ### Fixed
-- Notification Thresholds now follows the same help route as the other Config sections.
-- Report Schedules now follows the same help route as the other Config sections.
+- Added missing `Notification Thresholds` entry directly to the original `configHelpContent` modal help object.
+- Added missing `Report Schedules` entry directly to the original `configHelpContent` modal help object.
+- These two sections now use the same original Config help route and modal style as the existing sections such as MQTT.
+- Removed the unnecessary unified/direct help workaround scripts from the template.
 
 ### Notes
+- This keeps the original look and feel of the Config help modals.
 - `bms_ip` and `bms_port` were not re-added.
 - No BMS protocol changes were made.
 - No BMS write/control commands were added.
