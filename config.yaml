@@ -196,8 +196,6 @@ schema:
   warn_force_republish_seconds: int
 
   connection_type: list(IP|Serial)
-  bms_ip: str
-  bms_port: int
   bms_serial: str
   bms_baudrate: int
   scan_interval: int
