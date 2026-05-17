@@ -1,16 +1,13 @@
-## 2.6.16 - 2026-05-17
+## 2.6.17 - 2026-05-17
 
 ### Changed
-- Reordered Config cards:
-  - Row 1: BMS Connection, MQTT, Advanced
-  - Row 2: Telegram, Notifications, Notification Thresholds
-  - Row 3: Warning Detail, Report Schedules
-- Added Required / Optional badges to Config cards.
-- Marked BMS Connection, MQTT and Advanced as Required.
-- Marked Telegram, Notifications, Notification Thresholds, Warning Detail and Report Schedules as Optional.
-- Added a compact base polling note above the Config cards.
+- Removed the top Config note that explained required and optional sections.
+- Kept Required / Optional badges on each Config card.
+- Kept the Config card order unchanged.
 
 ### Notes
+- BMS Connection, MQTT and Advanced remain marked Required.
+- Telegram, Notifications, Notification Thresholds, Warning Detail and Report Schedules remain marked Optional.
 - `bms_ip` and `bms_port` were not re-added.
 - No BMS protocol changes were made.
 - No BMS write/control commands were added.

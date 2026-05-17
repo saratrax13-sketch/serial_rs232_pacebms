@@ -1487,19 +1487,7 @@
       background: rgba(59, 130, 246, 0.10);
       color: #bfdbfe;
     }
-
-    .config-base-note {
-      margin-bottom: 12px;
-      padding: 10px 12px;
-      border-radius: 14px;
-      border: 1px solid rgba(34, 197, 94, 0.22);
-      background: rgba(34, 197, 94, 0.08);
-      color: #d1fae5;
-      font-size: 13px;
-      line-height: 1.45;
-    }
-
-    .config-grid {
+.config-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(280px, 1fr));
       gap: 16px;
@@ -1971,12 +1959,7 @@
     </section>
 
     <section class="tab-panel {% if active_tab == 'config' %}active{% endif %}">
-        <div class="config-base-note">
-          <strong>Required for base polling:</strong> BMS Connection, MQTT and Advanced. 
-          Telegram, Notifications, Notification Thresholds, Warning Detail and Report Schedules are optional monitoring features.
-        </div>
-
-        <details class="compact-help">
+<details class="compact-help">
           <summary>Config format help</summary>
           <div class="helper-note">
             <strong>Multiple threshold format:</strong> use comma-separated numbers only.
