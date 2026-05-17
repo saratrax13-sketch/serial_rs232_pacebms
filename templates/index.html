@@ -549,14 +549,20 @@
 
     .cell-role-badge {
       display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 74px;
+      min-height: 26px;
       border-radius: 999px;
-      padding: 5px 9px;
-      border: 1px solid rgba(56, 189, 248, 0.35);
-      color: #bae6fd;
-      background: rgba(14, 165, 233, 0.10);
-      font-weight: 900;
+      padding: 5px 12px;
+      border: 1px solid rgba(56, 189, 248, 0.55);
+      color: #e0f2fe;
+      background: rgba(14, 165, 233, 0.18);
+      font-weight: 950;
       white-space: nowrap;
       font-size: 12px;
+      line-height: 1;
+      text-align: center;
     }
 
     .cell-summary-row {
@@ -1528,9 +1534,9 @@
             <div class="pack-comparison-header">
               <div>
                 <div class="pack-comparison-title">Pack {{ pack.id }}</div>
-                <div class="topology-note">{{ pack.role }}</div>
+                <div class="topology-note">{% if pack.role %}{{ pack.role }}{% elif pack.id == '01' %}Master{% else %}Slave{% endif %}</div>
               </div>
-              <span class="pack-role">{{ pack.role }}</span>
+              <span class="pack-role">{% if pack.role %}{{ pack.role }}{% elif pack.id == '01' %}Master{% else %}Slave{% endif %}</span>
             </div>
             <div class="pack-metric-grid">
               <div class="pack-metric">
@@ -2096,7 +2102,7 @@ This cannot be undone.`);">
                 <div class="cell-pack-title">Pack {{ pack.id }}</div>
                 <div class="topology-note">{{ pack.cell_count }} cells detected</div>
               </div>
-              <span class="cell-role-badge">{{ pack.role }}</span>
+              <span class="cell-role-badge">{% if pack.role %}{{ pack.role }}{% elif pack.id == '01' %}Master{% else %}Slave{% endif %}</span>
             </div>
 
             <div class="cell-summary-row">
