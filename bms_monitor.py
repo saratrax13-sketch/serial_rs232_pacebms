@@ -1,8 +1,9 @@
 # =============================================================================
 # bms_monitor.py — Pace BMS to MQTT Bridge
-# Version : 2.0.38
-# Changed : 2026-05-16
+# Version : 2.5.5
+# Changed : 2026-05-17
 # Changes :
+#   - Added debug-only serial-number frame probe for slave serial investigation
 #   - Fixed MQTT availability staying offline while monitor is running
 #   - Publishes availability online after successful startup/read/recovery
 #   - Added persistent last-events history for web UI
@@ -35,6 +36,7 @@ import time
 import yaml
 import os
 import json
+import re
 import serial
 import atexit
 import signal
@@ -354,6 +356,86 @@ def bms_request(
 
 # ─── BMS data fetchers ────────────────────────────────────────────────────────
 
+def decode_serial_debug_info(info: bytes) -> dict:
+    """Decode raw C2 serial response info for diagnostic logging.
+
+    This is intentionally read-only and diagnostic-only. It does not change
+    normal serial parsing; it only helps determine whether the response contains
+    more than one serial-like value.
+    """
+    result = {
+        "info_ascii": "",
+        "decoded_ascii": "",
+        "serial_candidates": [],
+    }
+
+    try:
+        info_ascii = info.decode("ascii", errors="replace")
+        result["info_ascii"] = info_ascii
+
+        decoded = bytes.fromhex(info_ascii).decode("ASCII", errors="replace")
+        decoded_clean = decoded.replace("\x00", " ")
+        result["decoded_ascii"] = decoded_clean
+
+        candidates = []
+        seen = set()
+
+        for pattern in [
+            r"HL\d{8,14}",
+            r"[A-Z]{1,4}\d{6,16}",
+            r"[A-Z0-9]{8,20}",
+        ]:
+            for match in re.finditer(pattern, decoded_clean.replace("*", " ")):
+                candidate = match.group(0).strip()
+                if candidate and candidate not in seen:
+                    seen.add(candidate)
+                    candidates.append({
+                        "candidate": candidate,
+                        "start": match.start(),
+                        "end": match.end(),
+                    })
+
+        result["serial_candidates"] = candidates
+        return result
+    except Exception as exc:
+        result["error"] = str(exc)
+        return result
+
+
+def log_serial_debug_probe(info: bytes, config: dict):
+    """Log raw serial response details when debug_output >= 3."""
+    try:
+        debug = int(config.get("debug_output", 0) or 0)
+    except Exception:
+        debug = 0
+
+    if debug < 3:
+        return
+
+    details = decode_serial_debug_info(info)
+
+    log.debug("Serial probe: raw C2 info ASCII-hex length=%s", len(details.get("info_ascii", "")))
+    log.debug("Serial probe: raw C2 info ASCII-hex=%s", details.get("info_ascii", ""))
+    log.debug("Serial probe: decoded printable text=%r", details.get("decoded_ascii", ""))
+
+    candidates = details.get("serial_candidates", [])
+    if candidates:
+        log.debug("Serial probe: %d serial-like candidate(s) found", len(candidates))
+        for idx, item in enumerate(candidates, start=1):
+            log.debug(
+                "Serial probe candidate %d: %s at decoded positions %s-%s",
+                idx,
+                item.get("candidate"),
+                item.get("start"),
+                item.get("end"),
+            )
+    else:
+        log.debug("Serial probe: no additional serial-like candidates found in C2 response")
+
+    if details.get("error"):
+        log.debug("Serial probe decode error: %s", details.get("error"))
+
+
 def bms_get_version(bms, config: dict) -> tuple[bool, Optional[str]]:
     success, info = bms_request(bms, config, cid2=constants.cid2SoftwareVersion)
     if not success:
@@ -370,9 +452,28 @@ def bms_get_serial(bms, config: dict) -> tuple[bool, Optional[str], Optional[str
     if not success:
         return False, info, None
     try:
+        # Debug-only probe for investigating whether slave pack serials are present
+        # anywhere inside the C2 serial-number response.
+        log_serial_debug_probe(info, config)
+
         bms_sn  = bytes.fromhex(info[0:30].decode("ascii")).decode("ASCII").replace(" ", "")
         pack_sn = bytes.fromhex(info[40:68].decode("ascii")).decode("ASCII").replace(" ", "")
         log.info("BMS SN: %s | Pack SN: %s", bms_sn, pack_sn)
+
+        try:
+            debug = int(config.get("debug_output", 0) or 0)
+        except Exception:
+            debug = 0
+
+        if debug >= 3:
+            details = decode_serial_debug_info(info)
+            candidates = [item.get("candidate") for item in details.get("serial_candidates", [])]
+            log.debug("Serial probe summary: parsed_bms_sn=%s parsed_pack_sn=%s candidates=%s", bms_sn, pack_sn, candidates)
+            if len(set(candidates)) <= 1:
+                log.debug("Serial probe conclusion: current C2 response appears to expose one unique serial only")
+            else:
+                log.debug("Serial probe conclusion: multiple unique serial-like values found; review positions for possible slave serial")
+
         return True, bms_sn, pack_sn
     except Exception as e:
         return False, f"Serial parse error: {e}", None
