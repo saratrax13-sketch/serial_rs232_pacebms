@@ -1980,11 +1980,13 @@ This cannot be undone.`);">
         </div>
 
         <div class="actions">
+          <button type="button" onclick="refreshDiagnostics()">Refresh Diagnostics</button>
           <a class="button-link" href="download-diagnostics.json">Download Diagnostic Report</a>
           <a class="button-link" href="download-support-bundle.zip">Download Support Bundle ZIP</a>
           <a class="button-link" href="?tab=status">Open Status</a>
           <a class="button-link" href="?tab=backups">Open Backups</a>
         </div>
+        <div id="diagnostics-refresh-message" class="dashboard-refresh-message">Diagnostics loaded from current retained MQTT values.</div>
       </section>
 
       {% if diagnostics %}
@@ -1992,10 +1994,10 @@ This cannot be undone.`);">
         <h2>Health Checks</h2>
         <div class="diagnostics-grid">
           {% for card in diagnostics.health_cards %}
-          <div class="diagnostic-card">
+          <div class="diagnostic-card" data-diagnostic-card="{{ card.title }}">
             <div class="diagnostic-title">{{ card.title }}</div>
-            <div class="diagnostic-status {{ card.class }}">{{ card.status }}</div>
-            <div class="diagnostic-detail">{{ card.detail }}</div>
+            <div class="diagnostic-status {{ card.class }}" data-diagnostic-status="{{ card.title }}">{{ card.status }}</div>
+            <div class="diagnostic-detail" data-diagnostic-detail="{{ card.title }}">{{ card.detail }}</div>
           </div>
           {% endfor %}
         </div>
@@ -2165,27 +2167,27 @@ This cannot be undone.`);">
         <div class="status-grid">
           <div class="status-tile">
             <div class="tile-label">Overall Status</div>
-            <div class="tile-value">{{ diagnostics.live.overall_status }}</div>
+            <div id="diagnostics-overall-status" class="tile-value">{{ diagnostics.live.overall_status }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">BMS Serial</div>
-            <div class="tile-value">{{ diagnostics.clean_bms_serial }}</div>
+            <div id="diagnostics-bms-serial" class="tile-value">{{ diagnostics.clean_bms_serial }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">BMS Version</div>
-            <div class="tile-value">{{ diagnostics.clean_bms_version }}</div>
+            <div id="diagnostics-bms-version" class="tile-value">{{ diagnostics.clean_bms_version }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Detected Battery Layout</div>
-            <div class="tile-value">{{ diagnostics.live.layout }}</div>
+            <div id="diagnostics-layout" class="tile-value">{{ diagnostics.live.layout }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Last Analog Read</div>
-            <div class="tile-value">{{ diagnostics.live.last_analog_read }}</div>
+            <div id="diagnostics-last-analog" class="tile-value">{{ diagnostics.live.last_analog_read }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Last Warning Read</div>
-            <div class="tile-value">{{ diagnostics.live.last_warn_read }}</div>
+            <div id="diagnostics-last-warning" class="tile-value">{{ diagnostics.live.last_warn_read }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Backup Count</div>
@@ -2750,6 +2752,100 @@ Restart the add-on afterwards for runtime changes to apply.`);
         if (msg) msg.textContent = "Dashboard refreshed at " + (data.fetched_at || new Date().toLocaleTimeString());
       } catch (err) {
         if (msg) msg.textContent = "Dashboard refresh failed: " + err.message;
+      }
+    }
+
+
+  
+    function setDiagnosticsText(selector, value) {
+      const el = document.querySelector(selector);
+      if (el) el.textContent = value ?? "Unknown";
+    }
+
+    function cleanDiagnosticsVersion(rawVersion, rawSerial) {
+      let text = String(rawVersion || "Unknown").trim();
+      let serial = String(rawSerial || "").replaceAll("*", "").trim();
+      if (!text || text.toLowerCase() === "unknown") return "Unknown";
+      if (serial) {
+        text = text.replaceAll(`*${serial}*`, "");
+        text = text.replaceAll(serial, "");
+      }
+      text = text.replaceAll("*", " ").replace(/\s+/g, " ").trim();
+      return text || rawVersion || "Unknown";
+    }
+
+    function cleanDiagnosticsSerial(rawSerial) {
+      let text = String(rawSerial || "Unknown").trim();
+      if (!text || text.toLowerCase() === "unknown") return "Unknown";
+      return text.replaceAll("*", "").trim() || text;
+    }
+
+    function updateDiagnosticCard(title, status, className, detail) {
+      const statusEl = document.querySelector(`[data-diagnostic-status="${title}"]`);
+      const detailEl = document.querySelector(`[data-diagnostic-detail="${title}"]`);
+      if (statusEl) {
+        statusEl.className = `diagnostic-status ${className}`;
+        statusEl.textContent = status;
+      }
+      if (detailEl) {
+        detailEl.textContent = detail;
+      }
+    }
+
+    async function refreshDiagnostics() {
+      const msg = document.getElementById("diagnostics-refresh-message");
+      if (msg) msg.textContent = "Refreshing diagnostics from /api/status...";
+
+      try {
+        const response = await fetch("api/status", { cache: "no-store" });
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        const data = await response.json();
+
+        const warningCount = Number(data.warning_count || 0);
+        const stale = String(data.stale || "Unknown").toUpperCase();
+        const availability = String(data.availability || "Unknown").toLowerCase();
+        const monitorState = String(data.monitor_state || "Unknown").toLowerCase();
+        const bmsFresh = stale === "OFF" && data.last_analog_read && data.last_analog_read !== "Unknown";
+        const monitorOk = availability === "online" && monitorState === "running";
+
+        setDiagnosticsText("#diagnostics-overall-status", data.overall_status);
+        setDiagnosticsText("#diagnostics-bms-serial", cleanDiagnosticsSerial(data.bms_sn));
+        setDiagnosticsText("#diagnostics-bms-version", cleanDiagnosticsVersion(data.bms_version, data.bms_sn));
+        setDiagnosticsText("#diagnostics-layout", data.layout);
+        setDiagnosticsText("#diagnostics-last-analog", data.last_analog_read);
+        setDiagnosticsText("#diagnostics-last-warning", data.last_warn_read);
+
+        updateDiagnosticCard(
+          "MQTT Snapshot",
+          "OK",
+          "healthy",
+          "Live MQTT retained values were received."
+        );
+
+        updateDiagnosticCard(
+          "Monitor",
+          monitorOk ? "Running" : "Check",
+          monitorOk ? "healthy" : "warning",
+          `Availability: ${data.availability || "Unknown"} | State: ${data.monitor_state || "Unknown"}`
+        );
+
+        updateDiagnosticCard(
+          "BMS Reads",
+          bmsFresh ? "Fresh" : "Stale/Unknown",
+          bmsFresh ? "healthy" : "warning",
+          `Analog age: ${data.analog_age_seconds ?? "Unknown"}s | Warning age: ${data.warn_age_seconds ?? "Unknown"}s`
+        );
+
+        updateDiagnosticCard(
+          "Warnings",
+          warningCount ? "Active" : "Normal",
+          warningCount ? "warning" : "healthy",
+          `${warningCount} pack(s) with active BMS warnings.`
+        );
+
+        if (msg) msg.textContent = "Diagnostics refreshed at " + (data.fetched_at || new Date().toLocaleTimeString());
+      } catch (err) {
+        if (msg) msg.textContent = "Diagnostics refresh failed: " + err.message;
       }
     }
 

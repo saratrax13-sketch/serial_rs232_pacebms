@@ -1,14 +1,13 @@
-## 2.5.3 - 2026-05-17
+## 2.5.4 - 2026-05-17
 
-### Fixed
-- Fixed the Detailed Cell Data role badge showing as an empty pill.
-- Pack 01 now shows a clear `Master` badge.
-- Pack 02 and above now show a clear `Slave` badge.
-- Improved role badge width, contrast and readability.
-- Added a safer fallback role display in the template.
+### Added
+- Added `Refresh Diagnostics` button to the Diagnostics tab.
+- Diagnostics refresh now uses `/api/status` without a full page reload.
+- Refresh updates key health cards and current system summary fields.
 
 ### Notes
-- This is a web UI display fix only.
-- Detailed cell values are unchanged.
+- Refresh uses retained MQTT/add-on status values only.
+- This is a web UI usability improvement.
 - No BMS protocol changes were made.
 - No BMS write/control commands were added.
+- The add-on remains read-only to the BMS.
