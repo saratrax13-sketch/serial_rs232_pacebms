@@ -1,13 +1,13 @@
-## 2.3.12 - 2026-05-17
+## 2.3.13 - 2026-05-17
 
-### Changed
-- Hid `Download All ZIP` when there are no configuration backups.
-- Hid backup filter buttons when there are no configuration backups.
-- Added a clear Backups tab guide explaining when to use Create Backup, Download All ZIP, Compare, Restore Preview, Download and Delete.
-- Improved the empty-backup message.
+### Added
+- Added updated README web UI overview section.
+- Added dedicated configuration backup and restore documentation.
+- Added release notes for the stable web config and backup management release.
 
 ### Notes
-- This is a web UI clarity release.
-- Backup actions affect local add-on config backup files only.
-- This does not write to the BMS.
+- This is a documentation and release notes update.
+- No Python monitor logic changes were made.
+- No web UI code changes were made.
 - No BMS protocol changes were made.
+- No BMS write/control commands were added.
