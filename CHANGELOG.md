@@ -1,20 +1,17 @@
-## 2.4.7 - 2026-05-17
+## 2.5.1 - 2026-05-17
 
 ### Added
-- Added `Download Support Bundle ZIP` button to the Diagnostics tab.
-- Added `/download-support-bundle.zip` route.
-- Support bundle includes:
-  - `diagnostics.json`
-  - `events.json`
-  - `backup-summary.json`
-  - `sanitized-config.json`
-  - `readme-support.txt`
-- Sensitive values are redacted from the support bundle.
-- Full backup files are not included in the support bundle.
+- Added Dashboard warning summary.
+- Added Pack Comparison Cards.
+- Added API-based Refresh Dashboard button using `/api/status`.
+- Added live dashboard refresh for summary values, pack cards, bar charts and highest/lowest cell range indicators.
+
+### Changed
+- Improved Dashboard chart labels and descriptions.
+- Clarified that dashboard charts use current retained MQTT values only.
 
 ### Notes
-- This is a diagnostics/support export release.
-- The support bundle exports information only.
-- It does not change Home Assistant settings.
-- It does not write to the BMS.
+- No historical charting or database storage was added.
 - No BMS protocol changes were made.
+- No BMS write/control commands were added.
+- The add-on remains read-only to the BMS.

@@ -237,6 +237,87 @@
       color: #fecaca;
     }
 
+    .dashboard-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .pack-comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .pack-comparison-card {
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .pack-comparison-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .pack-comparison-title {
+      font-size: 20px;
+      font-weight: 950;
+      color: #f8fafc;
+    }
+
+    .pack-role {
+      display: inline-flex;
+      border-radius: 999px;
+      padding: 5px 9px;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: #bae6fd;
+      background: rgba(14, 165, 233, 0.10);
+      font-weight: 900;
+      white-space: nowrap;
+      font-size: 12px;
+    }
+
+    .pack-metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .pack-metric {
+      background: rgba(30, 41, 59, 0.72);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      border-radius: 12px;
+      padding: 10px;
+    }
+
+    .pack-metric-label {
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .pack-metric-value {
+      color: #f8fafc;
+      font-size: 16px;
+      font-weight: 950;
+    }
+
+    .dashboard-refresh-message {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 8px;
+      line-height: 1.45;
+    }
+
     .chart-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
@@ -436,6 +517,137 @@
       font-size: 12px;
       margin-top: 4px;
       line-height: 1.35;
+    }
+
+    .cell-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 16px;
+      margin-top: 12px;
+    }
+
+    .cell-pack-card {
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .cell-pack-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .cell-pack-title {
+      color: #f8fafc;
+      font-size: 20px;
+      font-weight: 950;
+    }
+
+    .cell-role-badge {
+      display: inline-flex;
+      border-radius: 999px;
+      padding: 5px 9px;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: #bae6fd;
+      background: rgba(14, 165, 233, 0.10);
+      font-weight: 900;
+      white-space: nowrap;
+      font-size: 12px;
+    }
+
+    .cell-summary-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .cell-summary-tile {
+      background: rgba(30, 41, 59, 0.75);
+      border-radius: 12px;
+      padding: 9px;
+      border: 1px solid rgba(148, 163, 184, 0.12);
+    }
+
+    .cell-summary-label {
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .cell-summary-value {
+      color: #f8fafc;
+      font-weight: 900;
+      font-size: 14px;
+    }
+
+    .cell-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    .cell-table th {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      text-align: left;
+      padding: 8px 6px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .cell-table td {
+      color: #e5e7eb;
+      padding: 8px 6px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+      vertical-align: top;
+    }
+
+    .cell-voltage {
+      font-weight: 900;
+      color: #f8fafc;
+    }
+
+    .cell-labels {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .cell-label {
+      display: inline-flex;
+      border-radius: 999px;
+      padding: 3px 7px;
+      font-size: 11px;
+      font-weight: 900;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      color: #cbd5e1;
+      background: rgba(30, 41, 59, 0.72);
+    }
+
+    .cell-label.highlow {
+      color: #fcd34d;
+      border-color: rgba(245, 158, 11, 0.35);
+      background: rgba(245, 158, 11, 0.10);
+    }
+
+    .cell-label.alert {
+      color: #fecaca;
+      border-color: rgba(248, 113, 113, 0.40);
+      background: rgba(248, 113, 113, 0.12);
+    }
+
+    .cell-alert .cell-voltage {
+      color: #fecaca;
+    }
+
+    .cell-highlow .cell-voltage {
+      color: #fcd34d;
     }
 
     @media (max-width: 980px) {
@@ -1259,42 +1471,126 @@
     <section class="tab-panel {% if active_tab == 'dashboard' %}active{% endif %}">
       <section class="card wide-card">
         <h2>Dashboard Charts</h2>
-        <p>Current-value charts built from the latest retained MQTT values. These are not historical charts.</p>
+        <p>Current-value dashboard built from the latest retained MQTT values. These are not historical charts.</p>
         <div class="actions">
           <a class="button-link" href="?tab=status">Open Status</a>
-          <button type="button" onclick="location.reload()">Refresh Charts</button>
+          <button type="button" onclick="refreshDashboard()">Refresh Dashboard</button>
         </div>
+        <div id="dashboard-refresh-message" class="dashboard-refresh-message">Dashboard loaded from current retained MQTT values.</div>
       </section>
 
       {% if live and live.packs %}
+      <section class="dashboard-summary">
+        <div class="status-tile">
+          <div class="tile-label">Overall Status</div>
+          <div id="dashboard-overall-status" class="tile-value">{{ live.overall_status }}</div>
+        </div>
+        <div class="status-tile">
+          <div class="tile-label">Detected Packs</div>
+          <div id="dashboard-pack-count" class="tile-value">{{ live.pack_count }}</div>
+        </div>
+        <div class="status-tile">
+          <div class="tile-label">Total Cells</div>
+          <div id="dashboard-total-cells" class="tile-value">{{ live.total_cells }}</div>
+        </div>
+        <div class="status-tile">
+          <div class="tile-label">Warnings</div>
+          <div id="dashboard-warning-count" class="tile-value">{{ live.warning_count }}</div>
+        </div>
+        <div class="status-tile">
+          <div class="tile-label">Data Stale</div>
+          <div id="dashboard-stale" class="tile-value">{{ live.stale }}</div>
+        </div>
+        <div class="status-tile">
+          <div class="tile-label">Last Refresh</div>
+          <div id="dashboard-last-refresh" class="tile-value">{{ live.fetched_at }}</div>
+        </div>
+      </section>
+
+      <section class="card wide-card">
+        <h2>Warning Summary</h2>
+        {% if live.warning_count %}
+          <div id="dashboard-warning-summary" class="alert">
+            {{ live.warning_count }} pack(s) currently have active BMS warnings. Open the Status tab for the full warning text and reference checks.
+          </div>
+        {% else %}
+          <div id="dashboard-warning-summary" class="normal-box">
+            No active BMS warnings reported in the current retained MQTT snapshot.
+          </div>
+        {% endif %}
+      </section>
+
+      <section class="card wide-card">
+        <h2>Pack Comparison Cards</h2>
+        <div class="pack-comparison-grid" id="pack-comparison-grid">
+          {% for pack in live.packs %}
+          <article class="pack-comparison-card" data-pack-card="{{ pack.id }}">
+            <div class="pack-comparison-header">
+              <div>
+                <div class="pack-comparison-title">Pack {{ pack.id }}</div>
+                <div class="topology-note">{% if pack.id == '1' %}Master{% else %}Slave{% endif %}</div>
+              </div>
+              <span class="pack-role">{% if pack.id == '1' %}Master{% else %}Slave{% endif %}</span>
+            </div>
+            <div class="pack-metric-grid">
+              <div class="pack-metric">
+                <div class="pack-metric-label">SOC</div>
+                <div class="pack-metric-value" data-pack-field="{{ pack.id }}-soc">{{ pack.soc }}%</div>
+              </div>
+              <div class="pack-metric">
+                <div class="pack-metric-label">SOH</div>
+                <div class="pack-metric-value" data-pack-field="{{ pack.id }}-soh">{{ pack.soh }}%</div>
+              </div>
+              <div class="pack-metric">
+                <div class="pack-metric-label">Voltage</div>
+                <div class="pack-metric-value" data-pack-field="{{ pack.id }}-voltage">{{ pack.voltage }} V</div>
+              </div>
+              <div class="pack-metric">
+                <div class="pack-metric-label">Current</div>
+                <div class="pack-metric-value" data-pack-field="{{ pack.id }}-current">{{ pack.current }} A</div>
+              </div>
+              <div class="pack-metric">
+                <div class="pack-metric-label">Cell Delta</div>
+                <div class="pack-metric-value" data-pack-field="{{ pack.id }}-delta">{{ pack.delta }} mV</div>
+              </div>
+              <div class="pack-metric">
+                <div class="pack-metric-label">Status</div>
+                <div class="pack-metric-value" data-pack-field="{{ pack.id }}-status">{% if pack.warnings == 'Normal' %}Normal{% else %}{{ pack.severity_label }}{% endif %}</div>
+              </div>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+
       <section class="chart-grid">
         <article class="chart-card">
           <div class="chart-title">Pack SOC Comparison</div>
-          <div class="chart-subtitle">State of Charge per detected pack.</div>
+          <div class="chart-subtitle">State of Charge per detected pack. Scale: 0% to 100%.</div>
           {% for pack in live.packs %}
           <div class="bar-row">
             <div class="bar-label">Pack {{ pack.id }}</div>
-            <div class="bar-track"><div class="bar-fill" style="width: {{ pack.soc|float }}%;"></div></div>
-            <div class="bar-value">{{ pack.soc }}%</div>
+            <div class="bar-track"><div class="bar-fill" data-chart="soc" data-pack="{{ pack.id }}" style="width: {{ pack.soc|float }}%;"></div></div>
+            <div class="bar-value" data-chart-value="soc-{{ pack.id }}">{{ pack.soc }}%</div>
           </div>
           {% endfor %}
         </article>
 
         <article class="chart-card">
           <div class="chart-title">Pack SOH Comparison</div>
-          <div class="chart-subtitle">State of Health per detected pack.</div>
+          <div class="chart-subtitle">State of Health per detected pack. Scale: 0% to 100%.</div>
           {% for pack in live.packs %}
           <div class="bar-row">
             <div class="bar-label">Pack {{ pack.id }}</div>
-            <div class="bar-track"><div class="bar-fill" style="width: {{ pack.soh|float }}%;"></div></div>
-            <div class="bar-value">{{ pack.soh }}%</div>
+            <div class="bar-track"><div class="bar-fill" data-chart="soh" data-pack="{{ pack.id }}" style="width: {{ pack.soh|float }}%;"></div></div>
+            <div class="bar-value" data-chart-value="soh-{{ pack.id }}">{{ pack.soh }}%</div>
           </div>
           {% endfor %}
         </article>
 
         <article class="chart-card">
-          <div class="chart-title">Pack Voltage</div>
-          <div class="chart-subtitle">Pack voltage scaled against the highest detected pack voltage.</div>
+          <div class="chart-title">Pack Voltage Comparison</div>
+          <div class="chart-subtitle">Voltage scaled against the highest detected pack voltage in the current snapshot.</div>
           {% set max_voltage = namespace(value=0) %}
           {% for pack in live.packs %}
             {% if pack.voltage|float > max_voltage.value %}
@@ -1304,15 +1600,15 @@
           {% for pack in live.packs %}
           <div class="bar-row">
             <div class="bar-label">Pack {{ pack.id }}</div>
-            <div class="bar-track"><div class="bar-fill" style="width: {% if max_voltage.value > 0 %}{{ ((pack.voltage|float / max_voltage.value) * 100)|round(1) }}{% else %}0{% endif %}%;"></div></div>
-            <div class="bar-value">{{ pack.voltage }} V</div>
+            <div class="bar-track"><div class="bar-fill" data-chart="voltage" data-pack="{{ pack.id }}" style="width: {% if max_voltage.value > 0 %}{{ ((pack.voltage|float / max_voltage.value) * 100)|round(1) }}{% else %}0{% endif %}%;"></div></div>
+            <div class="bar-value" data-chart-value="voltage-{{ pack.id }}">{{ pack.voltage }} V</div>
           </div>
           {% endfor %}
         </article>
 
         <article class="chart-card">
-          <div class="chart-title">Cell Delta</div>
-          <div class="chart-subtitle">Cell voltage difference per pack. Lower is better.</div>
+          <div class="chart-title">Cell Delta Comparison</div>
+          <div class="chart-subtitle">Cell voltage difference per pack. Lower is better. Scale is relative to the highest current delta.</div>
           {% set max_delta = namespace(value=0) %}
           {% for pack in live.packs %}
             {% if pack.delta|float > max_delta.value %}
@@ -1322,8 +1618,8 @@
           {% for pack in live.packs %}
           <div class="bar-row">
             <div class="bar-label">Pack {{ pack.id }}</div>
-            <div class="bar-track"><div class="bar-fill warn" style="width: {% if max_delta.value > 0 %}{{ ((pack.delta|float / max_delta.value) * 100)|round(1) }}{% else %}0{% endif %}%;"></div></div>
-            <div class="bar-value">{{ pack.delta }} mV</div>
+            <div class="bar-track"><div class="bar-fill warn" data-chart="delta" data-pack="{{ pack.id }}" style="width: {% if max_delta.value > 0 %}{{ ((pack.delta|float / max_delta.value) * 100)|round(1) }}{% else %}0{% endif %}%;"></div></div>
+            <div class="bar-value" data-chart-value="delta-{{ pack.id }}">{{ pack.delta }} mV</div>
           </div>
           {% endfor %}
         </article>
@@ -1346,10 +1642,10 @@
             <div class="bar-label">Pack {{ pack.id }}</div>
             <div>
               <div class="range-track">
-                <span class="range-dot low" style="left: {{ low_pos|round(1) }}%;"></span>
-                <span class="range-dot high" style="left: {{ high_pos|round(1) }}%;"></span>
+                <span class="range-dot low" data-range-dot="low-{{ pack.id }}" style="left: {{ low_pos|round(1) }}%;"></span>
+                <span class="range-dot high" data-range-dot="high-{{ pack.id }}" style="left: {{ high_pos|round(1) }}%;"></span>
               </div>
-              <div class="range-values">Lowest: Cell {{ pack.lowest_cell.number }} = {{ pack.lowest_cell.voltage }} V | Highest: Cell {{ pack.highest_cell.number }} = {{ pack.highest_cell.voltage }} V</div>
+              <div class="range-values" data-range-value="{{ pack.id }}">Lowest: Cell {{ pack.lowest_cell.number }} = {{ pack.lowest_cell.voltage }} V | Highest: Cell {{ pack.highest_cell.number }} = {{ pack.highest_cell.voltage }} V</div>
             </div>
           </div>
           {% endfor %}
@@ -1781,6 +2077,81 @@ This cannot be undone.`);">
         <div class="helper-note">
           If a slave pack serial shows as "Not reported separately", it means the current BMS read does not expose a unique serial for that pack. The UI will not invent serial numbers.
         </div>
+      </section>
+
+      <section class="card wide-card">
+        <h2>Detailed Cell Data</h2>
+        <p>Current cell voltages per detected pack. Values come from retained MQTT cell topics and are shown for troubleshooting and balancing checks.</p>
+
+        <div class="helper-note">
+          Cell labels are based on the current snapshot. "Highest" and "Lowest" identify the pack's current cell extremes. Reference labels use the configured warning detail references.
+        </div>
+
+        {% if live and live.packs %}
+        <div class="cell-detail-grid">
+          {% for pack in live.packs %}
+          <article class="cell-pack-card">
+            <div class="cell-pack-header">
+              <div>
+                <div class="cell-pack-title">Pack {{ pack.id }}</div>
+                <div class="topology-note">{{ pack.cell_count }} cells detected</div>
+              </div>
+              <span class="cell-role-badge">{% if pack.id == '1' %}Master{% else %}Slave{% endif %}</span>
+            </div>
+
+            <div class="cell-summary-row">
+              <div class="cell-summary-tile">
+                <div class="cell-summary-label">Highest</div>
+                <div class="cell-summary-value">Cell {{ pack.highest_cell.number }} = {{ pack.highest_cell.voltage }} V</div>
+              </div>
+              <div class="cell-summary-tile">
+                <div class="cell-summary-label">Lowest</div>
+                <div class="cell-summary-value">Cell {{ pack.lowest_cell.number }} = {{ pack.lowest_cell.voltage }} V</div>
+              </div>
+              <div class="cell-summary-tile">
+                <div class="cell-summary-label">Delta</div>
+                <div class="cell-summary-value">{{ pack.delta }} mV</div>
+              </div>
+            </div>
+
+            {% if pack.cells %}
+            <table class="cell-table">
+              <thead>
+                <tr>
+                  <th>Cell</th>
+                  <th>Voltage</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for cell in pack.cells %}
+                <tr class="{{ cell.class }}">
+                  <td>Cell {{ cell.number }}</td>
+                  <td class="cell-voltage">{{ cell.voltage }} V</td>
+                  <td>
+                    {% if cell.labels %}
+                    <div class="cell-labels">
+                      {% for label in cell.labels %}
+                      <span class="cell-label {% if 'reference' in label %}alert{% else %}highlow{% endif %}">{{ label }}</span>
+                      {% endfor %}
+                    </div>
+                    {% else %}
+                    <span class="cell-label">Normal</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% else %}
+            <p>No individual cell values are currently available for this pack.</p>
+            {% endif %}
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p>No cell data available. Check Status and confirm MQTT retained cell topics are available.</p>
+        {% endif %}
       </section>
 
       <section class="card wide-card">
@@ -2285,6 +2656,95 @@ Restart the add-on afterwards for runtime changes to apply.`);
         const show = type === "all" || rowType === type;
         row.style.display = show ? "" : "none";
       });
+    }
+
+
+  
+    function setDashboardText(selector, value) {
+      const el = document.querySelector(selector);
+      if (el) el.textContent = value ?? "Unknown";
+    }
+
+    function setDashboardAll(selector, value) {
+      document.querySelectorAll(selector).forEach(function (el) {
+        el.textContent = value ?? "Unknown";
+      });
+    }
+
+    function setBar(chart, packId, percent, valueText) {
+      const bar = document.querySelector(`[data-chart="${chart}"][data-pack="${packId}"]`);
+      const value = document.querySelector(`[data-chart-value="${chart}-${packId}"]`);
+      if (bar) bar.style.width = Math.max(0, Math.min(100, Number(percent) || 0)) + "%";
+      if (value) value.textContent = valueText;
+    }
+
+    function cellDotPosition(voltage) {
+      const minRef = 2.5;
+      const maxRef = 4.3;
+      const pos = ((Number(voltage) - minRef) / (maxRef - minRef)) * 100;
+      return Math.max(0, Math.min(100, pos || 0));
+    }
+
+    async function refreshDashboard() {
+      const msg = document.getElementById("dashboard-refresh-message");
+      if (msg) msg.textContent = "Refreshing dashboard from /api/status...";
+
+      try {
+        const response = await fetch("api/status", { cache: "no-store" });
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        const data = await response.json();
+
+        setDashboardText("#dashboard-overall-status", data.overall_status);
+        setDashboardText("#dashboard-pack-count", data.pack_count);
+        setDashboardText("#dashboard-total-cells", data.total_cells);
+        setDashboardText("#dashboard-warning-count", data.warning_count);
+        setDashboardText("#dashboard-stale", data.stale);
+        setDashboardText("#dashboard-last-refresh", data.fetched_at);
+
+        const warningBox = document.getElementById("dashboard-warning-summary");
+        if (warningBox) {
+          if (Number(data.warning_count || 0) > 0) {
+            warningBox.className = "alert";
+            warningBox.textContent = `${data.warning_count} pack(s) currently have active BMS warnings. Open the Status tab for the full warning text and reference checks.`;
+          } else {
+            warningBox.className = "normal-box";
+            warningBox.textContent = "No active BMS warnings reported in the current retained MQTT snapshot.";
+          }
+        }
+
+        const packs = data.packs || [];
+        const maxVoltage = Math.max(...packs.map(p => Number(p.voltage) || 0), 0);
+        const maxDelta = Math.max(...packs.map(p => Number(p.delta) || 0), 0);
+
+        packs.forEach(function (pack) {
+          const id = String(pack.id);
+
+          setDashboardText(`[data-pack-field="${id}-soc"]`, `${pack.soc}%`);
+          setDashboardText(`[data-pack-field="${id}-soh"]`, `${pack.soh}%`);
+          setDashboardText(`[data-pack-field="${id}-voltage"]`, `${pack.voltage} V`);
+          setDashboardText(`[data-pack-field="${id}-current"]`, `${pack.current} A`);
+          setDashboardText(`[data-pack-field="${id}-delta"]`, `${pack.delta} mV`);
+          setDashboardText(`[data-pack-field="${id}-status"]`, pack.warnings === "Normal" ? "Normal" : (pack.severity_label || "Warning"));
+
+          setBar("soc", id, Number(pack.soc) || 0, `${pack.soc}%`);
+          setBar("soh", id, Number(pack.soh) || 0, `${pack.soh}%`);
+          setBar("voltage", id, maxVoltage > 0 ? ((Number(pack.voltage) || 0) / maxVoltage) * 100 : 0, `${pack.voltage} V`);
+          setBar("delta", id, maxDelta > 0 ? ((Number(pack.delta) || 0) / maxDelta) * 100 : 0, `${pack.delta} mV`);
+
+          const lowDot = document.querySelector(`[data-range-dot="low-${id}"]`);
+          const highDot = document.querySelector(`[data-range-dot="high-${id}"]`);
+          const rangeValue = document.querySelector(`[data-range-value="${id}"]`);
+          if (lowDot && pack.lowest_cell) lowDot.style.left = cellDotPosition(pack.lowest_cell.voltage) + "%";
+          if (highDot && pack.highest_cell) highDot.style.left = cellDotPosition(pack.highest_cell.voltage) + "%";
+          if (rangeValue && pack.lowest_cell && pack.highest_cell) {
+            rangeValue.textContent = `Lowest: Cell ${pack.lowest_cell.number} = ${pack.lowest_cell.voltage} V | Highest: Cell ${pack.highest_cell.number} = ${pack.highest_cell.voltage} V`;
+          }
+        });
+
+        if (msg) msg.textContent = "Dashboard refreshed at " + (data.fetched_at || new Date().toLocaleTimeString());
+      } catch (err) {
+        if (msg) msg.textContent = "Dashboard refresh failed: " + err.message;
+      }
     }
 
 

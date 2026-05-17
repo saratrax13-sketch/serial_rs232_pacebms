@@ -607,11 +607,30 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
         highest_cell_v = None
         lowest_cell_v = None
 
+        detailed_cells = []
         if cell_values:
             high_num, highest_cell_v = max(cell_values, key=lambda item: item[1])
             low_num, lowest_cell_v = min(cell_values, key=lambda item: item[1])
             highest_cell = {"number": f"{high_num:02d}", "voltage": f"{highest_cell_v:.3f}"}
             lowest_cell = {"number": f"{low_num:02d}", "voltage": f"{lowest_cell_v:.3f}"}
+
+            for cell_num, cell_v in sorted(cell_values, key=lambda item: item[0]):
+                labels = []
+                if cell_num == high_num:
+                    labels.append("Highest")
+                if cell_num == low_num:
+                    labels.append("Lowest")
+                if cell_v > cell_high_ref:
+                    labels.append("Above high reference")
+                if cell_v < cell_low_ref:
+                    labels.append("Below low reference")
+
+                detailed_cells.append({
+                    "number": f"{cell_num:02d}",
+                    "voltage": f"{cell_v:.3f}",
+                    "labels": labels,
+                    "class": "cell-alert" if ("Above high reference" in labels or "Below low reference" in labels) else ("cell-highlow" if labels else "cell-normal"),
+                })
 
         pack_v = _to_float(voltage)
         pack_high_ref = cell_high_ref * cell_count if cell_count else None
@@ -667,6 +686,7 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
             "severity_label": severity_label,
             "highest_cell": highest_cell,
             "lowest_cell": lowest_cell,
+            "cells": detailed_cells,
             "cell_high_ref": f"{cell_high_ref:.2f}",
             "cell_low_ref": f"{cell_low_ref:.2f}",
             "pack_high_ref": f"{pack_high_ref:.2f}" if pack_high_ref is not None else "Unknown",
