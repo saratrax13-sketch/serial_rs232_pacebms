@@ -1,3 +1,18 @@
+## 2.6.37 - 2026-05-17
+
+### Added
+- Added Monitoring Health, analog age and warning age to the Dashboard summary.
+- Added a Dashboard Monitoring Snapshot block for easier support screenshots.
+- Added `docs/screenshots/README.md` with recommended screenshot names and privacy guidance.
+
+### Changed
+- Updated the first-time setup guide with clearer Status, Dashboard and screenshot validation steps.
+- Updated README screenshot guidance to point users at the screenshot guide.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.36 - 2026-05-17
 
 ### Added

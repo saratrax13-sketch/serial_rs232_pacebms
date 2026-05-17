@@ -21,7 +21,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.36"
+version: "2.6.37"
 ```
 
 ---
@@ -223,6 +223,8 @@ Recommended screenshots to include when asking for support:
 - Example Telegram alert if notifications are enabled.
 
 Do not share screenshots that expose the full Telegram bot token, Telegram chat ID or MQTT password.
+
+Screenshot naming and privacy guidance is kept in [`docs/screenshots/README.md`](docs/screenshots/README.md). The repository may include example screenshots over time, but users should always hide secrets before sharing images publicly.
 
 ---
 

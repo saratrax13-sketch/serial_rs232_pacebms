@@ -880,8 +880,8 @@
       word-break: break-word;
     }
 
-    .tile-value.online, .tile-value.running, .tile-value.off, .value.ok { color: var(--green); }
-    .tile-value.offline, .tile-value.disconnected, .tile-value.on, .value.warn { color: var(--yellow); }
+    .tile-value.online, .tile-value.running, .tile-value.off, .tile-value.healthy, .value.ok { color: var(--green); }
+    .tile-value.offline, .tile-value.disconnected, .tile-value.on, .tile-value.warning, .tile-value.stale, .value.warn { color: var(--yellow); }
     .value.off { color: #cbd5e1; }
 
     .pill {
@@ -2148,6 +2148,20 @@
           <div class="tile-label">Overall Status</div>
           <div id="dashboard-overall-status" class="tile-value">{{ live.overall_status }}</div>
         </div>
+        {% if live.monitoring_health %}
+        <div class="status-tile">
+          <div class="tile-label">Monitoring Health</div>
+          <div id="dashboard-monitoring-health" class="tile-value {{ live.monitoring_health.class }}">{{ live.monitoring_health.status }}</div>
+        </div>
+        <div class="status-tile">
+          <div class="tile-label">Analog Age</div>
+          <div id="dashboard-analog-age" class="tile-value">{{ live.analog_age_seconds }}s</div>
+        </div>
+        <div class="status-tile">
+          <div class="tile-label">Warning Age</div>
+          <div id="dashboard-warning-age" class="tile-value">{{ live.warn_age_seconds }}s</div>
+        </div>
+        {% endif %}
         <div class="status-tile">
           <div class="tile-label">Detected Packs</div>
           <div id="dashboard-pack-count" class="tile-value">{{ live.pack_count }}</div>
@@ -2169,6 +2183,18 @@
           <div id="dashboard-last-refresh" class="tile-value">{{ live.fetched_at }}</div>
         </div>
       </section>
+
+      {% if live.monitoring_health %}
+      <section class="card wide-card">
+        <h2>Monitoring Snapshot</h2>
+        <div id="dashboard-health-summary" class="normal-box">{{ live.monitoring_health.summary }}</div>
+        <div class="fet-row">
+          <span class="pill {{ live.monitoring_health.class }}" id="dashboard-health-pill">{{ live.monitoring_health.status }}</span>
+          <span class="pill">Heartbeat timeout: {{ live.monitoring_health.heartbeat_timeout_seconds }}s</span>
+          <span class="pill">Stale threshold: {{ live.monitoring_health.stale_threshold_seconds }}s</span>
+        </div>
+      </section>
+      {% endif %}
 
       <section class="card wide-card">
         <h2>Warning Summary</h2>
@@ -3498,6 +3524,18 @@ Restart the add-on afterwards for runtime changes to apply.`);
         setDashboardText("#dashboard-warning-count", data.warning_count);
         setDashboardText("#dashboard-stale", data.stale);
         setDashboardText("#dashboard-last-refresh", data.fetched_at);
+
+        if (data.monitoring_health) {
+          setDashboardText("#dashboard-monitoring-health", data.monitoring_health.status);
+          const healthTile = document.getElementById("dashboard-monitoring-health");
+          if (healthTile) healthTile.className = "tile-value " + (data.monitoring_health.class || "warning");
+          setDashboardText("#dashboard-health-summary", data.monitoring_health.summary);
+          setDashboardText("#dashboard-health-pill", data.monitoring_health.status);
+          const healthPill = document.getElementById("dashboard-health-pill");
+          if (healthPill) healthPill.className = "pill " + (data.monitoring_health.class || "warning");
+        }
+        setDashboardText("#dashboard-analog-age", (data.analog_age_seconds ?? "Unknown") + "s");
+        setDashboardText("#dashboard-warning-age", (data.warn_age_seconds ?? "Unknown") + "s");
 
         const warningBox = document.getElementById("dashboard-warning-summary");
         if (warningBox) {

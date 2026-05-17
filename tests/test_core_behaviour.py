@@ -389,6 +389,75 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertEqual(health["status"], "Data Stale")
         self.assertEqual(health["class"], "stale")
 
+    def test_dashboard_page_renders_monitoring_snapshot(self):
+        options = {
+            "connection_type": "Serial",
+            "bms_serial": "/dev/ttyUSB0",
+            "scan_interval": 5,
+            "mqtt_host": "192.168.1.10",
+            "mqtt_port": 1883,
+            "mqtt_ha_discovery": True,
+            "mqtt_retain_state": True,
+            "notify_enabled": False,
+            "notify_stale_data_seconds": 120,
+            "notify_warning_repeat_caution_seconds": 21600,
+            "notify_warning_repeat_warning_seconds": 3600,
+            "notify_warning_repeat_critical_seconds": 900,
+        }
+        live = {
+            "ok": True,
+            "availability": "online",
+            "monitor_state": "running",
+            "stale": "OFF",
+            "stale_reason": "Fresh",
+            "last_analog_read": "2026-05-17 20:00:00",
+            "last_warn_read": "2026-05-17 20:00:01",
+            "analog_age_seconds": 1,
+            "warn_age_seconds": 1,
+            "overall_status": "Healthy",
+            "overall_class": "healthy",
+            "layout": "1 pack(s), 16 cells total",
+            "bms_sn": "TEST",
+            "base_topic": "pacebms",
+            "fetched_at": "now",
+            "error": "",
+            "severity_summary": {},
+            "pack_count": 1,
+            "total_cells": 16,
+            "warning_count": 0,
+            "packs": [{
+                "id": "01",
+                "cell_count": 16,
+                "soc": "95",
+                "soh": "99",
+                "voltage": "54.0",
+                "current": "1.0",
+                "delta": "12",
+                "warnings": "Normal",
+                "severity_class": "healthy",
+                "severity_label": "Normal",
+                "highest_cell": {"number": "01", "voltage": "3.400"},
+                "lowest_cell": {"number": "02", "voltage": "3.388"},
+            }],
+        }
+
+        with (
+            patch("web_config.load_options", return_value=(options, "")),
+            patch("web_config.fetch_mqtt_snapshot", return_value=live),
+            patch("web_config.load_events", return_value=[]),
+            patch("web_config.load_monitor_health", return_value={
+                "updated_at": 1000,
+                "state": "running",
+                "health_timeout_seconds": 60,
+            }),
+            patch("web_config.time.time", return_value=1001),
+        ):
+            response = web_config.app.test_client().get("/?tab=dashboard")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Monitoring Snapshot", response.data)
+        self.assertIn(b"dashboard-monitoring-health", response.data)
+
     def test_health_endpoint_fails_when_monitor_heartbeat_is_stale(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             original_path = web_config.MONITOR_HEALTH_PATH
