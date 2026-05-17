@@ -1,6 +1,7 @@
 import csv
 import io
 import json
+import re
 import os
 from pathlib import Path
 import time
@@ -1595,6 +1596,7 @@ def normalize_decimal_text(value):
 
 
 def is_valid_time_hhmm(value):
+    import re
     text = str(value or "").strip()
     if not re.fullmatch(r"\d{2}:\d{2}", text):
         return False
@@ -1604,6 +1606,7 @@ def is_valid_time_hhmm(value):
 
 def validate_config_options(options):
     """Validate web config options before saving to Home Assistant."""
+    import re
     errors = []
 
     for key in REQUIRED_TEXT_FIELDS:
