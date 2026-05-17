@@ -1,17 +1,13 @@
-## 2.5.1 - 2026-05-17
+## 2.5.2 - 2026-05-17
 
-### Added
-- Added Dashboard warning summary.
-- Added Pack Comparison Cards.
-- Added API-based Refresh Dashboard button using `/api/status`.
-- Added live dashboard refresh for summary values, pack cards, bar charts and highest/lowest cell range indicators.
-
-### Changed
-- Improved Dashboard chart labels and descriptions.
-- Clarified that dashboard charts use current retained MQTT values only.
+### Fixed
+- Fixed Pack 01 incorrectly showing as Slave in detailed cell data.
+- Added explicit `role` value to each detected pack.
+- Templates now use the pack role from backend data instead of comparing pack ID text/number values.
 
 ### Notes
-- No historical charting or database storage was added.
+- Pack 01 is displayed as Master.
+- Pack 02 and above are displayed as Slave.
+- This is a display fix only.
 - No BMS protocol changes were made.
 - No BMS write/control commands were added.
-- The add-on remains read-only to the BMS.

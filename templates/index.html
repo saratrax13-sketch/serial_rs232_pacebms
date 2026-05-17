@@ -1528,9 +1528,9 @@
             <div class="pack-comparison-header">
               <div>
                 <div class="pack-comparison-title">Pack {{ pack.id }}</div>
-                <div class="topology-note">{% if pack.id == '1' %}Master{% else %}Slave{% endif %}</div>
+                <div class="topology-note">{{ pack.role }}</div>
               </div>
-              <span class="pack-role">{% if pack.id == '1' %}Master{% else %}Slave{% endif %}</span>
+              <span class="pack-role">{{ pack.role }}</span>
             </div>
             <div class="pack-metric-grid">
               <div class="pack-metric">
@@ -2096,7 +2096,7 @@ This cannot be undone.`);">
                 <div class="cell-pack-title">Pack {{ pack.id }}</div>
                 <div class="topology-note">{{ pack.cell_count }} cells detected</div>
               </div>
-              <span class="cell-role-badge">{% if pack.id == '1' %}Master{% else %}Slave{% endif %}</span>
+              <span class="cell-role-badge">{{ pack.role }}</span>
             </div>
 
             <div class="cell-summary-row">
