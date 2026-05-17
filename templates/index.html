@@ -932,6 +932,38 @@
       font-weight: 900;
     }
 
+    .pack-quick-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin: 10px 0 4px;
+    }
+
+    .pack-quick-item {
+      background: rgba(15, 23, 42, 0.66);
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      border-radius: 12px;
+      padding: 8px 9px;
+      min-width: 0;
+    }
+
+    .pack-quick-label {
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .pack-quick-value {
+      color: #f8fafc;
+      font-size: 14px;
+      font-weight: 950;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     .metric-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -1447,6 +1479,7 @@
       .row { grid-template-columns: 1fr; gap: 4px; }
       .value { text-align: left; }
       .metric-grid { grid-template-columns: repeat(2, 1fr); }
+      .pack-quick-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .event-item { grid-template-columns: 1fr auto; }
       .event-time { grid-column: 1 / -1; }
     }
@@ -2072,6 +2105,25 @@
                 <div class="summary-meta">{{ pack.cell_count }} cells detected</div>
               </div>
               <span class="pill {{ pack.severity_class }}">{{ pack.severity_label }}</span>
+            </div>
+
+            <div class="pack-quick-strip">
+              <div class="pack-quick-item">
+                <div class="pack-quick-label">SOC</div>
+                <div class="pack-quick-value">{{ pack.soc }}%</div>
+              </div>
+              <div class="pack-quick-item">
+                <div class="pack-quick-label">SOH</div>
+                <div class="pack-quick-value">{{ pack.soh }}%</div>
+              </div>
+              <div class="pack-quick-item">
+                <div class="pack-quick-label">Cycles</div>
+                <div class="pack-quick-value">{{ pack.cycles }}</div>
+              </div>
+              <div class="pack-quick-item">
+                <div class="pack-quick-label">Delta</div>
+                <div class="pack-quick-value">{{ pack.delta }} mV</div>
+              </div>
             </div>
 
             <div class="metric-section">
@@ -2769,6 +2821,18 @@ This cannot be undone.`);">
           <div class="status-tile">
             <div class="tile-label">Total Cells</div>
             <div class="tile-value">{{ diagnostics.battery_topology.total_cells }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Max Cycles</div>
+            <div class="tile-value">{{ diagnostics.battery_topology.max_cycles }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Lowest SOH</div>
+            <div class="tile-value">{{ diagnostics.battery_topology.min_soh }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Average SOC</div>
+            <div class="tile-value">{{ diagnostics.battery_topology.avg_soc }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Master Pack</div>

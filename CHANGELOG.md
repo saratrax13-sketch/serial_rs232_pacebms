@@ -1,3 +1,16 @@
+## 2.6.40 - 2026-05-17
+
+### Added
+- Added a compact quick summary strip to each Status pack card for SOC, SOH, cycles and cell delta.
+- Added Diagnostics battery-life summary tiles for max cycles, lowest SOH and average SOC.
+
+### Changed
+- Improved pack-card scanability while keeping the grouped detail sections.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.39 - 2026-05-17
 
 ### Changed

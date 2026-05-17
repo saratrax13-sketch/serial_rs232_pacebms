@@ -462,6 +462,7 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"42", response.data)
         self.assertIn(b"Battery Health", response.data)
         self.assertIn(b"Cell Balance", response.data)
+        self.assertIn(b"pack-quick-strip", response.data)
 
     def test_diagnostics_battery_configuration_includes_cycles(self):
         options = {
@@ -535,6 +536,9 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"Battery Configuration", response.data)
         self.assertIn(b"Cycles", response.data)
         self.assertIn(b"42", response.data)
+        self.assertIn(b"Max Cycles", response.data)
+        self.assertIn(b"Lowest SOH", response.data)
+        self.assertIn(b"Average SOC", response.data)
 
     def test_health_endpoint_fails_when_monitor_heartbeat_is_stale(self):
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -1159,6 +1159,9 @@ def build_battery_topology(options, live):
         configuration = "Master + Slave"
 
     rows = []
+    cycle_values = []
+    soh_values = []
+    soc_values = []
     for pack in packs:
         try:
             pack_num = int(str(pack.get("id", "0")))
@@ -1192,6 +1195,15 @@ def build_battery_topology(options, live):
             "status": status,
             "warnings": warnings,
         })
+        cycles = _to_float(pack.get("cycles"))
+        soh = _to_float(pack.get("soh"))
+        soc = _to_float(pack.get("soc"))
+        if cycles is not None:
+            cycle_values.append(int(cycles))
+        if soh is not None:
+            soh_values.append(soh)
+        if soc is not None:
+            soc_values.append(soc)
 
     return {
         "connection_type": options.get("connection_type", "Unknown"),
@@ -1203,6 +1215,9 @@ def build_battery_topology(options, live):
         "configuration": configuration,
         "master_pack": "Pack 01" if pack_count >= 1 else "None",
         "slave_packs": ", ".join(f"Pack {i:02d}" for i in range(2, pack_count + 1)) if pack_count > 1 else "None",
+        "max_cycles": max(cycle_values) if cycle_values else "Unknown",
+        "min_soh": f"{min(soh_values):.1f}%" if soh_values else "Unknown",
+        "avg_soc": f"{(sum(soc_values) / len(soc_values)):.1f}%" if soc_values else "Unknown",
         "rows": rows,
     }
 
