@@ -1,17 +1,17 @@
-## 2.5.5 - 2026-05-17
+## 2.6.0 - 2026-05-17
 
 ### Added
-- Added debug-only serial-number frame probe to `bms_monitor.py`.
-- When `debug_output >= 3`, the monitor now logs:
-  - raw C2 serial-number response info
-  - decoded printable serial response text
-  - serial-like candidates found in the response
-  - candidate positions inside the decoded frame
-  - a summary indicating whether one or multiple unique serial-like values were found
+- Added Warning Intelligence section to the Status tab.
+- Added per-pack warning intelligence cards.
+- Added plain-language warning context for each detected pack.
+- Added BMS internal warning summary per pack.
+- Added highest cell, lowest cell and cell delta context per pack.
+- Added reference check context per pack.
+- Added suggested operator focus text.
 
 ### Notes
-- This is diagnostic logging only.
-- Normal serial parsing is unchanged.
-- This does not add slave serial support yet.
-- This does not write to the BMS.
-- No BMS control commands were added.
+- This is a web UI operational clarity release.
+- Warning Intelligence uses current retained MQTT values and already-decoded BMS warnings.
+- No BMS protocol changes were made.
+- No BMS write/control commands were added.
+- The add-on remains read-only to the BMS.
