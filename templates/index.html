@@ -3167,6 +3167,8 @@ Restart the add-on afterwards for runtime changes to apply.`);
     }
 
     function validateConfigFormBeforeSubmit(form) {
+      if (!validateConfigReportSchedulesOnly(form)) return false;
+
       const errors = [];
 
       const integerRules = {
@@ -3283,7 +3285,51 @@ Restart the add-on afterwards for runtime changes to apply.`);
     }
 
 
-  </script>
+  
+    function validateReportScheduleValue(name, form, errors) {
+      const field = form.elements[name];
+      if (!field) return;
+      const value = String(field.value || "").trim();
+      const match = /^(\d{2}):(\d{2})$/.exec(value);
+      if (!match) {
+        errors.push(`${name} must use 24-hour HH:MM format, for example 19:00, 10:15 or 00:00.`);
+        return;
+      }
+      const hour = Number(match[1]);
+      const minute = Number(match[2]);
+      if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+        errors.push(`${name} has an invalid time. Use 00:00 to 23:59.`);
+      }
+    }
+
+    function validateConfigReportSchedulesOnly(form) {
+      const errors = [];
+      validateReportScheduleValue("notify_daily_summary_time", form, errors);
+      validateReportScheduleValue("notify_delta_report_time", form, errors);
+      validateReportScheduleValue("notify_delta_window_start", form, errors);
+      validateReportScheduleValue("notify_delta_window_end", form, errors);
+
+      if (errors.length) {
+        alert("Please fix the Report Schedules fields before saving:\n\n" + errors.map((e) => "- " + e).join("\n"));
+        return false;
+      }
+      return true;
+    }
+
+
+  
+    document.addEventListener("DOMContentLoaded", function () {
+      ["notify_daily_summary_time", "notify_delta_report_time", "notify_delta_window_start", "notify_delta_window_end"].forEach(function (name) {
+        const field = document.querySelector(`[name="${name}"]`);
+        if (!field) return;
+        field.setAttribute("placeholder", "HH:MM e.g. 19:00");
+        field.setAttribute("pattern", "^\\d{2}:\\d{2}$");
+        field.setAttribute("inputmode", "numeric");
+        field.setAttribute("title", "Use 24-hour HH:MM format, for example 19:00, 10:15 or 00:00.");
+      });
+    });
+
+</script>
 
 </body>
 </html>

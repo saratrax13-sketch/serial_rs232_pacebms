@@ -1600,9 +1600,11 @@ def is_valid_time_hhmm(value):
     text = str(value or "").strip()
     if not re.fullmatch(r"\d{2}:\d{2}", text):
         return False
-    hour, minute = text.split(":")
-    return 0 <= int(hour) <= 23 and 0 <= int(minute) <= 59
-
+    try:
+        hour, minute = text.split(":")
+        return 0 <= int(hour) <= 23 and 0 <= int(minute) <= 59
+    except Exception:
+        return False
 
 def validate_config_options(options):
     """Validate web config options before saving to Home Assistant."""
@@ -1693,6 +1695,19 @@ def validate_config_options(options):
             errors.append("notify_cell_low_warn_voltage must be lower than notify_cell_high_warn_voltage.")
     except Exception:
         pass
+
+    # Explicit Report Schedule validation
+    report_schedule_fields = {
+        "notify_daily_summary_time": "Daily summary time",
+        "notify_delta_report_time": "Delta report time",
+        "notify_delta_window_start": "Delta report window start",
+        "notify_delta_window_end": "Delta report window end",
+    }
+    for schedule_key, schedule_label in report_schedule_fields.items():
+        if schedule_key in options:
+            if not is_valid_time_hhmm(options.get(schedule_key)):
+                errors.append(f"{schedule_key} must use 24-hour HH:MM format, for example 19:00, 10:15 or 00:00.")
+
 
     return errors
 
