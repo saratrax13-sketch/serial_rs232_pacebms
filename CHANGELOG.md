@@ -1,17 +1,15 @@
-## 2.6.0 - 2026-05-17
+## 2.6.2 - 2026-05-17
 
 ### Added
-- Added Warning Intelligence section to the Status tab.
-- Added per-pack warning intelligence cards.
-- Added plain-language warning context for each detected pack.
-- Added BMS internal warning summary per pack.
-- Added highest cell, lowest cell and cell delta context per pack.
-- Added reference check context per pack.
-- Added suggested operator focus text.
+- Added/expanded Config tab help text for Notification Thresholds.
+- Added/expanded Config tab help text for Report Schedules.
+- Added explicit format guidance for comma-separated threshold lists.
+- Added explicit format guidance for 24-hour HH:MM schedule values.
+- Added Config Format Help section to the Config tab.
 
 ### Notes
-- This is a web UI operational clarity release.
-- Warning Intelligence uses current retained MQTT values and already-decoded BMS warnings.
+- Example threshold format: `75,50,25,15`
+- Example time format: `19:00`
+- `bms_ip` and `bms_port` were not re-added.
 - No BMS protocol changes were made.
 - No BMS write/control commands were added.
-- The add-on remains read-only to the BMS.

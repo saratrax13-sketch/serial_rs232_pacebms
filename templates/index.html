@@ -1836,6 +1836,19 @@
     </section>
 
     <section class="tab-panel {% if active_tab == 'config' %}active{% endif %}">
+        <section class="card wide-card" style="margin-bottom: 16px;">
+          <h2>Config Format Help</h2>
+          <div class="helper-note">
+            <strong>Multiple threshold format:</strong> use comma-separated numbers only. Example:
+            <code>75,50,25,15</code>. Do not add percentage signs.
+          </div>
+          <div class="helper-note">
+            <strong>Time format:</strong> use 24-hour <code>HH:MM</code> format. Examples:
+            <code>19:00</code>, <code>10:15</code>, <code>00:00</code>.
+          </div>
+        </section>
+
+
       <section class="card wide-card">
         <h2>Editable Add-on Configuration</h2>
         <p>Edit and save the Home Assistant add-on options directly from this page.</p>

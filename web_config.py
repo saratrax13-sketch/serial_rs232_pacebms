@@ -42,6 +42,17 @@ GROUPS = {
         "notify_fet",
         "notify_daily_summary",
         "notify_delta_report",
+        "notify_ignore_charge_fet_off_when_full",
+        "notify_alert_discharge_fet_off",
+    ],
+    "Notification Thresholds": [
+        "notify_soc_low_thresholds",
+        "notify_soc_high_threshold",
+        "notify_soc_high_reset",
+        "notify_soh_threshold",
+        "notify_retry_count",
+        "notify_stale_data_seconds",
+        "notify_stale_data_repeat_seconds",
     ],
     "Warning Detail": [
         "notify_warning_detail_enabled",
@@ -55,6 +66,12 @@ GROUPS = {
         "notify_include_highest_and_lowest_cell",
         "notify_include_pack_voltage",
         "notify_include_soc_soh",
+    ],
+    "Report Schedules": [
+        "notify_daily_summary_time",
+        "notify_delta_report_time",
+        "notify_delta_window_start",
+        "notify_delta_window_end",
     ],
     "MQTT": [
         "mqtt_host",
@@ -1028,6 +1045,27 @@ It does not write to the BMS.
 It does not send BMS control commands.
 """
 
+
+CARD_HELP = {
+    "Notification Thresholds": "These settings control SOC/SOH alert thresholds, retry count and stale-data timing. SOC low thresholds must be comma-separated numbers, for example 75,50,25,15. Do not use percentage signs.",
+    "Report Schedules": "These settings control the daily summary time, delta report time and the delta report calculation window. Use 24-hour HH:MM format, for example 19:00 or 10:15.",
+}
+
+FIELD_HELP = {
+    "notify_soc_low_thresholds": "Comma-separated SOC low alert thresholds. Use numbers only, no percent signs. Example: 75,50,25,15. The monitor can alert as SOC crosses each threshold.",
+    "notify_soc_high_threshold": "High SOC alert threshold as a percentage number. Example: 98 means alert when SOC is at or above 98%.",
+    "notify_soc_high_reset": "Reset point for the high SOC alert. Example: 95 means the high SOC alert can trigger again after SOC falls below 95%.",
+    "notify_soh_threshold": "SOH alert threshold as a percentage number. Example: 95 means alert when SOH is below 95%.",
+    "notify_retry_count": "Number of retry attempts for supported notifications. Use a whole number such as 0, 1, 2 or 3.",
+    "notify_stale_data_seconds": "Seconds without fresh BMS data before stale-data notification logic triggers. Example: 120.",
+    "notify_stale_data_repeat_seconds": "Repeat interval in seconds for stale-data notifications while the stale condition remains active. Example: 1800.",
+    "notify_ignore_charge_fet_off_when_full": "When enabled, Charge FET OFF can be ignored if the pack is full. This helps avoid unnecessary alerts when the BMS disables charging at full SOC.",
+    "notify_alert_discharge_fet_off": "When enabled, send an alert if the Discharge FET is OFF.",
+    "notify_daily_summary_time": "Time for the daily summary notification. Use 24-hour HH:MM format. Example: 19:00.",
+    "notify_delta_report_time": "Time for the cell delta report notification. Use 24-hour HH:MM format. Example: 10:15.",
+    "notify_delta_window_start": "Start of the time window used for the delta report. Use 24-hour HH:MM format. Example: 00:00.",
+    "notify_delta_window_end": "End of the time window used for the delta report. Use 24-hour HH:MM format. Example: 10:00.",
+}
 
 def build_grouped_config(options):
     grouped = {}

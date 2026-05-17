@@ -1,8 +1,10 @@
 # =============================================================================
 # bms_monitor.py — Pace BMS to MQTT Bridge
-# Version : 2.6.0
+# Version : 2.6.2
 # Changed : 2026-05-17
 # Changes :
+#   - Completed Config tab help text for all option groups
+#   - Added full web Config tab option coverage
 #   - Added web UI Warning Intelligence section
 #   - Documented serial debug probe and slave serial limitation
 #   - Added debug-only serial-number frame probe for slave serial investigation
