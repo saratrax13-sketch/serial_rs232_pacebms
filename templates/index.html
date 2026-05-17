@@ -1446,6 +1446,78 @@
     }
 
 
+  
+    .config-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .config-section-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .section-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 11px;
+      font-weight: 950;
+      line-height: 1;
+      white-space: nowrap;
+      border: 1px solid rgba(148, 163, 184, 0.24);
+      background: rgba(30, 41, 59, 0.70);
+      color: #cbd5e1;
+    }
+
+    .section-badge.required {
+      border-color: rgba(34, 197, 94, 0.42);
+      background: rgba(34, 197, 94, 0.12);
+      color: #bbf7d0;
+    }
+
+    .section-badge.optional {
+      border-color: rgba(96, 165, 250, 0.34);
+      background: rgba(59, 130, 246, 0.10);
+      color: #bfdbfe;
+    }
+
+    .config-base-note {
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(34, 197, 94, 0.22);
+      background: rgba(34, 197, 94, 0.08);
+      color: #d1fae5;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .config-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(280px, 1fr));
+      gap: 16px;
+      align-items: start;
+    }
+
+    @media (max-width: 1180px) {
+      .config-grid {
+        grid-template-columns: repeat(2, minmax(280px, 1fr));
+      }
+    }
+
+    @media (max-width: 760px) {
+      .config-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -1899,6 +1971,11 @@
     </section>
 
     <section class="tab-panel {% if active_tab == 'config' %}active{% endif %}">
+        <div class="config-base-note">
+          <strong>Required for base polling:</strong> BMS Connection, MQTT and Advanced. 
+          Telegram, Notifications, Notification Thresholds, Warning Detail and Report Schedules are optional monitoring features.
+        </div>
+
         <details class="compact-help">
           <summary>Config format help</summary>
           <div class="helper-note">

@@ -28,7 +28,41 @@ SECTION_HELP = {
     "Report Schedules": "Controls scheduled notification times for the daily summary and cell delta report. Use 24-hour HH:MM format, for example 19:00, 10:15 or 00:00. The delta window start/end values define the time range used for the delta report.",
 }
 
+CONFIG_SECTION_BADGES = {
+    "BMS Connection": "Required",
+    "MQTT": "Required",
+    "Advanced": "Required",
+    "Telegram": "Optional",
+    "Notifications": "Optional",
+    "Notification Thresholds": "Optional",
+    "Warning Detail": "Optional",
+    "Report Schedules": "Optional",
+}
+
 GROUPS = {
+    "BMS Connection": [
+        "connection_type",
+        "bms_serial",
+        "bms_baudrate",
+        "scan_interval",
+    ],
+    "MQTT": [
+        "mqtt_host",
+        "mqtt_port",
+        "mqtt_user",
+        "mqtt_password",
+        "mqtt_base_topic",
+        "mqtt_ha_discovery",
+        "mqtt_ha_discovery_topic",
+        "mqtt_retain_state",
+        "state_force_republish_seconds",
+        "warn_force_republish_seconds",
+    ],
+    "Advanced": [
+        "debug_output",
+        "zero_pad_number_cells",
+        "zero_pad_number_packs",
+    ],
     "Telegram": [
         "notify_enabled",
         "telegram_bot_token",
@@ -78,29 +112,6 @@ GROUPS = {
         "notify_delta_report_time",
         "notify_delta_window_start",
         "notify_delta_window_end",
-    ],
-    "MQTT": [
-        "mqtt_host",
-        "mqtt_port",
-        "mqtt_user",
-        "mqtt_password",
-        "mqtt_base_topic",
-        "mqtt_ha_discovery",
-        "mqtt_ha_discovery_topic",
-        "mqtt_retain_state",
-        "state_force_republish_seconds",
-        "warn_force_republish_seconds",
-    ],
-    "BMS Connection": [
-        "connection_type",
-        "bms_serial",
-        "bms_baudrate",
-        "scan_interval",
-    ],
-    "Advanced": [
-        "debug_output",
-        "zero_pad_number_cells",
-        "zero_pad_number_packs",
     ],
 }
 

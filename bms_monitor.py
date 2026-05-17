@@ -1,8 +1,9 @@
 # =============================================================================
 # bms_monitor.py — Pace BMS to MQTT Bridge
-# Version : 2.6.15
+# Version : 2.6.16
 # Changed : 2026-05-17
 # Changes :
+#   - Added Config required/optional badges and reordered cards
 #   - Redacted Telegram chat ID in Home Assistant add-on options schema
 #   - Fixed Report Schedule field validation
 #   - Hardened Config validation regex imports
