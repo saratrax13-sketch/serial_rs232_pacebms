@@ -1,6 +1,6 @@
 name: "Pace BMS RS232 Monitor"
 description: "Read-only Pace BMS RS232 to MQTT bridge with Home Assistant discovery and Telegram notifications"
-version: "2.6.27"
+version: "2.6.28"
 slug: "pace_bms_rs232"
 url: "https://github.com/saratrax13-sketch/serial_rs232_pacebms"
 init: false
@@ -66,12 +66,18 @@ options:
   # It does not write to or configure the BMS.
   # notify_warning_repeat_seconds controls how often the same active BMS warning
   # may repeat on Telegram. 1800 seconds = 30 minutes.
+  # Severity-specific repeats override the legacy repeat value:
+  # caution = BMS warning below references, warning = near/at references,
+  # critical = protection/fault or measured values outside references.
   # ─────────────────────────────────────────────
   notify_stale_data: true
   notify_stale_recovery: true
   notify_stale_data_seconds: 120
   notify_stale_data_repeat_seconds: 1800
   notify_warning_repeat_seconds: 1800
+  notify_warning_repeat_caution_seconds: 21600
+  notify_warning_repeat_warning_seconds: 3600
+  notify_warning_repeat_critical_seconds: 900
 
   # ─────────────────────────────────────────────
   # Notifications - Warning Detail Reference Values
@@ -167,6 +173,9 @@ schema:
   notify_stale_data_seconds: int
   notify_stale_data_repeat_seconds: int
   notify_warning_repeat_seconds: int
+  notify_warning_repeat_caution_seconds: int
+  notify_warning_repeat_warning_seconds: int
+  notify_warning_repeat_critical_seconds: int
 
   notify_cell_high_warn_voltage: float
   notify_cell_low_warn_voltage: float

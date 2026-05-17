@@ -21,7 +21,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.27"
+version: "2.6.28"
 ```
 
 ---
@@ -271,6 +271,9 @@ notify_stale_data: true
 notify_stale_recovery: true
 notify_stale_data_seconds: 120
 notify_stale_data_repeat_seconds: 1800
+notify_warning_repeat_caution_seconds: 21600
+notify_warning_repeat_warning_seconds: 3600
+notify_warning_repeat_critical_seconds: 900
 
 mqtt_retain_state: true
 state_force_republish_seconds: 300
@@ -356,6 +359,22 @@ The BMS warning frame tells the monitor what type of warning is active, such as:
 The warning frame does not always include manufacturer threshold values.
 
 The monitor therefore uses current analog readings plus configured reference values to create a useful Telegram message.
+
+Warning repeats are severity-aware:
+
+- `caution`: the BMS reports a warning, but measured values are still below configured references.
+- `warning`: measured values are near or at configured reference limits, or cell delta exceeds the configured reference.
+- `critical`: BMS protection/fault state is active, or measured voltage/temperature is outside configured references.
+
+Default repeat intervals:
+
+```yaml
+notify_warning_repeat_caution_seconds: 21600   # 6 hours
+notify_warning_repeat_warning_seconds: 3600    # 1 hour
+notify_warning_repeat_critical_seconds: 900    # 15 minutes
+```
+
+New warning families and severity escalation send immediately. Ongoing repeats use shorter reminder messages, and the warning state is persisted across add-on restarts to avoid re-alerting the same active condition after a restart.
 
 Example:
 

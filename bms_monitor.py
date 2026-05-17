@@ -79,6 +79,7 @@ log = logging.getLogger("bmspace")
 # ─── Web UI event history ────────────────────────────────────────────────
 EVENT_LOG_PATH = "/data/events.json"
 MONITOR_HEALTH_PATH = "/data/monitor_health.json"
+WARNING_NOTIFY_STATE_PATH = "/data/warning_notify_state.json"
 MAX_EVENT_LOG_ENTRIES = 50
 
 # ─── Telegram direct notify (used before MQTT is available) ─────────────────
@@ -794,7 +795,7 @@ def normalize_warning_family(warnings: str) -> str:
         "control state: buzzer warn function enabled",
         "fault state: undefined",
     }
-    raw_parts = re.split(r"[,\n]+", text)
+    raw_parts = re.split(r"[,\n|]+", text)
     parts = []
     for part in raw_parts:
         clean = re.sub(r"\s+", " ", part.strip())
@@ -813,12 +814,20 @@ def normalize_warning_family(warnings: str) -> str:
 
         # Collapse cell-specific upper limit wording and generic wording into
         # the same family.
-        if "above cell voltage" in low or ("above upper limit" in low and "cell" in low):
-            family.add("Above cell voltage")
+        if (
+            ("above cell" in low and "volt" in low)
+            or ("above upper limit" in low and "cell" in low)
+            or ("cell" in low and "volt protect" in low and "above" in low)
+        ):
+            family.add("High cell voltage")
             continue
 
-        if "below cell voltage" in low or ("below lower limit" in low and "cell" in low):
-            family.add("Below cell voltage")
+        if (
+            (("lower cell" in low or "below cell" in low) and "volt" in low)
+            or ("below lower limit" in low and "cell" in low)
+            or ("cell" in low and "volt protect" in low and ("lower" in low or "below" in low))
+        ):
+            family.add("Low cell voltage")
             continue
 
         if "temp" in low and ("high" in low or "above" in low or "upper" in low):
@@ -837,13 +846,20 @@ def normalize_warning_family(warnings: str) -> str:
             family.add("Discharge current warning")
             continue
 
-        if "total voltage" in low:
-            family.add("Total voltage warning")
+        if ("above total" in low and "volt" in low) or ("total voltage" in low and ("above" in low or "upper" in low)):
+            family.add("High pack voltage")
+            continue
+
+        if ("lower total" in low and "volt" in low) or ("total voltage" in low and ("below" in low or "lower" in low)):
+            family.add("Low pack voltage")
             continue
 
         if "protection state" in low:
-            # Keep protection state text, but normalize spacing and case.
-            family.add(re.sub(r"\s+", " ", part))
+            family.add("BMS protection active")
+            continue
+
+        if "fault state" in low:
+            family.add("BMS fault active")
             continue
 
         family.add(re.sub(r"\s+", " ", part))
@@ -851,7 +867,137 @@ def normalize_warning_family(warnings: str) -> str:
     return " | ".join(sorted(family)) if family else "Normal"
 
 
-def call_warning_notify(notify, pack_num: int, warnings: str, pack_detail=None, force: bool = False):
+_WARNING_SEVERITY_RANK = {
+    "normal": 0,
+    "caution": 1,
+    "warning": 2,
+    "critical": 3,
+}
+
+
+def classify_warning_severity(warnings: str, pack_detail, config: dict) -> tuple[str, list[str]]:
+    """Classify a BMS warning for Telegram repeat/noise handling.
+
+    This is notification-side risk classification only. It does not write to or
+    configure the BMS.
+    """
+    text = str(warnings or "")
+    low = text.lower()
+    if not text.strip() or text.strip().lower() in {"normal", "none", "no warnings"}:
+        return "normal", []
+
+    reasons = []
+    severity = "caution"
+
+    def raise_to(level: str, reason: str):
+        nonlocal severity
+        if _WARNING_SEVERITY_RANK[level] > _WARNING_SEVERITY_RANK[severity]:
+            severity = level
+        if reason and reason not in reasons:
+            reasons.append(reason)
+
+    if "protect" in low or "short circuit" in low:
+        raise_to("critical", "BMS protection state is active")
+    if "fault state" in low and "undefined" not in low:
+        raise_to("critical", "BMS fault state is active")
+    if "current protect" in low:
+        raise_to("critical", "BMS current protection is active")
+
+    try:
+        cell_high = float(config.get('notify_cell_high_warn_voltage', 4.20))
+        cell_low = float(config.get('notify_cell_low_warn_voltage', 3.00))
+        delta_thr = float(config.get('notify_cell_delta_warn_mv', 100))
+        temp_high = float(config.get('notify_temp_high_warn_c', 55))
+        temp_low = float(config.get('notify_temp_low_warn_c', 0))
+    except Exception:
+        cell_high, cell_low, delta_thr, temp_high, temp_low = 4.20, 3.00, 100.0, 55.0, 0.0
+
+    if pack_detail is not None:
+        cells_v = [float(v) / 1000.0 for v in (getattr(pack_detail, 'v_cells', []) or []) if v is not None and float(v) > 0]
+        temps = [float(t) for t in (getattr(pack_detail, 't_cells', []) or []) if t is not None]
+        pack_v = float(getattr(pack_detail, 'v_pack', 0.0) or 0.0)
+        cell_count = int(getattr(pack_detail, 'cells', len(cells_v)) or len(cells_v))
+        delta_mv = float(getattr(pack_detail, 'cell_max_diff', 0.0) or 0.0)
+
+        if cells_v:
+            highest = max(cells_v)
+            lowest = min(cells_v)
+            if highest >= cell_high:
+                raise_to("critical", f"Highest cell {highest:.3f} V is at/above {cell_high:.2f} V reference")
+            elif highest >= cell_high - 0.03 and "above" in low and "cell" in low:
+                raise_to("warning", f"Highest cell {highest:.3f} V is near {cell_high:.2f} V reference")
+
+            if lowest <= cell_low:
+                raise_to("critical", f"Lowest cell {lowest:.3f} V is at/below {cell_low:.2f} V reference")
+            elif lowest <= cell_low + 0.05 and ("lower" in low or "below" in low):
+                raise_to("warning", f"Lowest cell {lowest:.3f} V is near {cell_low:.2f} V reference")
+
+        if cell_count:
+            pack_high = cell_high * cell_count
+            pack_low = cell_low * cell_count
+            if pack_v >= pack_high:
+                raise_to("critical", f"Pack voltage {pack_v:.3f} V is at/above {pack_high:.2f} V reference")
+            elif pack_v >= pack_high - 0.50 and ("above total" in low or "total voltage" in low):
+                raise_to("warning", f"Pack voltage {pack_v:.3f} V is near {pack_high:.2f} V reference")
+            if pack_v and pack_v <= pack_low:
+                raise_to("critical", f"Pack voltage {pack_v:.3f} V is at/below {pack_low:.2f} V reference")
+
+        if delta_mv >= delta_thr:
+            raise_to("warning", f"Cell delta {delta_mv:.0f} mV is at/above {delta_thr:.0f} mV reference")
+
+        if temps and ("temp" in low):
+            high_temp = max(temps)
+            low_temp = min(temps)
+            if high_temp >= temp_high:
+                raise_to("critical", f"Temperature {high_temp:.1f} C is at/above {temp_high:.0f} C reference")
+            if low_temp <= temp_low:
+                raise_to("critical", f"Temperature {low_temp:.1f} C is at/below {temp_low:.0f} C reference")
+
+    return severity, reasons
+
+
+def warning_repeat_seconds_for_severity(config: dict, severity: str) -> float:
+    defaults = {
+        "caution": 21600,
+        "warning": 3600,
+        "critical": 900,
+    }
+    keys = {
+        "caution": "notify_warning_repeat_caution_seconds",
+        "warning": "notify_warning_repeat_warning_seconds",
+        "critical": "notify_warning_repeat_critical_seconds",
+    }
+    fallback = float(config.get('notify_warning_repeat_seconds', defaults.get(severity, 1800)))
+    return max(60, float(config.get(keys.get(severity, ""), fallback)))
+
+
+def load_warning_notify_state() -> dict:
+    try:
+        if not os.path.exists(WARNING_NOTIFY_STATE_PATH):
+            return {}
+        with open(WARNING_NOTIFY_STATE_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception as exc:
+        log.debug("Could not load warning notification state: %s", exc)
+        return {}
+
+
+def save_warning_notify_state(state: dict):
+    try:
+        tmp_path = f"{WARNING_NOTIFY_STATE_PATH}.tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(state, f, indent=2)
+        os.replace(tmp_path, WARNING_NOTIFY_STATE_PATH)
+    except Exception as exc:
+        log.debug("Could not save warning notification state: %s", exc)
+
+
+def warning_severity_rank(severity: str) -> int:
+    return _WARNING_SEVERITY_RANK.get(str(severity or "").lower(), 0)
+
+
+def call_warning_notify(notify, pack_num: int, warnings: str, pack_detail=None, force: bool = False, severity: str = None, repeat: bool = False):
     """Call NotifyState warning handler with compatibility for older signatures."""
     if force and hasattr(notify, "last_warnings"):
         try:
@@ -860,9 +1006,12 @@ def call_warning_notify(notify, pack_num: int, warnings: str, pack_detail=None, 
             pass
 
     try:
-        return notify.on_warnings_update(pack_num, warnings, pack_detail)
+        return notify.on_warnings_update(pack_num, warnings, pack_detail, severity=severity, repeat=repeat)
     except TypeError:
-        return notify.on_warnings_update(pack_num, warnings)
+        try:
+            return notify.on_warnings_update(pack_num, warnings, pack_detail)
+        except TypeError:
+            return notify.on_warnings_update(pack_num, warnings)
 
 
 
@@ -1290,8 +1439,7 @@ def main():
     notify.on_startup(bms_sn, bms_version)
 
     # ── Warning notification deduplication ───────────────────────────────────
-    warning_repeat_seconds = max(60, float(config.get('notify_warning_repeat_seconds', 1800)))
-    warning_notify_state = {}  # {pack_num: {"family": str, "active": bool, "last_sent": epoch}}
+    warning_notify_state = load_warning_notify_state()  # {pack_num: {"family": str, "active": bool, "last_sent": epoch, "severity": str}}
 
     # ── Clean shutdown handling ──────────────────────────────────────────────
     shutdown_sent = False
@@ -1593,10 +1741,13 @@ def main():
                     p = pack_warn.pack_number
                     pack_detail = pack_by_number.get(p)
                     warning_family = normalize_warning_family(pack_warn.warnings)
-                    previous_warning_state = warning_notify_state.get(p, {
+                    severity, severity_reasons = classify_warning_severity(pack_warn.warnings, pack_detail, config)
+                    state_key = str(p)
+                    previous_warning_state = warning_notify_state.get(state_key, {
                         "family": "Normal",
                         "active": False,
                         "last_sent": 0.0,
+                        "severity": "normal",
                     })
 
                     warning_now = time.time()
@@ -1604,47 +1755,81 @@ def main():
                         if previous_warning_state.get("active"):
                             call_warning_notify(notify, p, "Normal", pack_detail)
                             log.info("BMS warning cleared for Pack %02d (previous family: %s)", p, previous_warning_state.get("family", "Unknown"))
-                        warning_notify_state[p] = {
+                        warning_notify_state[state_key] = {
                             "family": "Normal",
                             "active": False,
                             "last_sent": previous_warning_state.get("last_sent", 0.0),
+                            "severity": "normal",
                         }
+                        save_warning_notify_state(warning_notify_state)
                     else:
                         same_family = (
                             previous_warning_state.get("active")
                             and previous_warning_state.get("family") == warning_family
                         )
                         elapsed = warning_now - float(previous_warning_state.get("last_sent", 0.0) or 0.0)
+                        previous_severity = str(previous_warning_state.get("severity", "normal"))
+                        escalated = warning_severity_rank(severity) > warning_severity_rank(previous_severity)
+                        repeat_seconds = warning_repeat_seconds_for_severity(config, severity)
 
-                        if (not same_family) or elapsed >= warning_repeat_seconds:
-                            repeat = same_family and elapsed >= warning_repeat_seconds
-                            call_warning_notify(notify, p, pack_warn.warnings, pack_detail, force=repeat)
-                            warning_notify_state[p] = {
+                        if (not same_family) or escalated or elapsed >= repeat_seconds:
+                            repeat = same_family and not escalated and elapsed >= repeat_seconds
+                            call_warning_notify(
+                                notify,
+                                p,
+                                pack_warn.warnings,
+                                pack_detail,
+                                force=repeat,
+                                severity=severity,
+                                repeat=repeat,
+                            )
+                            warning_notify_state[state_key] = {
                                 "family": warning_family,
                                 "active": True,
                                 "last_sent": warning_now,
+                                "severity": severity,
+                                "reasons": severity_reasons,
                             }
+                            save_warning_notify_state(warning_notify_state)
                             if repeat:
                                 log.info(
-                                    "BMS warning repeat sent for Pack %02d after %.0fs cooldown: %s",
+                                    "BMS %s warning reminder sent for Pack %02d after %.0fs cooldown: %s",
+                                    severity,
                                     p,
                                     elapsed,
                                     warning_family,
                                 )
+                            elif escalated:
+                                log.info(
+                                    "BMS warning escalated for Pack %02d: %s -> %s (%s)",
+                                    p,
+                                    previous_severity,
+                                    severity,
+                                    warning_family,
+                                )
                             else:
-                                log.info("BMS warning notification sent for Pack %02d: %s", p, warning_family)
+                                log.info("BMS %s warning notification sent for Pack %02d: %s", severity, p, warning_family)
                         else:
-                            warning_notify_state[p] = {
+                            if hasattr(notify, "last_warnings"):
+                                try:
+                                    notify.last_warnings[p] = pack_warn.warnings
+                                except Exception:
+                                    pass
+                            warning_notify_state[state_key] = {
                                 "family": warning_family,
                                 "active": True,
                                 "last_sent": previous_warning_state.get("last_sent", warning_now),
+                                "severity": previous_severity,
+                                "reasons": previous_warning_state.get("reasons", severity_reasons),
                             }
+                            save_warning_notify_state(warning_notify_state)
                             log.debug(
-                                "BMS warning duplicate suppressed for Pack %02d: %s (%.0fs since last send, cooldown %.0fs)",
+                                "BMS %s warning duplicate suppressed for Pack %02d: %s (%.0fs since last send, cooldown %.0fs)",
+                                severity,
                                 p,
                                 warning_family,
                                 elapsed,
-                                warning_repeat_seconds,
+                                repeat_seconds,
                             )
 
                     notify.on_fet_update(p,

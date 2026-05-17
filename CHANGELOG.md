@@ -1,3 +1,22 @@
+## 2.6.28 - 2026-05-17
+
+### Added
+- Added severity-aware BMS warning repeat intervals:
+  - `notify_warning_repeat_caution_seconds`
+  - `notify_warning_repeat_warning_seconds`
+  - `notify_warning_repeat_critical_seconds`
+- Added persisted warning notification state across add-on restarts.
+- Added short reminder messages for repeated ongoing warnings.
+
+### Changed
+- Normalized BMS warning text into stable risk families such as high cell voltage and high pack voltage.
+- Warning notifications now resend immediately only for new risks or severity escalation.
+- Ongoing caution, warning and critical alerts use separate configurable cooldowns.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.27 - 2026-05-17
 
 ### Added

@@ -97,6 +97,9 @@ GROUPS = {
         "notify_stale_data_seconds",
         "notify_stale_data_repeat_seconds",
         "notify_warning_repeat_seconds",
+        "notify_warning_repeat_caution_seconds",
+        "notify_warning_repeat_warning_seconds",
+        "notify_warning_repeat_critical_seconds",
     ],
     "Warning Detail": [
         "notify_warning_detail_enabled",
@@ -1088,6 +1091,9 @@ CARD_HELP = {
 
 FIELD_HELP = {
     "notify_warning_repeat_seconds": "Repeat interval in seconds for the same active BMS warning Telegram notification. Example: 1800 means repeat at most every 30 minutes.",
+    "notify_warning_repeat_caution_seconds": "Repeat interval for ongoing caution-level BMS warnings. Recommended: 21600 seconds (6 hours).",
+    "notify_warning_repeat_warning_seconds": "Repeat interval for ongoing warning-level BMS warnings. Recommended: 3600 seconds (1 hour).",
+    "notify_warning_repeat_critical_seconds": "Repeat interval for ongoing critical BMS warnings. Recommended: 900 seconds (15 minutes).",
     "notify_soc_low_thresholds": "Comma-separated SOC low alert thresholds. Use numbers only, no percent signs. Example: 75,50,25,15.",
     "notify_soc_high_threshold": "Single SOC high alert threshold. Example: 98 means alert when SOC is at or above 98%.",
     "notify_soc_high_reset": "High SOC reset point. Example: 95 means the high SOC alert can trigger again after SOC drops below 95%.",
@@ -1332,6 +1338,15 @@ def validate_addon_options(options):
     if stale_repeat is not None and stale_repeat < 60:
         errors.append("notify_stale_data_repeat_seconds should be at least 60 seconds.")
 
+    for key in (
+        "notify_warning_repeat_caution_seconds",
+        "notify_warning_repeat_warning_seconds",
+        "notify_warning_repeat_critical_seconds",
+    ):
+        value = as_int(key)
+        if value is not None and value < 60:
+            errors.append(f"{key} should be at least 60 seconds.")
+
     state_force = as_int("state_force_republish_seconds")
     warn_force = as_int("warn_force_republish_seconds")
     if state_force is not None and state_force < 0:
@@ -1561,6 +1576,9 @@ INTEGER_FIELDS = {
     "notify_stale_data_seconds": (10, 86400),
     "notify_stale_data_repeat_seconds": (60, 86400),
     "notify_warning_repeat_seconds": (60, 86400),
+    "notify_warning_repeat_caution_seconds": (60, 86400),
+    "notify_warning_repeat_warning_seconds": (60, 86400),
+    "notify_warning_repeat_critical_seconds": (60, 86400),
 }
 
 FLOAT_FIELDS = {

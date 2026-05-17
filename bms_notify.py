@@ -441,7 +441,33 @@ class NotifyState:
             log.warning("Could not build detailed warning message for pack %s: %s", pack_num, e)
             return cleaned
 
-    def on_warnings_update(self, pack_num: int, warnings: str, pack=None):
+    def _build_warning_reminder(self, cleaned: str, pack=None) -> str:
+        """Build a shorter reminder for an already-active warning."""
+        lines = ["Still active:"]
+        lines.extend(self._friendly_warning_lines(cleaned))
+
+        if pack is not None:
+            try:
+                raw_cells = getattr(pack, 'v_cells', []) or []
+                cells_v = [float(v) / 1000.0 for v in raw_cells if v is not None and float(v) > 0]
+                pack_v = float(getattr(pack, 'v_pack', 0.0) or 0.0)
+                soc = float(getattr(pack, 'soc', 0.0) or 0.0)
+                delta_mv = float(getattr(pack, 'cell_max_diff', 0.0) or 0.0)
+                if cells_v:
+                    high_idx, high_v = max(enumerate(cells_v, start=1), key=lambda x: x[1])
+                    low_idx, low_v = min(enumerate(cells_v, start=1), key=lambda x: x[1])
+                    lines.append(f"Highest: Cell {high_idx:02d} {high_v:.3f} V")
+                    lines.append(f"Lowest: Cell {low_idx:02d} {low_v:.3f} V")
+                    lines.append(f"Delta: {delta_mv:.0f} mV")
+                if pack_v:
+                    lines.append(f"Pack voltage: {pack_v:.3f} V")
+                lines.append(f"SOC: {soc:.1f}%")
+            except Exception:
+                pass
+
+        return "\n".join(lines)
+
+    def on_warnings_update(self, pack_num: int, warnings: str, pack=None, severity: str = None, repeat: bool = False):
         if not self._notify_enabled('notify_warnings'):
             return
 
@@ -450,9 +476,15 @@ class NotifyState:
 
         if cleaned != prev and cleaned != 'Normal':
             self.last_warnings[pack_num] = cleaned
-            detail = self._build_warning_detail(pack_num, cleaned, pack)
+            if repeat:
+                detail = self._build_warning_reminder(cleaned, pack)
+                label = "BMS Warning Reminder"
+            else:
+                detail = self._build_warning_detail(pack_num, cleaned, pack)
+                label = "BMS Warning"
+            severity_text = f" ({str(severity).title()})" if severity else ""
             telegram_send(self.config,
-                f"BMS Warning — Pack {pack_num:02d}\n"
+                f"{label}{severity_text} — Pack {pack_num:02d}\n"
                 f"{detail}\n"
                 f"Time: {datetime.now().strftime('%H:%M:%S')}")
         elif cleaned == 'Normal' and prev != 'Normal':

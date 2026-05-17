@@ -99,9 +99,49 @@ class WarningNormalizationTests(unittest.TestCase):
 
         self.assertEqual(
             family,
-            "Warning State 1: Above cell volt warn | Above total volt warn",
+            "High cell voltage | High pack voltage",
         )
         self.assertNotIn("War |", family)
+
+    def test_cell_specific_and_generic_high_voltage_share_family(self):
+        self.assertEqual(
+            bms_monitor.normalize_warning_family(
+                "cell 8 Above upper limit, Warning State 1: Above cell volt warn"
+            ),
+            "High cell voltage",
+        )
+
+    def test_protection_state_is_critical(self):
+        pack = bms_monitor.PackData(
+            pack_number=1,
+            cells=13,
+            temps=0,
+            v_cells=[4180] * 13,
+            v_pack=54.1,
+            soc=99.0,
+            soh=90.0,
+        )
+
+        severity, reasons = bms_monitor.classify_warning_severity(
+            "Protection State 1: Above cell volt protect, Warning State 1: Above cell volt warn",
+            pack,
+            {"notify_cell_high_warn_voltage": 4.20},
+        )
+
+        self.assertEqual(severity, "critical")
+        self.assertTrue(any("protection" in reason.lower() for reason in reasons))
+
+    def test_repeat_interval_uses_severity_specific_config(self):
+        config = {
+            "notify_warning_repeat_seconds": 1800,
+            "notify_warning_repeat_caution_seconds": 21600,
+            "notify_warning_repeat_warning_seconds": 3600,
+            "notify_warning_repeat_critical_seconds": 900,
+        }
+
+        self.assertEqual(bms_monitor.warning_repeat_seconds_for_severity(config, "caution"), 21600)
+        self.assertEqual(bms_monitor.warning_repeat_seconds_for_severity(config, "warning"), 3600)
+        self.assertEqual(bms_monitor.warning_repeat_seconds_for_severity(config, "critical"), 900)
 
 
 class TelegramConfigTests(unittest.TestCase):
