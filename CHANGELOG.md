@@ -1,3 +1,15 @@
+## 2.6.35 - 2026-05-17
+
+### Fixed
+- Fixed a web UI 500 error on the Status tab caused by a Jinja dictionary key collision in the Setup Checklist.
+
+### Tests
+- Added a Status page render regression test for the Setup Checklist.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.34 - 2026-05-17
 
 ### Added

@@ -278,6 +278,53 @@ class EnergyTrackingTests(unittest.TestCase):
 
 
 class HealthEndpointTests(unittest.TestCase):
+    def test_status_page_renders_setup_checklist(self):
+        options = {
+            "connection_type": "Serial",
+            "bms_serial": "/dev/ttyUSB0",
+            "scan_interval": 5,
+            "mqtt_host": "192.168.1.10",
+            "mqtt_port": 1883,
+            "mqtt_ha_discovery": True,
+            "mqtt_retain_state": True,
+            "notify_enabled": True,
+            "telegram_bot_token": "YOUR_TELEGRAM_BOT_TOKEN",
+            "telegram_chat_id": "YOUR_TELEGRAM_CHAT_ID",
+            "notify_warning_repeat_caution_seconds": 21600,
+            "notify_warning_repeat_warning_seconds": 3600,
+            "notify_warning_repeat_critical_seconds": 900,
+        }
+        live = {
+            "ok": True,
+            "availability": "online",
+            "monitor_state": "running",
+            "stale": "OFF",
+            "stale_reason": "Fresh",
+            "last_analog_read": "2026-05-17 20:00:00",
+            "last_warn_read": "2026-05-17 20:00:01",
+            "analog_age_seconds": 1,
+            "warn_age_seconds": 1,
+            "overall_status": "OK",
+            "overall_class": "healthy",
+            "layout": "2 pack(s), 32 cells total",
+            "bms_sn": "TEST",
+            "base_topic": "pacebms",
+            "fetched_at": "now",
+            "error": "",
+            "severity_summary": {},
+            "packs": [],
+        }
+
+        with (
+            patch("web_config.load_options", return_value=(options, "")),
+            patch("web_config.fetch_mqtt_snapshot", return_value=live),
+            patch("web_config.load_events", return_value=[]),
+        ):
+            response = web_config.app.test_client().get("/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Setup Checklist", response.data)
+
     def test_health_endpoint_fails_when_monitor_heartbeat_is_stale(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             original_path = web_config.MONITOR_HEALTH_PATH
