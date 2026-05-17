@@ -683,6 +683,21 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
     result["warning_count"] = warning_count
     result["severity_summary"] = severity_summary
 
+    chart_data = []
+    for pack in packs:
+        highest_v = _to_float(pack.get("highest_cell", {}).get("voltage"))
+        lowest_v = _to_float(pack.get("lowest_cell", {}).get("voltage"))
+        chart_data.append({
+            "pack": f"Pack {pack.get('id')}",
+            "soc": _to_float(pack.get("soc"), 0),
+            "soh": _to_float(pack.get("soh"), 0),
+            "voltage": _to_float(pack.get("voltage"), 0),
+            "delta": _to_float(pack.get("delta"), 0),
+            "highest_cell": highest_v if highest_v is not None else 0,
+            "lowest_cell": lowest_v if lowest_v is not None else 0,
+        })
+    result["chart_data"] = chart_data
+
     if packs:
         cell_layout = ", ".join(f"Pack {p['id']}: {p['cell_count']} cells" for p in packs)
         result["layout"] = f"{len(packs)} pack(s), {total_cells} cells total — {cell_layout}"

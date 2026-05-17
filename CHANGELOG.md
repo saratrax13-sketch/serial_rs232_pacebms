@@ -1,16 +1,17 @@
-## 2.4.0 - 2026-05-17
+## 2.4.1 - 2026-05-17
 
 ### Added
-- Added Diagnostics tab to the web UI.
-- Added health cards for MQTT, monitor state, BMS reads, warnings, Telegram, Home Assistant Discovery, backups and read-only BMS safety.
-- Added Current System Summary section.
-- Added Download Diagnostic Report button.
-- Added `/download-diagnostics.json` route.
-- Diagnostic report redacts sensitive values such as Telegram tokens and MQTT passwords.
+- Added Dashboard tab to the web UI.
+- Added Pack SOC comparison chart.
+- Added Pack SOH comparison chart.
+- Added Pack voltage comparison chart.
+- Added Cell delta comparison chart.
+- Added Highest vs Lowest Cell chart.
+- Added Refresh Charts button.
 
 ### Notes
-- This is the first 2.4 diagnostics release.
-- No historical charts were added in this version.
+- Charts use current retained MQTT values only.
+- No historical charting or database storage was added.
 - No BMS protocol changes were made.
 - No BMS write/control commands were added.
 - The add-on remains read-only to the BMS.
