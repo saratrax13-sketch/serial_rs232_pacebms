@@ -21,7 +21,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.25"
+version: "2.6.27"
 ```
 
 ---
@@ -144,6 +144,7 @@ The monitor reads and publishes:
 - MQTT retained state support
 - MQTT Last Will and Testament availability
 - Home Assistant MQTT Discovery
+- Home Assistant Supervisor watchdog health check
 - Forced republish interval for state and warning topics
 - Retained BMS identity topics:
   - `pacebms/bms_version`
@@ -313,6 +314,34 @@ This means:
 - Send a recovery alert when data becomes fresh again.
 
 Stale alerts are suppressed while the normal BMS disconnect alert is active.
+
+---
+
+## Monitor Failure Protection
+
+The add-on includes two layers for monitor failure detection:
+
+- A local monitor heartbeat file written after startup, successful reads, disconnect handling, and shutdown.
+- A `/health` endpoint used by the Home Assistant Supervisor watchdog.
+
+The watchdog checks whether the monitor process is still heartbeating. It does not require the battery itself to be healthy. If the BMS is disconnected but the monitor is alive, the add-on should keep running so it can publish offline/stale status and send configured Telegram alerts.
+
+To receive alerts if the add-on itself stops monitoring, use a Home Assistant automation that watches the MQTT availability topic:
+
+```yaml
+alias: Pace BMS Monitor Offline
+mode: single
+trigger:
+  - platform: mqtt
+    topic: pacebms/availability
+    payload: "offline"
+action:
+  - service: notify.telegram
+    data:
+      message: "Pace BMS monitor is offline. Battery monitoring may not be active."
+```
+
+Keep **Start on boot** and **Watchdog** enabled in the Home Assistant add-on page for automatic recovery.
 
 ---
 

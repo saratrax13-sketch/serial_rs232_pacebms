@@ -1,6 +1,9 @@
 import unittest
 import importlib.util
+import json
+import os
 import sys
+import tempfile
 import types
 from unittest.mock import patch
 
@@ -88,6 +91,19 @@ class PaceFrameTests(unittest.TestCase):
         self.assertEqual(message, "Checksum error")
 
 
+class WarningNormalizationTests(unittest.TestCase):
+    def test_warning_state_words_are_not_split_on_letter_n(self):
+        family = bms_monitor.normalize_warning_family(
+            "Warning State 1: Above cell volt warn | Above total volt warn"
+        )
+
+        self.assertEqual(
+            family,
+            "Warning State 1: Above cell volt warn | Above total volt warn",
+        )
+        self.assertNotIn("War |", family)
+
+
 class TelegramConfigTests(unittest.TestCase):
     def test_placeholder_values_are_not_configured(self):
         self.assertFalse(bms_notify.telegram_value_configured(""))
@@ -129,6 +145,32 @@ class EnergyTrackingTests(unittest.TestCase):
         expected = 500.0 * (10.0 / 3600.0) / 1000.0
         self.assertAlmostEqual(state.kwh_discharged[1], expected)
         self.assertEqual(state.kwh_charged[1], 0.0)
+
+
+class HealthEndpointTests(unittest.TestCase):
+    def test_health_endpoint_fails_when_monitor_heartbeat_is_stale(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            original_path = web_config.MONITOR_HEALTH_PATH
+            web_config.MONITOR_HEALTH_PATH = os.path.join(tmpdir, "monitor_health.json")
+            try:
+                with open(web_config.MONITOR_HEALTH_PATH, "w", encoding="utf-8") as f:
+                    json.dump({
+                        "updated_at": 1000,
+                        "state": "running",
+                        "health_timeout_seconds": 60,
+                    }, f)
+
+                with (
+                    patch("web_config.time.time", return_value=1100),
+                    patch("web_config.jsonify", side_effect=lambda payload: payload),
+                ):
+                    payload, status = web_config.health()
+
+                self.assertEqual(status, 503)
+                self.assertEqual(payload["status"], "unhealthy")
+                self.assertEqual(payload["heartbeat_age_seconds"], 100)
+            finally:
+                web_config.MONITOR_HEALTH_PATH = original_path
 
 
 if __name__ == "__main__":

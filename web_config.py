@@ -19,10 +19,12 @@ app = Flask(__name__)
 
 OPTIONS_PATH = "/data/options.json"
 EVENT_LOG_PATH = "/data/events.json"
+MONITOR_HEALTH_PATH = "/data/monitor_health.json"
 CONFIG_BACKUP_DIR = "/data/config_backups"
 MAX_CONFIG_BACKUPS = 10
 MAX_EVENT_LOG_ENTRIES = 50
 DEPRECATED_OPTION_KEYS = {"bms_ip", "bms_port"}
+WEB_STARTED_AT = time.time()
 
 SECTION_HELP = {
     "Notification Thresholds": "Controls when SOC, SOH and stale-data notifications trigger. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale data values are in seconds.",
@@ -145,6 +147,17 @@ def load_events():
         return events[:MAX_EVENT_LOG_ENTRIES]
     except Exception:
         return []
+
+
+def load_monitor_health():
+    try:
+        if not os.path.exists(MONITOR_HEALTH_PATH):
+            return None
+        with open(MONITOR_HEALTH_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else None
+    except Exception:
+        return None
 
 
 def save_events(events):
@@ -2031,7 +2044,33 @@ def route_download_diagnostics_json():
 
 @app.route("/health")
 def health():
-    return {"status": "ok"}
+    heartbeat = load_monitor_health()
+    now = int(time.time())
+
+    if heartbeat is None:
+        web_uptime = int(time.time() - WEB_STARTED_AT)
+        status = 200 if web_uptime < 90 else 503
+        return jsonify({
+            "status": "starting" if status == 200 else "unhealthy",
+            "reason": "No monitor heartbeat file found yet.",
+            "web_uptime_seconds": web_uptime,
+        }), status
+
+    updated_at = int(heartbeat.get("updated_at", 0) or 0)
+    age = max(0, now - updated_at) if updated_at else 999999
+    timeout = int(heartbeat.get("health_timeout_seconds", 60) or 60)
+    monitor_state = str(heartbeat.get("state", "unknown"))
+    healthy = age <= timeout and monitor_state != "stopped"
+
+    return jsonify({
+        "status": "ok" if healthy else "unhealthy",
+        "monitor_state": monitor_state,
+        "heartbeat_age_seconds": age,
+        "health_timeout_seconds": timeout,
+        "detail": heartbeat.get("detail", ""),
+        "last_analog_success": heartbeat.get("last_analog_success"),
+        "last_warn_success": heartbeat.get("last_warn_success"),
+    }), 200 if healthy else 503
 
 
 if __name__ == "__main__":

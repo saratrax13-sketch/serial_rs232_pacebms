@@ -1,3 +1,19 @@
+## 2.6.27 - 2026-05-17
+
+### Added
+- Added monitor heartbeat file for runtime health tracking.
+- Added `/health` endpoint checks for Home Assistant Supervisor watchdog support.
+- Added add-on `watchdog` configuration pointing to the internal health endpoint.
+- Added README guidance for Home Assistant offline-monitor alerting.
+
+### Fixed
+- Fixed warning deduplication label normalization so warning text is no longer split incorrectly in logs.
+
+### Notes
+- No BMS write/control commands were added.
+- Health checks monitor the add-on process heartbeat, not battery health.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.26 - 2026-05-17
 
 ### Changed

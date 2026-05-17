@@ -1,6 +1,6 @@
 name: "Pace BMS RS232 Monitor"
 description: "Read-only Pace BMS RS232 to MQTT bridge with Home Assistant discovery and Telegram notifications"
-version: "2.6.26"
+version: "2.6.27"
 slug: "pace_bms_rs232"
 url: "https://github.com/saratrax13-sketch/serial_rs232_pacebms"
 init: false
@@ -8,6 +8,7 @@ init: false
 # Home Assistant Ingress web UI
 ingress: true
 ingress_port: 8099
+watchdog: "http://[HOST]:[PORT:8099]/health"
 panel_icon: mdi:battery-cog
 panel_title: "Pace BMS"
 

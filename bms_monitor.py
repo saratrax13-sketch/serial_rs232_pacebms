@@ -78,6 +78,7 @@ log = logging.getLogger("bmspace")
 
 # ─── Web UI event history ────────────────────────────────────────────────
 EVENT_LOG_PATH = "/data/events.json"
+MONITOR_HEALTH_PATH = "/data/monitor_health.json"
 MAX_EVENT_LOG_ENTRIES = 50
 
 # ─── Telegram direct notify (used before MQTT is available) ─────────────────
@@ -119,6 +120,31 @@ def load_config() -> dict:
         with open('pace-bms-dev\\config.yaml') as f:
             return yaml.load(f, Loader=yaml.FullLoader)['options']
     sys.exit("No config file found")
+
+
+def write_monitor_health(config: dict, state: str, detail: str = "", **extra):
+    """Write monitor heartbeat for the web UI and Supervisor watchdog health check."""
+    try:
+        scan_interval = float(config.get('scan_interval', 30) or 30)
+    except Exception:
+        scan_interval = 30.0
+
+    payload = {
+        "updated_at": int(time.time()),
+        "state": str(state),
+        "detail": str(detail or ""),
+        "scan_interval": scan_interval,
+        "health_timeout_seconds": int(max(60, scan_interval * 6)),
+    }
+    payload.update(extra)
+
+    tmp_path = f"{MONITOR_HEALTH_PATH}.tmp"
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+        os.replace(tmp_path, MONITOR_HEALTH_PATH)
+    except Exception as exc:
+        log.debug("Could not write monitor health heartbeat: %s", exc)
 
 # ─── Data classes ─────────────────────────────────────────────────────────────
 
@@ -768,10 +794,10 @@ def normalize_warning_family(warnings: str) -> str:
         "control state: buzzer warn function enabled",
         "fault state: undefined",
     }
-    raw_parts = re.split(r"[,\\n]+", text)
+    raw_parts = re.split(r"[,\n]+", text)
     parts = []
     for part in raw_parts:
-        clean = re.sub(r"\\s+", " ", part.strip())
+        clean = re.sub(r"\s+", " ", part.strip())
         if not clean:
             continue
         if clean.lower() in ignore:
@@ -817,10 +843,10 @@ def normalize_warning_family(warnings: str) -> str:
 
         if "protection state" in low:
             # Keep protection state text, but normalize spacing and case.
-            family.add(re.sub(r"\\s+", " ", part))
+            family.add(re.sub(r"\s+", " ", part))
             continue
 
-        family.add(re.sub(r"\\s+", " ", part))
+        family.add(re.sub(r"\s+", " ", part))
 
     return " | ".join(sorted(family)) if family else "Normal"
 
@@ -1146,6 +1172,7 @@ def setup_mqtt(config: dict, bms_sn: str) -> mqtt.Client:
 def main():
     log.info("Starting up...")
     config = load_config()
+    write_monitor_health(config, "starting", "Monitor process started")
 
     # ── Wire debug_output → Python log level ─────────────────────────────────
     # 0 = INFO (default), 1+ = DEBUG (verbose protocol tracing)
@@ -1200,6 +1227,7 @@ def main():
 
     publish_monitor_status("state", "starting")
     publish_monitor_status("started_at", int(time.time()))
+    write_monitor_health(config, "starting", "MQTT setup complete")
 
     def append_event(event_type: str, title: str, detail: str = "", level: str = "info"):
         """Append a small event to /data/events.json for the web UI.
@@ -1253,6 +1281,7 @@ def main():
     publish_monitor_status("state", "running")
     publish_availability("online")
     append_event("startup", "Monitor started", f"SN: {bms_sn}", "ok")
+    write_monitor_health(config, "running", "Monitor startup complete", bms_sn=bms_sn)
 
     scan_interval      = float(config.get('scan_interval', 30))
 
@@ -1278,6 +1307,7 @@ def main():
             client.publish(f"{base}/bms_status", shutdown_payload, qos=1, retain=True)
             publish_availability("offline")
             publish_monitor_status("state", "stopped")
+            write_monitor_health(config, "stopped", "Monitor shutdown requested", bms_sn=bms_sn)
             append_event("shutdown", "Monitor stopped", f"SN: {bms_sn}", "warn")
             client.loop(timeout=1.0)
             notify.on_shutdown(bms_sn)
@@ -1404,6 +1434,14 @@ def main():
         })
         client.publish(f"{base}/bms_error", error_payload, qos=1, retain=True)
         bms_error_published = True
+        write_monitor_health(
+            config,
+            "disconnected",
+            reason,
+            retry_count=bms_retry_count,
+            offline_secs=offline_secs,
+            bms_sn=bms_sn,
+        )
 
         notify.on_disconnect(bms_retry_count, offline_str)
 
@@ -1457,6 +1495,14 @@ def main():
                     publish_availability("online")
                     publish_monitor_status("last_recovery_epoch", int(time.time()))
                     append_event("recovery", "BMS reconnected", f"Offline: {offline_str}; retries: {bms_retry_count}", "ok")
+                    write_monitor_health(
+                        config,
+                        "running",
+                        "BMS communication recovered",
+                        last_analog_success=int(last_analog_success),
+                        last_warn_success=int(last_warn_success),
+                        bms_sn=bms_sn,
+                    )
                     bms_error_published  = False
                     bms_retry_count      = 0
                     bms_disconnect_time  = None
@@ -1468,6 +1514,14 @@ def main():
                 publish_monitor_status("last_analog_read_epoch", int(last_analog_success))
                 publish_monitor_status("last_analog_read", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(last_analog_success)))
                 publish_availability("online")
+                write_monitor_health(
+                    config,
+                    "running",
+                    "Analog read OK",
+                    last_analog_success=int(last_analog_success),
+                    last_warn_success=int(last_warn_success),
+                    bms_sn=bms_sn,
+                )
 
                 now = time.time()
                 force_state = (now - last_state_force) >= state_force_seconds
@@ -1520,6 +1574,14 @@ def main():
                 last_warn_success = time.time()
                 publish_monitor_status("last_warn_read_epoch", int(last_warn_success))
                 publish_monitor_status("last_warn_read", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(last_warn_success)))
+                write_monitor_health(
+                    config,
+                    "running",
+                    "Warning read OK",
+                    last_analog_success=int(last_analog_success),
+                    last_warn_success=int(last_warn_success),
+                    bms_sn=bms_sn,
+                )
                 now = time.time()
                 force_warn = (now - last_warn_force) >= warn_force_seconds
                 publish_warn_data(client, config, result, force=force_warn)
@@ -1598,6 +1660,7 @@ def main():
 
         except Exception as e:
             log.exception("Unhandled error in main loop: %s", e)
+            write_monitor_health(config, "error", str(e), bms_sn=bms_sn)
             try:
                 check_stale_data()
             except Exception:
