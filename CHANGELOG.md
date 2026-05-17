@@ -1,3 +1,24 @@
+## 2.6.34 - 2026-05-17
+
+### Added
+- Added a web UI Setup Checklist card for guided first-run setup validation.
+- Added clearer Telegram placeholder warnings when notifications are enabled but Telegram values are missing or placeholders.
+- Added a Test Full Monitoring button that checks MQTT connectivity, Telegram configuration and notification thresholds without sending BMS commands or Telegram messages.
+- Added README first-run setup checklist guidance.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
+## 2.6.33 - 2026-05-17
+
+### Fixed
+- Changed the Home Assistant sidebar panel icon to `mdi:battery` for better compatibility with Home Assistant icon sets.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.32 - 2026-05-17
 
 ### Fixed

@@ -209,6 +209,60 @@ class TelegramConfigTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertIn("not configured", message)
 
+    def test_setup_checklist_flags_telegram_placeholders(self):
+        checklist = web_config.build_setup_checklist({
+            "connection_type": "Serial",
+            "bms_serial": "/dev/ttyUSB0",
+            "mqtt_host": "192.168.1.10",
+            "mqtt_port": 1883,
+            "mqtt_ha_discovery": True,
+            "mqtt_retain_state": True,
+            "notify_enabled": True,
+            "telegram_bot_token": "YOUR_TELEGRAM_BOT_TOKEN",
+            "telegram_chat_id": "YOUR_TELEGRAM_CHAT_ID",
+            "notify_warning_repeat_caution_seconds": 21600,
+            "notify_warning_repeat_warning_seconds": 3600,
+            "notify_warning_repeat_critical_seconds": 900,
+        })
+
+        self.assertFalse(checklist["telegram_configured"])
+        telegram_item = next(item for item in checklist["items"] if item["title"] == "Telegram")
+        self.assertEqual(telegram_item["class"], "warning")
+
+    def test_full_monitoring_check_does_not_send_telegram(self):
+        options = {
+            "connection_type": "Serial",
+            "bms_serial": "/dev/ttyUSB0",
+            "scan_interval": 5,
+            "mqtt_host": "192.168.1.10",
+            "mqtt_port": 1883,
+            "notify_enabled": True,
+            "telegram_bot_token": "123456:real-token",
+            "telegram_chat_id": "12345",
+            "notify_soc_high_threshold": 98,
+            "notify_soc_high_reset": 95,
+            "notify_soh_threshold": 95,
+            "notify_cell_high_warn_voltage": 4.2,
+            "notify_cell_low_warn_voltage": 3.0,
+            "notify_stale_data_seconds": 120,
+            "notify_stale_data_repeat_seconds": 1800,
+            "notify_warning_repeat_caution_seconds": 21600,
+            "notify_warning_repeat_warning_seconds": 3600,
+            "notify_warning_repeat_critical_seconds": 900,
+            "state_force_republish_seconds": 300,
+            "warn_force_republish_seconds": 300,
+        }
+
+        with (
+            patch("web_config.test_mqtt", return_value=(True, "MQTT OK")),
+            patch("bms_notify.urllib.request.urlopen") as urlopen,
+        ):
+            ok, message = web_config.test_full_monitoring(options)
+
+        self.assertTrue(ok)
+        self.assertIn("No BMS commands or Telegram messages", message)
+        urlopen.assert_not_called()
+
 
 class EnergyTrackingTests(unittest.TestCase):
     def test_energy_uses_elapsed_time_after_first_sample(self):

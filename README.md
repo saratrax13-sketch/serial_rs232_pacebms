@@ -21,7 +21,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.32"
+version: "2.6.34"
 ```
 
 ---
@@ -219,6 +219,31 @@ https://github.com/saratrax13-sketch/serial_rs232_pacebms
 6. Install the add-on.
 7. Configure the add-on.
 8. Start the add-on.
+
+---
+
+## First-Run Setup Checklist
+
+After starting the add-on, open the **Pace BMS** web UI from the Home Assistant sidebar.
+
+The Status tab includes a **Setup Checklist** card. Use it as the guided first-run check:
+
+- **BMS Serial** should show that the USB/serial path is configured.
+- **MQTT** should show that broker host and port are configured.
+- **Home Assistant Discovery** should be enabled if you want sensors created automatically.
+- **Retained State** should be enabled so the web UI and Home Assistant recover values after reconnects.
+- **Monitor Seen** confirms monitor status has appeared through MQTT.
+- **BMS Reads** confirms a successful analog read was seen.
+- **Telegram** confirms direct notification values are configured.
+- **Warning Noise Control** confirms severity-aware repeat intervals are valid.
+
+Use the buttons on the Status tab:
+
+- **Test MQTT** checks broker connectivity only.
+- **Test Telegram** sends a Telegram test message.
+- **Test Full Monitoring** checks MQTT connectivity, Telegram configuration and notification thresholds without sending a Telegram message and without sending any BMS commands.
+
+If Telegram still contains placeholder values such as `YOUR_TELEGRAM_BOT_TOKEN` or `YOUR_TELEGRAM_CHAT_ID`, the checklist shows a warning and direct Telegram alerts will be skipped.
 
 ---
 

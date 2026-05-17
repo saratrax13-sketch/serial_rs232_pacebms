@@ -464,6 +464,143 @@ def test_mqtt(options):
         return False, f"MQTT connection test failed: {exc}"
 
 
+def mqtt_value_configured(value):
+    text = str(value or "").strip()
+    return bool(text) and not text.upper().startswith("YOUR_MQTT_")
+
+
+def build_setup_checklist(options, live=None):
+    """Build first-run setup status for the web UI.
+
+    This is a read-only configuration guide. It checks add-on options and
+    retained MQTT status only; it does not communicate with the BMS.
+    """
+    options = options or {}
+    live = live or {}
+
+    telegram_configured = (
+        telegram_value_configured(options.get("telegram_bot_token"))
+        and telegram_value_configured(options.get("telegram_chat_id"))
+    )
+    telegram_enabled = bool(options.get("notify_enabled", True))
+    try:
+        mqtt_port = int(options.get("mqtt_port", 0) or 0)
+    except Exception:
+        mqtt_port = 0
+    mqtt_configured = mqtt_value_configured(options.get("mqtt_host")) and mqtt_port > 0
+    bms_configured = (
+        str(options.get("connection_type", "")).strip().lower() == "serial"
+        and bool(str(options.get("bms_serial", "")).strip())
+    )
+    discovery_enabled = bool(options.get("mqtt_ha_discovery", False))
+    retained_enabled = bool(options.get("mqtt_retain_state", False))
+    try:
+        warning_repeats = all(
+            int(options.get(key, 0) or 0) >= 60
+            for key in (
+                "notify_warning_repeat_caution_seconds",
+                "notify_warning_repeat_warning_seconds",
+                "notify_warning_repeat_critical_seconds",
+            )
+        )
+    except Exception:
+        warning_repeats = False
+    monitor_seen = str(live.get("monitor_state", "")).lower() == "running" or str(live.get("availability", "")).lower() == "online"
+    bms_reads_seen = live.get("last_analog_read", "Unknown") not in ("Unknown", "Not available", "")
+
+    items = [
+        {
+            "title": "BMS Serial",
+            "status": "Ready" if bms_configured else "Needs setup",
+            "class": "healthy" if bms_configured else "warning",
+            "detail": "Serial connection is configured." if bms_configured else "Set connection_type to Serial and choose the BMS USB/serial path.",
+        },
+        {
+            "title": "MQTT",
+            "status": "Ready" if mqtt_configured else "Needs setup",
+            "class": "healthy" if mqtt_configured else "warning",
+            "detail": "MQTT host and port are configured." if mqtt_configured else "Set mqtt_host, mqtt_port and credentials for your MQTT broker.",
+        },
+        {
+            "title": "Home Assistant Discovery",
+            "status": "Enabled" if discovery_enabled else "Disabled",
+            "class": "healthy" if discovery_enabled else "warning",
+            "detail": "Home Assistant can auto-create MQTT entities." if discovery_enabled else "Enable mqtt_ha_discovery for automatic Home Assistant sensors.",
+        },
+        {
+            "title": "Retained State",
+            "status": "Enabled" if retained_enabled else "Disabled",
+            "class": "healthy" if retained_enabled else "warning",
+            "detail": "MQTT retains latest values for HA and the web UI." if retained_enabled else "Enable mqtt_retain_state so HA and the web UI recover values after reconnects.",
+        },
+        {
+            "title": "Monitor Seen",
+            "status": "Running" if monitor_seen else "Waiting",
+            "class": "healthy" if monitor_seen else "warning",
+            "detail": "Monitor status has been seen via MQTT." if monitor_seen else "Start the add-on and confirm MQTT monitor state appears.",
+        },
+        {
+            "title": "BMS Reads",
+            "status": "Seen" if bms_reads_seen else "Waiting",
+            "class": "healthy" if bms_reads_seen else "warning",
+            "detail": f"Last analog read: {live.get('last_analog_read', 'Unknown')}" if bms_reads_seen else "Waiting for a successful analog read from the BMS.",
+        },
+        {
+            "title": "Telegram",
+            "status": "Ready" if telegram_configured and telegram_enabled else "Needs setup",
+            "class": "healthy" if telegram_configured and telegram_enabled else "warning",
+            "detail": "Telegram notifications are enabled and credentials are configured." if telegram_configured and telegram_enabled else "Set a real Telegram bot token/chat ID or disable notify_enabled.",
+        },
+        {
+            "title": "Warning Noise Control",
+            "status": "Ready" if warning_repeats else "Check",
+            "class": "healthy" if warning_repeats else "warning",
+            "detail": "Severity-aware warning repeat intervals are configured." if warning_repeats else "Set caution, warning and critical repeat intervals to at least 60 seconds.",
+        },
+    ]
+
+    ready = sum(1 for item in items if item["class"] == "healthy")
+    if ready == len(items):
+        summary = "Full Monitoring setup looks ready."
+        summary_class = "healthy"
+    elif bms_configured and mqtt_configured:
+        summary = "Basic Required setup is ready; finish optional monitoring items."
+        summary_class = "warning"
+    else:
+        summary = "Basic Required setup still needs attention."
+        summary_class = "warning"
+
+    return {
+        "ready_count": ready,
+        "total_count": len(items),
+        "summary": summary,
+        "summary_class": summary_class,
+        "items": items,
+        "telegram_configured": telegram_configured,
+        "telegram_enabled": telegram_enabled,
+    }
+
+
+def test_full_monitoring(options):
+    """Dry-check Full Monitoring config without BMS access or Telegram send."""
+    checklist = build_setup_checklist(options)
+    errors = validate_addon_options(options)
+
+    mqtt_ok, mqtt_message = test_mqtt(options)
+    if not mqtt_ok:
+        errors.append(mqtt_message)
+
+    if not checklist["telegram_configured"]:
+        errors.append("Telegram bot token/chat ID are missing or still use placeholder values.")
+    if not checklist["telegram_enabled"]:
+        errors.append("notify_enabled is disabled, so direct Telegram monitoring is off.")
+
+    if errors:
+        return False, "Full Monitoring check needs attention: " + " | ".join(errors[:6])
+
+    return True, "Full Monitoring dry check passed: MQTT connects, Telegram values are configured, and notification thresholds look valid. No BMS commands or Telegram messages were sent."
+
+
 def _to_float(value, default=None):
     try:
         return float(value)
@@ -1426,6 +1563,7 @@ def render_index(action_result="", action_message="", active_tab="status", compa
     # Fetching the live MQTT snapshot requires a short MQTT subscribe window.
     # Only do this on the Status tab. Config and Events should open quickly.
     live = fetch_mqtt_snapshot(options) if options and active_tab in ("status", "dashboard", "diagnostics") else None
+    setup_checklist = build_setup_checklist(options, live) if options else None
 
     return render_template(
         "index.html",
@@ -1442,6 +1580,7 @@ def render_index(action_result="", action_message="", active_tab="status", compa
         compare_data=compare_data,
         restore_preview=restore_preview,
         diagnostics=build_diagnostics(options, live) if options and active_tab == "diagnostics" else None,
+        setup_checklist=setup_checklist,
         card_help=CARD_HELP,
         field_help=FIELD_HELP,
         config_section_badges=CONFIG_SECTION_BADGES,
@@ -1536,6 +1675,20 @@ def route_test_mqtt():
 
     ok, message = test_mqtt(options)
     append_event("mqtt_test", "MQTT test", message, "ok" if ok else "warn")
+    return redirect_to_tab("status", "ok" if ok else "warn", message)
+
+
+@app.route("/test-full-monitoring", methods=["GET", "POST"])
+def route_test_full_monitoring():
+    if request.method == "GET":
+        return redirect_to_tab("status")
+
+    options, error = load_options()
+    if error:
+        return redirect_to_tab("status", "warn", error)
+
+    ok, message = test_full_monitoring(options)
+    append_event("full_monitoring_test", "Full Monitoring check", message, "ok" if ok else "warn")
     return redirect_to_tab("status", "ok" if ok else "warn", message)
 
 
