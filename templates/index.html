@@ -386,6 +386,95 @@
       font-size: 13px;
     }
 
+    .topology-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 10px;
+      margin-top: 12px;
+    }
+
+    .topology-table th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      text-align: left;
+      padding: 0 12px 2px;
+    }
+
+    .topology-table td {
+      background: rgba(15, 23, 42, 0.66);
+      border-top: 1px solid rgba(148, 163, 184, 0.16);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+      padding: 12px;
+      vertical-align: top;
+    }
+
+    .topology-table td:first-child {
+      border-left: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: 14px 0 0 14px;
+    }
+
+    .topology-table td:last-child {
+      border-right: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: 0 14px 14px 0;
+    }
+
+    .topology-role {
+      display: inline-flex;
+      border-radius: 999px;
+      padding: 5px 9px;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: #bae6fd;
+      background: rgba(14, 165, 233, 0.10);
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .topology-note {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 4px;
+      line-height: 1.35;
+    }
+
+    @media (max-width: 980px) {
+      .topology-table,
+      .topology-table tbody,
+      .topology-table tr,
+      .topology-table td {
+        display: block;
+        width: 100%;
+      }
+
+      .topology-table thead {
+        display: none;
+      }
+
+      .topology-table tr {
+        margin-bottom: 12px;
+        background: rgba(15, 23, 42, 0.66);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 14px;
+        overflow: hidden;
+      }
+
+      .topology-table td {
+        border: none;
+        border-radius: 0 !important;
+      }
+
+      .topology-table td::before {
+        content: attr(data-label);
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+    }
+
     .status-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -977,8 +1066,8 @@
       <div class="app-title-wrap">
         <img class="app-icon" src="icon.png" alt="" onerror="this.style.display='none';">
         <div>
-          <h1>Pace BMS Settings</h1>
-          <p>Configuration overview, test tools and live MQTT status for the Home Assistant add-on.</p>
+          <h1>Pace BMS Monitor</h1>
+          <p>Live battery status, configuration, backups and diagnostics for the Home Assistant add-on.</p>
         </div>
       </div>
       <div class="header-badges">
@@ -1603,6 +1692,90 @@ This cannot be undone.`);">
             <div class="diagnostic-detail">{{ card.detail }}</div>
           </div>
           {% endfor %}
+        </div>
+      </section>
+
+      <section class="card wide-card">
+        <h2>Battery Configuration</h2>
+        <p>Detected pack topology and identity details. Pack serials are shown only where the current BMS read exposes them.</p>
+
+        <div class="status-grid">
+          <div class="status-tile">
+            <div class="tile-label">Connection Type</div>
+            <div class="tile-value">{{ diagnostics.battery_topology.connection_type }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Configuration</div>
+            <div class="tile-value">{{ diagnostics.battery_topology.configuration }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Detected Packs</div>
+            <div class="tile-value">{{ diagnostics.battery_topology.pack_count }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Total Cells</div>
+            <div class="tile-value">{{ diagnostics.battery_topology.total_cells }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Master Pack</div>
+            <div class="tile-value">{{ diagnostics.battery_topology.master_pack }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Slave Pack(s)</div>
+            <div class="tile-value">{{ diagnostics.battery_topology.slave_packs }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">BMS Serial</div>
+            <div class="tile-value">{{ diagnostics.battery_topology.bms_serial }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">BMS Version</div>
+            <div class="tile-value">{{ diagnostics.battery_topology.bms_version }}</div>
+          </div>
+        </div>
+
+        {% if diagnostics.battery_topology.rows %}
+        <table class="topology-table">
+          <thead>
+            <tr>
+              <th>Role</th>
+              <th>Pack</th>
+              <th>Serial</th>
+              <th>Cells</th>
+              <th>SOC</th>
+              <th>SOH</th>
+              <th>Voltage</th>
+              <th>Current</th>
+              <th>Delta</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in diagnostics.battery_topology.rows %}
+            <tr>
+              <td data-label="Role"><span class="topology-role">{{ row.role }}</span></td>
+              <td data-label="Pack">{{ row.pack }}</td>
+              <td data-label="Serial">
+                {{ row.serial }}
+                <div class="topology-note">{{ row.serial_note }}</div>
+              </td>
+              <td data-label="Cells">{{ row.cells }}</td>
+              <td data-label="SOC">{{ row.soc }}%</td>
+              <td data-label="SOH">{{ row.soh }}%</td>
+              <td data-label="Voltage">{{ row.voltage }} V</td>
+              <td data-label="Current">{{ row.current }} A</td>
+              <td data-label="Delta">{{ row.delta }} mV</td>
+              <td data-label="Status">{{ row.status }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p>No pack identity data is currently available. Check Status and MQTT retained values.</p>
+        {% endif %}
+
+        <div class="helper-note">
+          If a slave pack serial shows as "Not reported separately", it means the current BMS read does not expose a unique serial for that pack. The UI will not invent serial numbers.
         </div>
       </section>
 

@@ -748,6 +748,94 @@ def redact_value_for_report(key, value):
     return value
 
 
+def clean_bms_serial(value):
+    text = str(value or "Unknown").strip()
+    if not text or text.lower() in {"unknown", "none", "not available"}:
+        return "Unknown"
+
+    # Serial values often arrive wrapped in asterisks from the BMS.
+    cleaned = text.strip("*").strip()
+    return cleaned or text
+
+
+def clean_bms_version(value, serial=""):
+    text = str(value or "Unknown").strip()
+    if not text or text.lower() in {"unknown", "none", "not available"}:
+        return "Unknown"
+
+    serial_clean = clean_bms_serial(serial)
+    # Remove repeated serial text and protocol padding from version string.
+    cleaned = text.replace(f"*{serial_clean}*", "")
+    cleaned = cleaned.replace(serial_clean, "")
+    cleaned = cleaned.replace("*", " ")
+    cleaned = " ".join(cleaned.split())
+    return cleaned or text
+
+
+def build_battery_topology(options, live):
+    packs = live.get("packs", []) if isinstance(live, dict) else []
+    pack_count = int(live.get("pack_count", len(packs)) or 0) if isinstance(live, dict) else len(packs)
+    total_cells = int(live.get("total_cells", 0) or 0) if isinstance(live, dict) else 0
+
+    bms_serial = clean_bms_serial(live.get("bms_sn", "Unknown") if isinstance(live, dict) else "Unknown")
+    pack_serial = clean_bms_serial(live.get("pack_sn", "Unknown") if isinstance(live, dict) else "Unknown")
+    bms_version = clean_bms_version(live.get("bms_version", "Unknown") if isinstance(live, dict) else "Unknown", bms_serial)
+
+    if pack_count <= 0:
+        configuration = "No packs detected"
+    elif pack_count == 1:
+        configuration = "Single Pack"
+    else:
+        configuration = "Master + Slave"
+
+    rows = []
+    for pack in packs:
+        try:
+            pack_num = int(str(pack.get("id", "0")))
+        except Exception:
+            pack_num = 0
+
+        if pack_num == 1:
+            role = "Master"
+            serial_display = pack_serial if pack_serial != "Unknown" else bms_serial
+            serial_note = "Reported by BMS" if serial_display != "Unknown" else "Not reported"
+        else:
+            role = "Slave"
+            serial_display = "Not reported separately"
+            serial_note = "Current BMS read does not expose a separate serial for this pack"
+
+        warnings = pack.get("warnings", "Normal")
+        status = "Normal" if warnings == "Normal" else pack.get("severity_label", "Warning")
+
+        rows.append({
+            "role": role,
+            "pack": f"Pack {pack.get('id')}",
+            "serial": serial_display,
+            "serial_note": serial_note,
+            "cells": pack.get("cell_count", "Unknown"),
+            "soc": pack.get("soc", "Unknown"),
+            "soh": pack.get("soh", "Unknown"),
+            "voltage": pack.get("voltage", "Unknown"),
+            "current": pack.get("current", "Unknown"),
+            "delta": pack.get("delta", "Unknown"),
+            "status": status,
+            "warnings": warnings,
+        })
+
+    return {
+        "connection_type": options.get("connection_type", "Unknown"),
+        "bms_serial": bms_serial,
+        "pack_serial": pack_serial,
+        "bms_version": bms_version,
+        "pack_count": pack_count,
+        "total_cells": total_cells,
+        "configuration": configuration,
+        "master_pack": "Pack 01" if pack_count >= 1 else "None",
+        "slave_packs": ", ".join(f"Pack {i:02d}" for i in range(2, pack_count + 1)) if pack_count > 1 else "None",
+        "rows": rows,
+    }
+
+
 def build_diagnostics(options, live=None):
     """Build a redacted diagnostics summary for the web UI and support report."""
     backups = list_config_backups() if "list_config_backups" in globals() else []
@@ -843,6 +931,7 @@ def build_diagnostics(options, live=None):
         "config_summary": config_summary,
         "events_count": len(load_events()),
         "latest_events": load_events()[:10],
+        "battery_topology": build_battery_topology(options, live),
         "read_only_safety": {
             "bms_writes": False,
             "fet_control": False,
