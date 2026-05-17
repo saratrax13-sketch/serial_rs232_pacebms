@@ -2016,6 +2016,11 @@
               <div class="config-card-header">
                 <div class="config-card-title">
                   <h2>{{ group_name }}</h2>
+                  {% if group_name in ['BMS Connection', 'MQTT', 'Advanced'] %}
+                  <span class="section-badge required">Required</span>
+                  {% else %}
+                  <span class="section-badge optional">Optional</span>
+                  {% endif %}
                   <button class="help-icon-button" type="button" onclick="openConfigHelp('{{ group_name }}')" aria-label="Help for {{ group_name }}">i</button>
                 </div>
                 <div class="config-card-actions">
