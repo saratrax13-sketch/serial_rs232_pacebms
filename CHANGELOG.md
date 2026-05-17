@@ -1,17 +1,25 @@
-## 2.6.14 - 2026-05-17
+# 2.6.15 config.yaml change
 
-### Fixed
-- Fixed Report Schedules fields not being validated.
-- Added explicit backend validation for:
-  - `notify_daily_summary_time`
-  - `notify_delta_report_time`
-  - `notify_delta_window_start`
-  - `notify_delta_window_end`
-- Added explicit frontend validation for the same fields.
-- Added HH:MM input hints for Report Schedule fields.
+# In your add-on config.yaml, change telegram_chat_id in the schema section
+# from a visible string field to a password field.
 
-### Notes
-- Valid format is 24-hour `HH:MM`, for example `19:00`, `10:15` or `00:00`.
-- Invalid examples such as `7pm`, `25:99`, `10h15` and `abc` should now be blocked.
-- No BMS protocol changes were made.
-- No BMS write/control commands were added.
+# BEFORE:
+schema:
+  telegram_bot_token: password
+  telegram_chat_id: str
+
+# AFTER:
+schema:
+  telegram_bot_token: password
+  telegram_chat_id: password
+
+# Keep the options value as a string:
+options:
+  telegram_bot_token: ""
+  telegram_chat_id: ""
+
+# Notes:
+# - This only changes how the native Home Assistant add-on Options screen displays the field.
+# - The Telegram chat ID will be masked/redacted like the bot token.
+# - The Python code can still read it normally as text.
+# - Do not change this to int if you want it masked.
