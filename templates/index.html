@@ -3290,5 +3290,103 @@ Restart the add-on afterwards for runtime changes to apply.`);
 
   </script>
 
+<script>
+
+    // 2.6.7 direct section help fix
+    const DIRECT_SECTION_HELP = {
+      "Telegram": "Telegram settings control notification delivery, startup messages, disconnect alerts and stale-data notifications. Leave token/chat ID blank in the web UI to keep existing saved secret values.",
+      "Notifications": "Notification settings enable or disable SOC, SOH, warning, FET, daily summary and delta report notifications.",
+      "Notification Thresholds": "Controls when SOC, SOH and stale-data notifications trigger.\n\nnotify_soc_low_thresholds format:\nUse comma-separated numbers only.\nExample: 75,50,25,15\nDo not use percentage signs.\n\nOther fields:\nnotify_soc_high_threshold uses one percentage number, for example 98.\nnotify_soc_high_reset must be lower than the high threshold, for example 95.\nnotify_soh_threshold uses one percentage number, for example 95.\nnotify_retry_count must be a whole number.\nnotify_stale_data_seconds and notify_stale_data_repeat_seconds are seconds.",
+      "Warning Detail": "Warning Detail settings control which extra values are included in warning messages, such as all cells above/below thresholds, highest/lowest cells, pack voltage and SOC/SOH.",
+      "Report Schedules": "Controls scheduled notification times for the daily summary and cell delta report.\n\nTime format:\nUse 24-hour HH:MM format.\nExamples: 19:00, 10:15, 00:00\n\nnotify_daily_summary_time controls the daily summary time.\nnotify_delta_report_time controls when the delta report is sent.\nnotify_delta_window_start and notify_delta_window_end define the time range used for the delta report.",
+      "MQTT": "MQTT settings control broker connection, base topic, Home Assistant Discovery and retained state publishing.",
+      "BMS Connection": "BMS Connection settings control the RS232 serial path, baud rate and polling interval. IP mode is not enabled in this build.",
+      "Advanced": "Advanced settings are mainly for troubleshooting and topic formatting. Keep debug_output at 0 for normal use."
+    };
+
+    function directSectionHelpText(sectionName) {
+      return DIRECT_SECTION_HELP[sectionName] || "No help text is available for this section yet.";
+    }
+
+    function directOpenSectionHelp(sectionName) {
+      const titleText = sectionName + " Settings";
+      const bodyText = directSectionHelpText(sectionName);
+
+      const titleCandidates = [
+        document.getElementById("info-modal-title"),
+        document.getElementById("modal-title"),
+        document.querySelector(".modal-title"),
+        document.querySelector("[data-modal-title]")
+      ].filter(Boolean);
+
+      const bodyCandidates = [
+        document.getElementById("info-modal-body"),
+        document.getElementById("modal-body"),
+        document.querySelector(".modal-body"),
+        document.querySelector("[data-modal-body]")
+      ].filter(Boolean);
+
+      titleCandidates.forEach((el) => { el.textContent = titleText; });
+      bodyCandidates.forEach((el) => { el.textContent = bodyText; });
+
+      const modal = document.getElementById("info-modal") || document.getElementById("modal") || document.querySelector(".modal");
+      if (modal) {
+        modal.style.display = "flex";
+        modal.classList.add("open");
+        modal.removeAttribute("hidden");
+      } else {
+        alert(titleText + "\n\n" + bodyText);
+      }
+    }
+
+    // Override any older functions used by the info buttons.
+    window.openSectionHelp = directOpenSectionHelp;
+    window.showSectionInfo = directOpenSectionHelp;
+    window.showInfo = directOpenSectionHelp;
+
+    // Capture clicks on Config section info buttons, regardless of old onclick handler.
+    document.addEventListener("click", function (event) {
+      const target = event.target.closest("button, a, span");
+      if (!target) return;
+
+      const onclick = target.getAttribute("onclick") || "";
+      const aria = target.getAttribute("aria-label") || "";
+      const title = target.getAttribute("title") || "";
+      const text = (target.textContent || "").trim();
+
+      let section = null;
+
+      const onclickMatch = onclick.match(/['"]([^'"]+)['"]/);
+      if (onclickMatch && DIRECT_SECTION_HELP[onclickMatch[1]]) {
+        section = onclickMatch[1];
+      }
+
+      if (!section) {
+        const possible = aria + " " + title + " " + text;
+        Object.keys(DIRECT_SECTION_HELP).forEach((name) => {
+          if (!section && possible.includes(name)) section = name;
+        });
+      }
+
+      // Nearby card heading fallback.
+      if (!section && (text === "i" || text === "ⓘ" || target.className.toString().includes("info"))) {
+        const card = target.closest(".config-card, .card, section, article, div");
+        if (card) {
+          const heading = card.querySelector("h2, h3, .card-title, .section-title");
+          const headingText = heading ? heading.textContent.trim() : "";
+          Object.keys(DIRECT_SECTION_HELP).forEach((name) => {
+            if (!section && headingText.includes(name)) section = name;
+          });
+        }
+      }
+
+      if (section) {
+        event.preventDefault();
+        event.stopPropagation();
+        directOpenSectionHelp(section);
+      }
+    }, true);
+
+</script>
 </body>
 </html>

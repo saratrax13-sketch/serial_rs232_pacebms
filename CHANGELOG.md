@@ -1,12 +1,13 @@
-## 2.6.6 - 2026-05-17
+## 2.6.7 - 2026-05-17
 
 ### Fixed
-- Fixed Notification Thresholds info popup still showing `No help text is available for this section yet`.
-- Fixed Report Schedules info popup still showing `No help text is available for this section yet`.
-- Added a robust frontend section-help fallback for all Config section info buttons.
-- Added backend `SECTION_HELP` mapping for Config section help text.
+- Directly fixed Config section info popup lookup in `templates/index.html`.
+- Added a frontend override for Config section info buttons.
+- Notification Thresholds info now shows comma-separated threshold format help.
+- Report Schedules info now shows 24-hour HH:MM format help.
 
 ### Notes
+- This fix targets the actual popup click path in the template.
 - `bms_ip` and `bms_port` were not re-added.
 - No BMS protocol changes were made.
 - No BMS write/control commands were added.
