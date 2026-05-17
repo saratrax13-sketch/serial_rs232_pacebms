@@ -1673,9 +1673,13 @@ This cannot be undone.`);">
       <section class="card wide-card">
         <h2>Diagnostics</h2>
         <p>Health overview and redacted support information for the add-on. This page reads MQTT/add-on state only and does not write to the BMS.</p>
+        <div class="helper-note">
+          The Support Bundle ZIP includes diagnostics, recent events, backup summary and sanitized config. Sensitive values are redacted and full backup files are not included.
+        </div>
 
         <div class="actions">
           <a class="button-link" href="download-diagnostics.json">Download Diagnostic Report</a>
+          <a class="button-link" href="download-support-bundle.zip">Download Support Bundle ZIP</a>
           <a class="button-link" href="?tab=status">Open Status</a>
           <a class="button-link" href="?tab=backups">Open Backups</a>
         </div>

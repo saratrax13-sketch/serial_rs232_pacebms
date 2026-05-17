@@ -943,6 +943,72 @@ def build_diagnostics(options, live=None):
     }
 
 
+def build_sanitized_config(options):
+    """Return a redacted copy of add-on options for support use."""
+    sanitized = {}
+    for key, value in options.items():
+        sanitized[key] = redact_value_for_report(key, value)
+    return sanitized
+
+
+def build_backup_summary_for_support():
+    backups = list_config_backups() if "list_config_backups" in globals() else []
+    summary = config_backup_summary() if "config_backup_summary" in globals() else {
+        "count": len(backups),
+        "keep_count": 0,
+        "latest": "Unknown",
+        "oldest": "Unknown",
+        "folder": "Unknown",
+    }
+
+    return {
+        "summary": summary,
+        "backups": [
+            {
+                "filename": item.get("filename"),
+                "created": item.get("created"),
+                "reason": item.get("reason"),
+                "size": item.get("size"),
+            }
+            for item in backups
+        ],
+        "note": "This is a summary only. Full backup files are not included in the support bundle.",
+    }
+
+
+def build_support_readme():
+    return """Pace BMS Diagnostic Support Bundle
+
+This ZIP contains redacted troubleshooting information from the Pace BMS Home Assistant add-on.
+
+Included files:
+- diagnostics.json: current health/status diagnostics
+- events.json: recent monitor and web UI events
+- backup-summary.json: summary of available config backups
+- sanitized-config.json: add-on options with sensitive values redacted
+- readme-support.txt: this file
+
+Redacted values:
+- Telegram bot token
+- Telegram chat ID
+- MQTT password
+- Other sensitive fields defined by the add-on
+
+Not included:
+- Full backup files
+- Real credentials
+- Telegram tokens
+- MQTT passwords
+- BMS write/control tools
+
+Safety:
+The support bundle only exports diagnostic information.
+It does not change Home Assistant settings.
+It does not write to the BMS.
+It does not send BMS control commands.
+"""
+
+
 def build_grouped_config(options):
     grouped = {}
     for group_name, keys in GROUPS.items():
@@ -1628,6 +1694,36 @@ def api_status():
 def api_events():
     return jsonify({"ok": True, "events": load_events()})
 
+
+
+
+@app.route("/download-support-bundle.zip", methods=["GET"])
+def route_download_support_bundle_zip():
+    options, error = load_options()
+    if error:
+        return Response(error, mimetype="text/plain", status=500)
+
+    diagnostics = build_diagnostics(options)
+    events = load_events()
+    backup_summary = build_backup_summary_for_support()
+    sanitized_config = build_sanitized_config(options)
+    readme = build_support_readme()
+
+    memory_file = io.BytesIO()
+    with zipfile.ZipFile(memory_file, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("diagnostics.json", json.dumps(diagnostics, indent=2))
+        zf.writestr("events.json", json.dumps(events, indent=2))
+        zf.writestr("backup-summary.json", json.dumps(backup_summary, indent=2))
+        zf.writestr("sanitized-config.json", json.dumps(sanitized_config, indent=2))
+        zf.writestr("readme-support.txt", readme)
+
+    memory_file.seek(0)
+
+    return Response(
+        memory_file.getvalue(),
+        mimetype="application/zip",
+        headers={"Content-Disposition": "attachment; filename=pacebms-support-bundle.zip"},
+    )
 
 
 @app.route("/download-diagnostics.json", methods=["GET"])
