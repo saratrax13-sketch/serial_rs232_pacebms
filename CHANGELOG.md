@@ -1,3 +1,16 @@
+## 2.6.39 - 2026-05-17
+
+### Changed
+- Reworked Status pack cards into clearer groups: Battery Health, Electrical, Cell Balance, Reference Limits and BMS Control State.
+- Slimmed web UI buttons so tool actions and tab controls feel less bulky.
+
+### Added
+- Added cycle count to the Diagnostics Battery Configuration table.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.38 - 2026-05-17
 
 ### Added

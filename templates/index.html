@@ -215,14 +215,15 @@
       border: 1px solid rgba(56, 189, 248, 0.7);
       background: rgba(14, 165, 233, 0.16);
       color: #e0f2fe;
-      padding: 10px 14px;
-      border-radius: 12px;
+      padding: 7px 11px;
+      border-radius: 10px;
       font-weight: 800;
       text-decoration: none;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      font-size: 14px;
+      font-size: 13px;
+      line-height: 1.2;
     }
 
     button.primary-button, .button-link.primary-button {
@@ -935,7 +936,19 @@
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 10px;
-      margin-bottom: 12px;
+    }
+
+    .metric-section {
+      margin-top: 14px;
+    }
+
+    .metric-section-title {
+      color: #93c5fd;
+      font-size: 12px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
     }
 
     .metric {
@@ -2061,53 +2074,77 @@
               <span class="pill {{ pack.severity_class }}">{{ pack.severity_label }}</span>
             </div>
 
-            <div class="metric-grid">
-              <div class="metric">
-                <div class="metric-label">SOC</div>
-                <div class="metric-value">{{ pack.soc }}%</div>
-              </div>
-              <div class="metric">
-                <div class="metric-label">SOH</div>
-                <div class="metric-value">{{ pack.soh }}%</div>
-              </div>
-              <div class="metric">
-                <div class="metric-label">Cycles</div>
-                <div class="metric-value">{{ pack.cycles }}</div>
-              </div>
-              <div class="metric">
-                <div class="metric-label">Pack Voltage</div>
-                <div class="metric-value">{{ pack.voltage }} V</div>
-              </div>
-              <div class="metric">
-                <div class="metric-label">Current</div>
-                <div class="metric-value">{{ pack.current }} A</div>
-              </div>
-              <div class="metric">
-                <div class="metric-label">Highest Cell</div>
-                <div class="metric-value">Cell {{ pack.highest_cell.number }} = {{ pack.highest_cell.voltage }} V</div>
-              </div>
-              <div class="metric">
-                <div class="metric-label">Lowest Cell</div>
-                <div class="metric-value">Cell {{ pack.lowest_cell.number }} = {{ pack.lowest_cell.voltage }} V</div>
-              </div>
-              <div class="metric">
-                <div class="metric-label">Cell Delta</div>
-                <div class="metric-value">{{ pack.delta }} mV</div>
-              </div>
-              <div class="metric">
-                <div class="metric-label">Cell High Ref</div>
-                <div class="metric-value">{{ pack.cell_high_ref }} V</div>
-              </div>
-              <div class="metric">
-                <div class="metric-label">Pack High Ref</div>
-                <div class="metric-value">{{ pack.pack_high_ref }} V</div>
+            <div class="metric-section">
+              <div class="metric-section-title">Battery Health</div>
+              <div class="metric-grid">
+                <div class="metric">
+                  <div class="metric-label">SOC</div>
+                  <div class="metric-value">{{ pack.soc }}%</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">SOH</div>
+                  <div class="metric-value">{{ pack.soh }}%</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">Cycles</div>
+                  <div class="metric-value">{{ pack.cycles }}</div>
+                </div>
               </div>
             </div>
 
-            <div class="fet-row">
+            <div class="metric-section">
+              <div class="metric-section-title">Electrical</div>
+              <div class="metric-grid">
+                <div class="metric">
+                  <div class="metric-label">Pack Voltage</div>
+                  <div class="metric-value">{{ pack.voltage }} V</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">Current</div>
+                  <div class="metric-value">{{ pack.current }} A</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="metric-section">
+              <div class="metric-section-title">Cell Balance</div>
+              <div class="metric-grid">
+                <div class="metric">
+                  <div class="metric-label">Highest Cell</div>
+                  <div class="metric-value">Cell {{ pack.highest_cell.number }} = {{ pack.highest_cell.voltage }} V</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">Lowest Cell</div>
+                  <div class="metric-value">Cell {{ pack.lowest_cell.number }} = {{ pack.lowest_cell.voltage }} V</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">Cell Delta</div>
+                  <div class="metric-value">{{ pack.delta }} mV</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="metric-section">
+              <div class="metric-section-title">Reference Limits</div>
+              <div class="metric-grid">
+                <div class="metric">
+                  <div class="metric-label">Cell High Ref</div>
+                  <div class="metric-value">{{ pack.cell_high_ref }} V</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">Pack High Ref</div>
+                  <div class="metric-value">{{ pack.pack_high_ref }} V</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="metric-section">
+              <div class="metric-section-title">BMS Control State</div>
+              <div class="fet-row">
               <span class="pill {% if pack.charge_fet == 'ON' %}ok{% else %}off{% endif %}">Charge FET: {{ pack.charge_fet }}</span>
               <span class="pill {% if pack.discharge_fet == 'ON' %}ok{% else %}danger{% endif %}">Discharge FET: {{ pack.discharge_fet }}</span>
               <span class="pill {% if pack.fully == 'ON' %}ok{% else %}off{% endif %}">Full: {{ pack.fully }}</span>
+              </div>
             </div>
 
             {% if pack.warnings == 'Normal' %}
@@ -2761,6 +2798,7 @@ This cannot be undone.`);">
               <th>Cells</th>
               <th>SOC</th>
               <th>SOH</th>
+              <th>Cycles</th>
               <th>Voltage</th>
               <th>Current</th>
               <th>Delta</th>
@@ -2779,6 +2817,7 @@ This cannot be undone.`);">
               <td data-label="Cells">{{ row.cells }}</td>
               <td data-label="SOC">{{ row.soc }}%</td>
               <td data-label="SOH">{{ row.soh }}%</td>
+              <td data-label="Cycles">{{ row.cycles }}</td>
               <td data-label="Voltage">{{ row.voltage }} V</td>
               <td data-label="Current">{{ row.current }} A</td>
               <td data-label="Delta">{{ row.delta }} mV</td>
