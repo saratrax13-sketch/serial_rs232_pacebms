@@ -1,13 +1,11 @@
-## 2.6.21 - 2026-05-17
+## 2.6.22 - 2026-05-17
 
 ### Fixed
-- Fixed the compact header `Restart Add-on` button submitting through the normal Save Configuration form.
-- The restart button now uses its own independent form and posts directly to `/restart-addon`.
-- This prevents the incorrect `No configuration changes detected. Nothing to save.` message.
-- Also changed the compact header `Create Backup` button back to its own independent form.
+- Fixed `Restart Add-on` returning `404: Not Found` under Home Assistant Ingress.
+- Changed the template form action from absolute `/restart-addon` to relative `restart-addon`.
+- Kept the Flask backend route as `/restart-addon`.
 
 ### Notes
-- Save Configuration remains unchanged.
-- Restart Add-on no longer depends on whether configuration changes were detected.
+- Home Assistant Ingress requires relative links/actions so the request stays inside the add-on ingress path.
 - No BMS protocol changes were made.
 - No BMS write/control commands were added.
