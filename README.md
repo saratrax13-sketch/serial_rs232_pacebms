@@ -21,7 +21,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.28"
+version: "2.6.29"
 ```
 
 ---
@@ -179,6 +179,7 @@ The add-on includes a read-only web UI inside Home Assistant.
 The web UI includes:
 
 - Configuration overview
+- Basic Required / Full Monitoring / Advanced configuration views
 - Live status
 - Detected packs
 - Pack SOC / SOH
@@ -190,6 +191,7 @@ The web UI includes:
 - Last analog read timestamp
 - Last warning read timestamp
 - Stale-data status
+- Caution / Warning / Critical warning severity context
 - Test Telegram button
 - Test MQTT button
 
@@ -222,7 +224,53 @@ https://github.com/saratrax13-sketch/serial_rs232_pacebms
 
 ## Recommended Configuration
 
-Example configuration options:
+The add-on can run in two practical modes:
+
+### Basic Required Setup
+
+Basic Required is the minimum needed for Home Assistant visibility. It connects to the BMS, reads battery data, publishes MQTT state, and creates Home Assistant discovery entities.
+
+Use Basic Required when you want dashboard sensors and Home Assistant automations, but do not want the add-on itself to send Telegram alerts.
+
+Required groups:
+
+- **BMS Connection**: serial adapter path, baud rate, and scan interval.
+- **MQTT**: broker address, credentials, base topic, discovery, and retain settings.
+- **Advanced**: debug level and MQTT topic padding.
+
+With only Basic Required configured:
+
+- The BMS is still read-only.
+- Pack, cell, SOC, SOH, warning, FET and temperature values publish to MQTT.
+- Home Assistant can show dashboards and run its own automations.
+- MQTT availability and monitor status topics are published.
+- Direct Telegram notifications, daily reports, stale-data Telegram alerts and FET Telegram alerts are not useful unless Telegram and notification options are configured.
+
+In the web UI, choose **Basic Required** on the Config tab to focus on only these required connection and publishing fields.
+
+### Full Monitoring Package
+
+Full Monitoring adds the optional alerting/reporting layer on top of Basic Required. This is the recommended mode if the add-on is expected to actively warn a user when something goes wrong.
+
+Optional groups:
+
+- **Telegram**: bot token, chat ID, startup/disconnect/stale notification toggles.
+- **Notifications**: SOC, SOH, warning, FET, daily summary and delta report toggles.
+- **Notification Thresholds**: SOC/SOH/stale thresholds and severity-aware warning repeat intervals.
+- **Warning Detail**: read-only reference values used to explain BMS warnings in Telegram messages.
+- **Report Schedules**: daily summary and cell-delta report times.
+
+With Full Monitoring configured:
+
+- The add-on sends direct Telegram alerts for configured battery and monitor events.
+- BMS warnings are classified by severity to reduce repeat noise.
+- Ongoing warnings use configurable repeat intervals.
+- Stale-data detection alerts if successful BMS reads stop.
+- Supervisor watchdog support can restart the add-on if the monitor stops heartbeating.
+
+In the web UI, choose **Full Monitoring** on the Config tab to show the Telegram, notification, threshold, warning-detail and report-schedule sections. Use **Advanced View** when you want every configuration section visible while troubleshooting.
+
+Example full monitoring configuration options:
 
 ```yaml
 mqtt_host: "192.168.10.16"

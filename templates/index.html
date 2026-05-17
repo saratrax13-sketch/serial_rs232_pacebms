@@ -183,6 +183,8 @@
 
     .status-value.healthy { color: var(--green); }
     .status-value.warning { color: var(--yellow); }
+    .status-value.caution { color: var(--cyan); }
+    .status-value.critical { color: var(--red); }
     .status-value.stale { color: var(--yellow); }
     .status-value.offline { color: var(--red); }
     .status-value.unknown { color: #cbd5e1; }
@@ -221,6 +223,18 @@
       align-items: center;
       justify-content: center;
       font-size: 14px;
+    }
+
+    button.primary-button, .button-link.primary-button {
+      border-color: rgba(34, 197, 94, 0.75);
+      background: rgba(34, 197, 94, 0.18);
+      color: #dcfce7;
+    }
+
+    button.secondary-button, .button-link.secondary-button {
+      border-color: rgba(148, 163, 184, 0.35);
+      background: rgba(30, 41, 59, 0.62);
+      color: #dbeafe;
     }
 
     button:hover, .button-link:hover { background: rgba(14, 165, 233, 0.28); }
@@ -737,8 +751,9 @@
     }
 
     .pill.ok, .pill.healthy { color: var(--green); border-color: rgba(34, 197, 94, 0.35); }
+    .pill.caution { color: var(--cyan); border-color: rgba(56, 189, 248, 0.35); }
     .pill.warn, .pill.warning, .pill.voltage, .pill.temperature, .pill.stale { color: var(--yellow); border-color: rgba(245, 158, 11, 0.35); }
-    .pill.protection, .pill.fault, .pill.danger, .pill.offline { color: var(--red); border-color: rgba(248, 113, 113, 0.35); }
+    .pill.critical, .pill.protection, .pill.fault, .pill.danger, .pill.offline { color: var(--red); border-color: rgba(248, 113, 113, 0.35); }
     .pill.off { color: #cbd5e1; }
     .pill.fet { color: var(--purple); border-color: rgba(196, 181, 253, 0.35); }
 
@@ -1335,6 +1350,24 @@
       background: rgba(245, 158, 11, 0.14);
     }
 
+    .warning-intel-status.caution {
+      border-color: rgba(56, 189, 248, 0.42);
+      color: #bae6fd;
+      background: rgba(14, 165, 233, 0.12);
+    }
+
+    .warning-intel-status.warning {
+      border-color: rgba(245, 158, 11, 0.42);
+      color: #fde68a;
+      background: rgba(245, 158, 11, 0.14);
+    }
+
+    .warning-intel-status.critical {
+      border-color: rgba(248, 113, 113, 0.50);
+      color: #fecaca;
+      background: rgba(239, 68, 68, 0.16);
+    }
+
     .warning-intel-metrics {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1533,6 +1566,40 @@
       margin-bottom: 10px;
     }
 
+    .config-mode-panel {
+      display: grid;
+      gap: 8px;
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: rgba(15, 23, 42, 0.54);
+    }
+
+    .config-mode-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .config-mode-button {
+      border-color: rgba(148, 163, 184, 0.32);
+      background: rgba(30, 41, 59, 0.70);
+      color: #dbeafe;
+    }
+
+    .config-mode-button.active {
+      border-color: rgba(56, 189, 248, 0.68);
+      background: rgba(14, 165, 233, 0.20);
+      color: #e0f2fe;
+    }
+
+    .config-mode-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
     .compact-backup-status {
       display: flex;
       flex-wrap: wrap;
@@ -1709,7 +1776,7 @@
         {% if live.severity_summary %}
         <div class="fet-row">
           {% for label, count in live.severity_summary.items() %}
-            <span class="pill">{{ label }}: {{ count }}</span>
+            <span class="pill {{ label|lower }}">{{ label }}: {{ count }}</span>
           {% endfor %}
         </div>
         {% endif %}
@@ -1727,8 +1794,8 @@
                   <div class="warning-intel-title">Pack {{ pack.id }} — {% if pack.role %}{{ pack.role }}{% elif pack.id == '01' %}Master{% else %}Slave{% endif %}</div>
                   <div class="warning-intel-subtitle">{{ pack.cell_count }} cells detected</div>
                 </div>
-                <span class="warning-intel-status {% if pack.warnings != 'Normal' %}review{% endif %}">
-                  {% if pack.warnings == 'Normal' %}Normal{% else %}Review{% endif %}
+                <span class="warning-intel-status {% if pack.warnings != 'Normal' %}{{ pack.severity_class }}{% endif %}">
+                  {% if pack.warnings == 'Normal' %}Normal{% else %}{{ pack.severity_label }}{% endif %}
                 </span>
               </div>
 
@@ -1769,6 +1836,12 @@
                 <strong>Suggested focus:</strong><br>
                 {% if pack.warnings == 'Normal' %}
                   Continue normal monitoring. No immediate warning review required.
+                {% elif pack.severity_class == 'critical' %}
+                  Review immediately. This warning is protection/fault related or a measured value is outside the configured reference.
+                {% elif pack.severity_class == 'warning' %}
+                  Monitor closely and compare against battery manufacturer limits. The BMS warning is active and may be near an operating limit.
+                {% elif pack.severity_class == 'caution' %}
+                  Acknowledge the BMS internal warning and keep watching the trend. Current measured values are still inside the configured references.
                 {% else %}
                   Review the warning text, highest/lowest cell values and cell delta. If the BMS warning is active but the configured reference is not exceeded, treat it as a BMS internal threshold warning and verify against battery manufacturer limits.
                 {% endif %}
@@ -2059,18 +2132,27 @@
           </div>
 
           <div class="compact-config-toolbar">
-            <button type="submit" form="config-save-form">Save Configuration</button>
-            <button type="button" class="danger-button" onclick="discardAllConfigChanges()">Discard Changes</button>
+            <button id="save-config-button" class="primary-button" type="submit" form="config-save-form">Save Configuration</button>
+            <button id="discard-all-button" type="button" class="secondary-button" onclick="discardAllConfigChanges()">Discard Changes</button>
             <form class="inline-action-form" method="post" action="create-config-backup">
               <input type="hidden" name="active_tab" value="config">
-              <button type="submit">Create Backup</button>
+              <button class="secondary-button" type="submit">Create Backup</button>
             </form>
-            <a class="button-link" href="?tab=backups">Manage Backups</a>
-            <a class="button-link" href="download-sanitized-yaml">Download Sanitized YAML</a>
+            <a class="button-link secondary-button" href="?tab=backups">Manage Backups</a>
+            <a class="button-link secondary-button" href="download-sanitized-yaml">Download Sanitized YAML</a>
             <form class="inline-action-form" method="post" action="restart-addon">
               <input type="hidden" name="active_tab" value="config">
               <button type="submit" class="danger-button">Restart Add-on</button>
             </form>
+          </div>
+
+          <div class="config-mode-panel">
+            <div class="config-mode-buttons" role="group" aria-label="Configuration view">
+              <button class="config-mode-button" type="button" data-config-mode="basic" onclick="setConfigMode('basic')">Basic Required</button>
+              <button class="config-mode-button" type="button" data-config-mode="full" onclick="setConfigMode('full')">Full Monitoring</button>
+              <button class="config-mode-button" type="button" data-config-mode="advanced" onclick="setConfigMode('advanced')">Advanced View</button>
+            </div>
+            <div id="config-mode-note" class="config-mode-note">Choose which configuration sections to show.</div>
           </div>
 
           <div class="compact-backup-status">
@@ -2095,14 +2177,15 @@
 <form id="config-save-form" method="post" action="save-config" onsubmit="return confirmSaveConfig();">
           <section class="grid">
             {% for group_name, items in grouped.items() %}
-            <article class="card config-card" data-config-group="{{ group_name }}">
+            <article class="card config-card" data-config-group="{{ group_name }}" data-config-tier="{{ config_section_tiers.get(group_name, 'advanced') }}">
               <div class="config-card-header">
                 <div class="config-card-title">
                   <h2>{{ group_name }}</h2>
-                  {% if group_name in ['BMS Connection', 'MQTT', 'Advanced'] %}
-                  <span class="section-badge required">Required</span>
+                  {% set section_badge = config_section_badges.get(group_name, 'Optional') %}
+                  {% if section_badge == 'Required' %}
+                  <span class="section-badge required">{{ section_badge }}</span>
                   {% else %}
-                  <span class="section-badge optional">Optional</span>
+                  <span class="section-badge optional">{{ section_badge }}</span>
                   {% endif %}
                   <button class="help-icon-button" type="button" onclick="openConfigHelp('{{ group_name }}')" aria-label="Help for {{ group_name }}">i</button>
                 </div>
@@ -2661,6 +2744,44 @@ This cannot be undone.`);">
   
     let configDirty = false;
     let configSaveSubmitting = false;
+    const CONFIG_MODE_NOTES = {
+      basic: "Shows only the required serial, MQTT and advanced runtime fields needed for the add-on to connect and publish.",
+      full: "Shows required fields plus Telegram, notification thresholds, warning detail and report schedules.",
+      advanced: "Shows every configuration section. Use this when troubleshooting or preparing a full add-on setup."
+    };
+
+    function setConfigMode(mode) {
+      const selectedMode = CONFIG_MODE_NOTES[mode] ? mode : "full";
+      const cards = document.querySelectorAll(".config-card[data-config-tier]");
+
+      cards.forEach(function (card) {
+        const tier = card.dataset.configTier || "advanced";
+        let visible = true;
+
+        if (selectedMode === "basic") {
+          visible = tier === "required";
+        } else if (selectedMode === "full") {
+          visible = tier === "required" || tier === "monitoring";
+        }
+
+        card.hidden = !visible;
+      });
+
+      document.querySelectorAll(".config-mode-button").forEach(function (button) {
+        button.classList.toggle("active", button.dataset.configMode === selectedMode);
+      });
+
+      const note = document.getElementById("config-mode-note");
+      if (note) {
+        note.textContent = CONFIG_MODE_NOTES[selectedMode];
+      }
+
+      try {
+        localStorage.setItem("pacebms_config_mode", selectedMode);
+      } catch (err) {
+        // Browser storage may be disabled; the UI still works for this session.
+      }
+    }
 
     function normalizeConfigValue(field) {
       if (field.type === "checkbox") {
@@ -2808,6 +2929,14 @@ Restart the add-on afterwards for runtime changes to apply.`);
 
     document.addEventListener("DOMContentLoaded", function () {
       const form = document.getElementById("config-save-form");
+      let savedConfigMode = "full";
+      try {
+        savedConfigMode = localStorage.getItem("pacebms_config_mode") || "full";
+      } catch (err) {
+        savedConfigMode = "full";
+      }
+      setConfigMode(savedConfigMode);
+
       if (form) {
         form.querySelectorAll(".config-field").forEach(function (field) {
           field.addEventListener("change", markConfigDirty);
@@ -2868,7 +2997,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
       "Notification Thresholds": {
         title: "Notification Thresholds Settings",
         html: `
-          <p>These settings control when SOC, SOH and stale-data notifications trigger.</p>
+          <p>These settings control when SOC, SOH, stale-data and repeated BMS warning notifications trigger.</p>
 
           <h3>SOC low threshold list</h3>
           <ul>
@@ -2895,7 +3024,21 @@ Restart the add-on afterwards for runtime changes to apply.`);
           <ul>
             <li><code>notify_stale_data_seconds</code> — seconds without fresh BMS data before stale-data notification logic triggers. Example: <code>120</code>.</li>
             <li><code>notify_stale_data_repeat_seconds</code> — repeat interval in seconds while stale data remains active. Example: <code>1800</code>.</li>
-            <li><code>notify_warning_repeat_seconds</code> — repeat interval in seconds for the same active BMS warning Telegram notification. Example: <code>1800</code> means repeat at most every 30 minutes.</li>
+          </ul>
+
+          <h3>BMS warning repeat timing</h3>
+          <ul>
+            <li><code>notify_warning_repeat_seconds</code> - legacy fallback repeat interval for repeated BMS warnings.</li>
+            <li><code>notify_warning_repeat_caution_seconds</code> - repeat interval for ongoing caution warnings. Default: <code>21600</code> seconds, or 6 hours.</li>
+            <li><code>notify_warning_repeat_warning_seconds</code> - repeat interval for ongoing warning-level conditions. Default: <code>3600</code> seconds, or 1 hour.</li>
+            <li><code>notify_warning_repeat_critical_seconds</code> - repeat interval for ongoing critical protection/fault or out-of-reference conditions. Default: <code>900</code> seconds, or 15 minutes.</li>
+          </ul>
+
+          <h3>Severity meaning</h3>
+          <ul>
+            <li><strong>Caution</strong> means the BMS has an internal warning active, but measured values are still inside the configured references.</li>
+            <li><strong>Warning</strong> means the condition deserves closer attention, such as temperature/current/FET warning categories or near-limit behaviour.</li>
+            <li><strong>Critical</strong> means protection/fault text is active or measured values are outside the configured references.</li>
           </ul>
 
           <h3>Important note</h3>
@@ -3061,7 +3204,9 @@ Restart the add-on afterwards for runtime changes to apply.`);
       const content = document.getElementById("help-modal-content");
       const help = configHelpContent[groupName] || {
         title: groupName + " Settings",
-        html: "<p>No help text is available for this section yet.</p>"
+        html: SECTION_HELP_FALLBACK[groupName]
+          ? "<p>" + String(SECTION_HELP_FALLBACK[groupName]).replace(/\n/g, "</p><p>") + "</p>"
+          : "<p>No help text is available for this section yet.</p>"
       };
 
       if (title) title.textContent = help.title;
@@ -3279,10 +3424,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
 
 
   
-    const SECTION_HELP_FALLBACK = {
-      "Notification Thresholds": "Controls when SOC, SOH and stale-data notifications trigger.\n\nnotify_soc_low_thresholds format:\nUse comma-separated numbers only.\nExample: 75,50,25,15\nDo not use percentage signs.\n\nSOC high and SOH thresholds use single percentage numbers. Stale data values are in seconds.",
-      "Report Schedules": "Controls scheduled notification times for daily summary and cell delta reports.\n\nTime format:\nUse 24-hour HH:MM format.\nExamples: 19:00, 10:15, 00:00\n\nThe delta window start/end values define the time range used for the delta report."
-    };
+    const SECTION_HELP_FALLBACK = {{ card_help|tojson }};
 
 
   
@@ -3323,6 +3465,10 @@ Restart the add-on afterwards for runtime changes to apply.`);
         notify_retry_count: [0, 10],
         notify_stale_data_seconds: [10, 86400],
         notify_stale_data_repeat_seconds: [60, 86400],
+        notify_warning_repeat_seconds: [60, 86400],
+        notify_warning_repeat_caution_seconds: [60, 86400],
+        notify_warning_repeat_warning_seconds: [60, 86400],
+        notify_warning_repeat_critical_seconds: [60, 86400],
       };
 
       const decimalRules = {

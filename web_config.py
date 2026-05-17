@@ -27,7 +27,7 @@ DEPRECATED_OPTION_KEYS = {"bms_ip", "bms_port"}
 WEB_STARTED_AT = time.time()
 
 SECTION_HELP = {
-    "Notification Thresholds": "Controls when SOC, SOH and stale-data notifications trigger. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale data values are in seconds.",
+    "Notification Thresholds": "Controls SOC, SOH, stale-data and BMS warning repeat timing. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale and warning repeat values are in seconds. BMS warning repeats are severity-aware: caution repeats for low-risk ongoing warnings, warning repeats for near-limit conditions, and critical repeats for protection/fault or measured values outside configured references.",
     "Report Schedules": "Controls scheduled notification times for the daily summary and cell delta report. Use 24-hour HH:MM format, for example 19:00, 10:15 or 00:00. The delta window start/end values define the time range used for the delta report.",
 }
 
@@ -40,6 +40,17 @@ CONFIG_SECTION_BADGES = {
     "Notification Thresholds": "Optional",
     "Warning Detail": "Optional",
     "Report Schedules": "Optional",
+}
+
+CONFIG_SECTION_TIERS = {
+    "BMS Connection": "required",
+    "MQTT": "required",
+    "Advanced": "required",
+    "Telegram": "monitoring",
+    "Notifications": "monitoring",
+    "Notification Thresholds": "monitoring",
+    "Warning Detail": "monitoring",
+    "Report Schedules": "monitoring",
 }
 
 GROUPS = {
@@ -475,21 +486,21 @@ def classify_warning_severity(warnings: str, availability: str = "online", stale
         return "healthy", "Normal"
 
     if "fault state" in lower:
-        return "fault", "Fault"
+        return "critical", "Critical"
 
     if "protection state" in lower or "short circuit" in lower:
-        return "protection", "Protection"
+        return "critical", "Critical"
 
     if "above cell volt" in lower or "above total volt" in lower:
-        return "voltage", "Voltage Warning"
+        return "warning", "Warning"
 
     if "temp" in lower:
-        return "temperature", "Temperature Warning"
+        return "warning", "Warning"
 
     if "fet" in lower:
-        return "fet", "FET Warning"
+        return "warning", "Warning"
 
-    return "warning", "Warning"
+    return "caution", "Caution"
 
 
 def fetch_mqtt_snapshot(options, timeout=0.45):
@@ -643,7 +654,6 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
             result["availability"],
             result["stale"],
         )
-        severity_summary[severity_label] = severity_summary.get(severity_label, 0) + 1
 
         voltage = messages.get(f"{pfx}/v_pack", "Unknown")
         current = messages.get(f"{pfx}/i_pack", "Unknown")
@@ -692,6 +702,15 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
         low_cell_exceeded = bool(lowest_cell_v is not None and lowest_cell_v < cell_low_ref)
         high_pack_exceeded = bool(pack_v is not None and pack_high_ref is not None and pack_v > pack_high_ref)
         low_pack_exceeded = bool(pack_v is not None and pack_low_ref is not None and pack_v < pack_low_ref)
+        references_exceeded = high_cell_exceeded or low_cell_exceeded or high_pack_exceeded or low_pack_exceeded
+
+        if has_warning and severity_class not in ("critical", "offline", "stale"):
+            if references_exceeded:
+                severity_class, severity_label = "critical", "Critical"
+            elif "above cell volt" in warnings.lower() or "above total volt" in warnings.lower():
+                severity_class, severity_label = "caution", "Caution"
+
+        severity_summary[severity_label] = severity_summary.get(severity_label, 0) + 1
 
         reference_checks = []
         if "Above cell volt warn" in warnings:
@@ -1085,7 +1104,7 @@ It does not send BMS control commands.
 
 
 CARD_HELP = {
-    "Notification Thresholds": "Controls when SOC, SOH and stale-data notifications trigger. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale data values are in seconds.",
+    "Notification Thresholds": "Controls SOC, SOH, stale-data and BMS warning repeat timing. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale and warning repeat values are in seconds. BMS warning repeats are severity-aware: caution repeats for low-risk ongoing warnings, warning repeats for near-limit conditions, and critical repeats for protection/fault or measured values outside configured references.",
     "Report Schedules": "Controls scheduled notification times for the daily summary and cell delta report. Use 24-hour HH:MM format, for example 19:00, 10:15 or 00:00. The delta window start/end values define the time range used for the delta report.",
 }
 
@@ -1423,6 +1442,10 @@ def render_index(action_result="", action_message="", active_tab="status", compa
         compare_data=compare_data,
         restore_preview=restore_preview,
         diagnostics=build_diagnostics(options, live) if options and active_tab == "diagnostics" else None,
+        card_help=CARD_HELP,
+        field_help=FIELD_HELP,
+        config_section_badges=CONFIG_SECTION_BADGES,
+        config_section_tiers=CONFIG_SECTION_TIERS,
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     )
 

@@ -1,3 +1,22 @@
+## 2.6.29 - 2026-05-17
+
+### Added
+- Added Basic Required, Full Monitoring and Advanced View filters to the Config tab.
+- Added clearer Caution / Warning / Critical severity labels in the web UI warning overview.
+
+### Changed
+- Updated Notification Thresholds help text for severity-aware warning repeat fields.
+- Updated web UI validation for the new severity repeat interval fields.
+- Improved Config tab button hierarchy so Save, backup, download and restart actions are easier to scan.
+- Updated README guidance for Basic Required versus Full Monitoring setup.
+
+### Removed
+- Removed an unused stale static stylesheet that was no longer loaded by the Ingress UI.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.28 - 2026-05-17
 
 ### Added
