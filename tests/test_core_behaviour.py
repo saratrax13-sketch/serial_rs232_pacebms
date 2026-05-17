@@ -110,6 +110,24 @@ class WarningNormalizationTests(unittest.TestCase):
         self.assertAlmostEqual(data.pack_data[0].v_pack, 53.74)
         self.assertAlmostEqual(data.pack_data[1].v_pack, 53.75)
 
+    def test_p16s_two_pack_warning_frame_with_interpack_trailer_parses_cleanly(self):
+        payload = (
+            b"0002100000000000000000000000000000000006000000000000000000000026000000000000"
+            b"0F0040100000000000000000000000000000000006000000000000000000000026000000000000360000"
+        )
+
+        with patch("bms_monitor.bms_request", return_value=(True, payload)):
+            ok, warnings = bms_monitor.bms_get_warn_info(None, {"debug_output": 0}, 2)
+
+        self.assertTrue(ok)
+        self.assertEqual(len(warnings), 2)
+        self.assertEqual(warnings[0].warnings, "")
+        self.assertEqual(warnings[1].warnings, "")
+        self.assertEqual(warnings[0].charge_fet, 1)
+        self.assertEqual(warnings[0].discharge_fet, 1)
+        self.assertEqual(warnings[1].charge_fet, 1)
+        self.assertEqual(warnings[1].discharge_fet, 1)
+
     def test_warning_state_words_are_not_split_on_letter_n(self):
         family = bms_monitor.normalize_warning_family(
             "Warning State 1: Above cell volt warn | Above total volt warn"

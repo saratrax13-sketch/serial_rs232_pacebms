@@ -1,3 +1,17 @@
+## 2.6.32 - 2026-05-17
+
+### Fixed
+- Hardened warning-frame parsing for 16-cell multi-pack Pace BMS frames.
+- Fixed false Pack 2 warning/protection/FET states caused by P16S inter-pack trailer bytes.
+- Prevented clean 16-cell warning frames from decoding as `Lower cell volt protect`, `Above total volt protect`, or false FET OFF.
+
+### Tests
+- Added a regression test using the captured 16-cell two-pack warning payload.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.31 - 2026-05-17
 
 ### Fixed

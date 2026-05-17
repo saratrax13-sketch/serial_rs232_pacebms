@@ -1,8 +1,10 @@
 # =============================================================================
 # bms_monitor.py — Pace BMS to MQTT Bridge
-# Version : 2.6.31
+# Version : 2.6.32
 # Changed : 2026-05-17
 # Changes :
+#   - Hardened P16S / 16-cell multi-pack warning-frame alignment
+#   - Fixed false Pack 2 warning/protection/FET states caused by inter-pack trailer bytes
 #   - Hardened P16S / 16-cell multi-pack analog parsing
 #   - Added analog frame bounds checks and full candidate validation
 #   - Prevented isolated analog parse errors from causing false disconnect alerts
@@ -715,78 +717,27 @@ def bms_get_pack_capacity(bms, config: dict) -> tuple[bool, any]:
 def bms_get_warn_info(bms, config: dict, packs: int) -> tuple[bool, any]:
     """Read and parse BMS warning/status information.
 
-    Pace warning frames used by several batteries include a small response
-    prefix before the first pack block. Example observed layout:
-
-        00 <pack_count> <cell_count> ...
-
-    The previous parser skipped only the first byte and then treated
-    <pack_count> as the cell count. On 13-cell packs that shifted the frame
-    and produced false warnings such as "cell 1 Unknown(0x0D)" and false
-    FET OFF states. This parser works on byte pairs and auto-detects that
-    prefix before parsing the pack blocks.
+    Pace warning frames may include a response prefix before the first pack
+    block and a small trailer/status block between pack warning blocks. The
+    parser validates candidate pack blocks instead of assuming the next byte is
+    always the next pack cell count.
     """
     success, inc = bms_request(bms, config, cid2=constants.cid2WarnInfo, info=b'FF')
     if not success:
         return False, inc
 
     try:
-        # Convert the ASCII hex payload into integer byte values.
-        # Example: b"00020D00..." -> [0x00, 0x02, 0x0D, 0x00, ...]
         pairs = [int(inc[i:i + 2], 16) for i in range(0, len(inc), 2)]
 
         def is_plausible_cell_count(value: int) -> bool:
-            # Pace-compatible lithium packs commonly report 13 or 16 cells,
-            # but allow a wider sensible range for other packs.
             return 4 <= value <= 32
 
         def is_plausible_temp_count(value: int) -> bool:
             return 0 <= value <= 16
 
-        # Auto-detect the response prefix.
-        #
-        # Observed warning frame:
-        #   byte 0 = reserved/status byte (0x00)
-        #   byte 1 = pack count
-        #   byte 2 = first pack cell count
-        #
-        # Some variants may return:
-        #   byte 0 = pack count
-        #   byte 1 = first pack cell count
-        if (
-            len(pairs) >= 3
-            and pairs[1] == packs
-            and is_plausible_cell_count(pairs[2])
-        ):
-            idx = 2
-        elif (
-            len(pairs) >= 2
-            and pairs[0] == packs
-            and is_plausible_cell_count(pairs[1])
-        ):
-            idx = 1
-        else:
-            # Fallback for older/unknown frames where the first byte is already
-            # the first pack cell count.
-            idx = 0
-
-        if config.get('debug_output', 0) > 1:
-            log.debug("Warn frame byte pairs: %s", " ".join(f"{b:02X}" for b in pairs))
-            log.debug("Warn parser start index: %d", idx)
-
-        warn_list = []
-
         def warn_lookup(code: int) -> str:
             key = f"{code:02X}".encode("ascii")
             return constants.warningStates.get(key, f"Unknown(0x{code:02X})")
-
-        def read_byte() -> int:
-            nonlocal idx
-            if idx >= len(pairs):
-                raise IndexError("Warning frame ended unexpectedly")
-            val = pairs[idx]
-            idx += 1
-            return val
 
         def bit_names(state_map: dict, value: int, ignore_names: set[str] | None = None) -> list[str]:
             ignore_names = ignore_names or set()
@@ -798,54 +749,63 @@ def bms_get_warn_info(bms, config: dict, packs: int) -> tuple[bool, any]:
                         names.append(name)
             return names
 
-        for p in range(1, packs + 1):
+        def parse_pack_at(start_idx: int, pack_num: int, expected_cells: Optional[int] = None) -> tuple[WarnData, int, int]:
+            """Parse one candidate warning block and return data, next index and cell count."""
+            pos = start_idx
+
+            def need(count: int, label: str):
+                if pos + count > len(pairs):
+                    raise ValueError(f"Warning frame ended while reading {label} at idx={pos}")
+
+            def read_byte_local(label: str) -> int:
+                nonlocal pos
+                need(1, label)
+                val = pairs[pos]
+                pos += 1
+                return val
+
             warnings = ""
 
-            if idx >= len(pairs):
-                return False, f"Warning frame ended before pack {p}"
-
-            cells_w = read_byte()
+            cells_w = read_byte_local(f"pack {pack_num} cell count")
             if not is_plausible_cell_count(cells_w):
-                return False, f"Unexpected warning cell count {cells_w} at pack {p}"
+                raise ValueError(f"Unexpected warning cell count {cells_w} at pack {pack_num}")
+            if expected_cells is not None and cells_w != expected_cells:
+                raise ValueError(f"Warning cell count {cells_w} at pack {pack_num} does not match expected {expected_cells}")
 
-            # Cell warning bytes
+            need(cells_w, f"pack {pack_num} cell warnings")
             for c in range(1, cells_w + 1):
-                code = read_byte()
+                code = read_byte_local(f"pack {pack_num} cell {c} warning")
                 if code != 0x00:
                     warnings += f"cell {c} {warn_lookup(code)}, "
 
-            temps_w = read_byte()
+            temps_w = read_byte_local(f"pack {pack_num} temp count")
             if not is_plausible_temp_count(temps_w):
-                return False, f"Unexpected warning temp count {temps_w} at pack {p}"
+                raise ValueError(f"Unexpected warning temp count {temps_w} at pack {pack_num}")
 
-            # Temperature warning bytes
+            need(temps_w, f"pack {pack_num} temperature warnings")
             for t in range(1, temps_w + 1):
-                code = read_byte()
+                code = read_byte_local(f"pack {pack_num} temp {t} warning")
                 if code != 0x00:
                     warnings += f"temp {t} {warn_lookup(code)}, "
 
-            # Charge current, total voltage, discharge current warning bytes
             for label in ("charge current", "total voltage", "discharge current"):
-                code = read_byte()
+                code = read_byte_local(f"pack {pack_num} {label} warning")
                 if code != 0x00:
                     warnings += f"{label} {warn_lookup(code)}, "
 
-            ps1 = read_byte()
+            ps1 = read_byte_local(f"pack {pack_num} protection state 1")
             ps1_bits = bit_names(constants.protectState1, ps1)
             if ps1_bits:
                 warnings += f"Protection State 1: {' | '.join(ps1_bits)}, "
 
-            ps2 = read_byte()
-            # "Fully charged" is a useful status bit, but not a protection alarm.
-            # It is still published separately as the `fully` binary sensor below.
+            ps2 = read_byte_local(f"pack {pack_num} protection state 2")
             ps2_bits = bit_names(constants.protectState2, ps2, ignore_names={"Fully charged"})
             if ps2_bits:
                 warnings += f"Protection State 2: {' | '.join(ps2_bits)}, "
 
-            inst = read_byte()
+            inst = read_byte_local(f"pack {pack_num} instruction/status")
 
-            ctrl = read_byte()
-            # Ignore non-actionable/undefined control bits in the warning string.
+            ctrl = read_byte_local(f"pack {pack_num} control state")
             ctrl_bits = bit_names(
                 constants.controlState,
                 ctrl,
@@ -854,26 +814,26 @@ def bms_get_warn_info(bms, config: dict, packs: int) -> tuple[bool, any]:
             if ctrl_bits:
                 warnings += f"Control State: {' | '.join(ctrl_bits)}, "
 
-            fault = read_byte()
+            fault = read_byte_local(f"pack {pack_num} fault state")
             fault_bits = bit_names(constants.faultState, fault)
             if fault_bits:
                 warnings += f"Fault State: {' | '.join(fault_bits)}, "
 
-            bal1 = f'{read_byte():08b}'
-            bal2 = f'{read_byte():08b}'
+            bal1 = f'{read_byte_local(f"pack {pack_num} balancing1"):08b}'
+            bal2 = f'{read_byte_local(f"pack {pack_num} balancing2"):08b}'
 
-            ws1 = read_byte()
+            ws1 = read_byte_local(f"pack {pack_num} warning state 1")
             ws1_bits = bit_names(constants.warnState1, ws1)
             if ws1_bits:
                 warnings += f"Warning State 1: {' | '.join(ws1_bits)}, "
 
-            ws2 = read_byte()
+            ws2 = read_byte_local(f"pack {pack_num} warning state 2")
             ws2_bits = bit_names(constants.warnState2, ws2)
             if ws2_bits:
                 warnings += f"Warning State 2: {' | '.join(ws2_bits)}, "
 
-            warn_list.append(WarnData(
-                pack_number            = p,
+            return WarnData(
+                pack_number            = pack_num,
                 warnings               = warnings.rstrip(", "),
                 balancing1             = bal1,
                 balancing2             = bal2,
@@ -888,18 +848,71 @@ def bms_get_warn_info(bms, config: dict, packs: int) -> tuple[bool, any]:
                 reverse                = inst >> 4 & 1,
                 ac_in                  = inst >> 5 & 1,
                 heart                  = inst >> 7 & 1,
-            ))
+            ), pos, cells_w
 
-            # Some Pace warning frames include one byte between pack blocks
-            # representing the next pack address/index. Example observed:
-            #   ... ws1 ws2 01 0D ...
-            # where 01 is the next pack index and 0D is the next cell count.
-            if p < packs and idx + 1 < len(pairs):
-                if not is_plausible_cell_count(pairs[idx]) and is_plausible_cell_count(pairs[idx + 1]):
-                    if config.get('debug_output', 0) > 0:
-                        log.debug("Warn parser: skipped inter-pack byte 0x%02X before pack %d",
-                                  pairs[idx], p + 1)
-                    idx += 1
+        if (
+            len(pairs) >= 3
+            and pairs[1] == packs
+            and is_plausible_cell_count(pairs[2])
+        ):
+            idx = 2
+        elif (
+            len(pairs) >= 2
+            and pairs[0] == packs
+            and is_plausible_cell_count(pairs[1])
+        ):
+            idx = 1
+        else:
+            idx = 0
+
+        if config.get('debug_output', 0) > 1:
+            log.debug("Warn frame byte pairs: %s", " ".join(f"{b:02X}" for b in pairs))
+            log.debug("Warn parser start index: %d", idx)
+
+        warn_list = []
+        expected_cells = None
+
+        for p in range(1, packs + 1):
+            if p == 1:
+                pack_warn, next_idx, cells_w = parse_pack_at(idx, p, expected_cells)
+            else:
+                last_error = None
+                found = None
+                max_scan_bytes = int(config.get('warn_interpack_scan_bytes', 24) or 24)
+                max_scan = max(0, max_scan_bytes)
+
+                for candidate_idx in range(idx, min(len(pairs), idx + max_scan + 1)):
+                    try:
+                        candidate_pack, candidate_next_idx, candidate_cells = parse_pack_at(candidate_idx, p, expected_cells)
+                        found = (candidate_pack, candidate_next_idx, candidate_cells, candidate_idx)
+                        break
+                    except Exception as exc:
+                        last_error = exc
+                        continue
+
+                if found is None:
+                    raise ValueError(f"Could not align warning block for pack {p} from idx={idx}: {last_error}")
+
+                pack_warn, next_idx, cells_w, candidate_idx = found
+                if candidate_idx != idx and config.get('debug_output', 0) > 0:
+                    skipped = candidate_idx - idx
+                    skipped_bytes = " ".join(f"{b:02X}" for b in pairs[idx:candidate_idx])
+                    log.debug(
+                        "Warn parser: skipped %d inter-pack byte(s) before pack %d block at idx=%d: %s",
+                        skipped,
+                        p,
+                        candidate_idx,
+                        skipped_bytes,
+                    )
+
+            warn_list.append(pack_warn)
+            idx = next_idx
+            if expected_cells is None:
+                expected_cells = cells_w
+
+        if config.get('debug_output', 0) > 1 and idx < len(pairs):
+            trailer = " ".join(f"{b:02X}" for b in pairs[idx:])
+            log.debug("Warn parser: ignored trailing byte(s) after final pack: %s", trailer)
 
         return True, warn_list
 
