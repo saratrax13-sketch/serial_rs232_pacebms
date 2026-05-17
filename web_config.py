@@ -23,8 +23,14 @@ MAX_EVENT_LOG_ENTRIES = 50
 DEPRECATED_OPTION_KEYS = {"bms_ip", "bms_port"}
 
 SECTION_HELP = {
+    "Telegram": "Telegram settings control notification delivery, startup messages, disconnect alerts and stale-data notifications. Leave token/chat ID blank in the web UI to keep existing saved secret values.",
+    "Notifications": "Notification settings enable or disable SOC, SOH, warning, FET, daily summary and delta report notifications.",
     "Notification Thresholds": "Controls when SOC, SOH and stale-data notifications trigger. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale data values are in seconds.",
+    "Warning Detail": "Warning Detail settings control which extra values are included in warning messages, such as all cells above/below thresholds, highest/lowest cells, pack voltage and SOC/SOH.",
     "Report Schedules": "Controls scheduled notification times for the daily summary and cell delta report. Use 24-hour HH:MM format, for example 19:00, 10:15 or 00:00. The delta window start/end values define the time range used for the delta report.",
+    "MQTT": "MQTT settings control broker connection, base topic, Home Assistant Discovery and retained state publishing.",
+    "BMS Connection": "BMS Connection settings control the RS232 serial path, baud rate and polling interval. IP mode is not enabled in this build.",
+    "Advanced": "Advanced settings are mainly for troubleshooting and topic formatting. Keep debug_output at 0 for normal use.",
 }
 
 GROUPS = {

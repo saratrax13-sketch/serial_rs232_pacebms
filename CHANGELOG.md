@@ -1,18 +1,12 @@
-## 2.6.4 - 2026-05-17
+## 2.6.6 - 2026-05-17
 
-### Added
-- Added server-side web config validation before saving.
-- Added client-side Config tab validation before submit.
-- Added validation for integer fields, decimal fields, required text fields, time fields and comma-separated SOC threshold lists.
-- Added logical validation:
-  - `notify_soc_high_reset` must be lower than `notify_soc_high_threshold`
-  - `notify_cell_low_warn_voltage` must be lower than `notify_cell_high_warn_voltage`
-- Added clear validation messages for incorrect field formats.
+### Fixed
+- Fixed Notification Thresholds info popup still showing `No help text is available for this section yet`.
+- Fixed Report Schedules info popup still showing `No help text is available for this section yet`.
+- Added a robust frontend section-help fallback for all Config section info buttons.
+- Added backend `SECTION_HELP` mapping for Config section help text.
 
 ### Notes
-- Example comma-separated threshold format: `75,50,25,15`
-- Example time format: `19:00`
-- Decimal comma is allowed for voltage fields, for example `4,2`.
 - `bms_ip` and `bms_port` were not re-added.
 - No BMS protocol changes were made.
 - No BMS write/control commands were added.

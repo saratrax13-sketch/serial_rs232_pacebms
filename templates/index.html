@@ -1383,6 +1383,69 @@
       margin-bottom: 5px;
     }
 
+  
+    .compact-help {
+      background: rgba(30, 41, 59, 0.62);
+      border: 1px solid rgba(148, 163, 184, 0.20);
+      border-radius: 16px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+    }
+
+    .compact-help summary {
+      cursor: pointer;
+      color: #93c5fd;
+      font-weight: 950;
+      font-size: 14px;
+      list-style: none;
+    }
+
+    .compact-help summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .compact-help summary::after {
+      content: " +";
+      color: var(--muted);
+    }
+
+    .compact-help[open] summary::after {
+      content: " -";
+    }
+
+    .compact-backup-safety {
+      padding: 12px;
+      margin-bottom: 14px;
+    }
+
+    .compact-backup-safety h3 {
+      margin: 0 0 6px;
+      color: #93c5fd;
+      font-size: 16px;
+    }
+
+    .compact-backup-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .compact-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: rgba(15, 23, 42, 0.62);
+      border-radius: 999px;
+      padding: 7px 10px;
+      color: #dbeafe;
+      font-weight: 800;
+      font-size: 12px;
+    }
+
+
   </style>
 </head>
 <body>
@@ -1836,17 +1899,88 @@
     </section>
 
     <section class="tab-panel {% if active_tab == 'config' %}active{% endif %}">
-        <section class="card wide-card" style="margin-bottom: 16px;">
-          <h2>Config Format Help</h2>
+
+        <script id="section-help-json" type="application/json">
+{
+  "Telegram": "Telegram settings control notification delivery, startup messages, disconnect alerts and stale-data notifications. Leave token/chat ID blank in the web UI to keep existing saved secret values.",
+  "Notifications": "Notification settings enable or disable SOC, SOH, warning, FET, daily summary and delta report notifications.",
+  "Notification Thresholds": "Controls when SOC, SOH and stale-data notifications trigger.\n\nnotify_soc_low_thresholds format:\nUse comma-separated numbers only.\nExample: 75,50,25,15\nDo not use percentage signs.\n\nSOC high and SOH thresholds use single percentage numbers. Stale data values are in seconds.",
+  "Warning Detail": "Warning Detail settings control which extra values are included in warning messages, such as all cells above/below thresholds, highest/lowest cells, pack voltage and SOC/SOH.",
+  "Report Schedules": "Controls scheduled notification times for the daily summary and cell delta report.\n\nTime format:\nUse 24-hour HH:MM format.\nExamples: 19:00, 10:15, 00:00\n\nThe delta window start/end values define the time range used for the delta report.",
+  "MQTT": "MQTT settings control broker connection, base topic, Home Assistant Discovery and retained state publishing.",
+  "BMS Connection": "BMS Connection settings control the RS232 serial path, baud rate and polling interval. IP mode is not enabled in this build.",
+  "Advanced": "Advanced settings are mainly for troubleshooting and topic formatting. Keep debug_output at 0 for normal use."
+}
+        
+    function getSectionHelpText(sectionName) {
+      const fallback = {
+        "Notification Thresholds": "Controls when SOC, SOH and stale-data notifications trigger.\n\nnotify_soc_low_thresholds format:\nUse comma-separated numbers only.\nExample: 75,50,25,15\nDo not use percentage signs.\n\nSOC high and SOH thresholds use single percentage numbers. Stale data values are in seconds.",
+        "Report Schedules": "Controls scheduled notification times for the daily summary and cell delta report.\n\nTime format:\nUse 24-hour HH:MM format.\nExamples: 19:00, 10:15, 00:00\n\nThe delta window start/end values define the time range used for the delta report.",
+        "Telegram": "Telegram settings control notification delivery, startup messages, disconnect alerts and stale-data notifications. Leave token/chat ID blank in the web UI to keep existing saved secret values.",
+        "Notifications": "Notification settings enable or disable SOC, SOH, warning, FET, daily summary and delta report notifications.",
+        "Warning Detail": "Warning Detail settings control which extra values are included in warning messages.",
+        "MQTT": "MQTT settings control broker connection, base topic, Home Assistant Discovery and retained state publishing.",
+        "BMS Connection": "BMS Connection settings control the RS232 serial path, baud rate and polling interval. IP mode is not enabled in this build.",
+        "Advanced": "Advanced settings are mainly for troubleshooting and topic formatting. Keep debug_output at 0 for normal use."
+      };
+
+      try {
+        const el = document.getElementById("section-help-json");
+        if (el) {
+          const parsed = JSON.parse(el.textContent || "{}");
+          if (parsed[sectionName]) return parsed[sectionName];
+        }
+      } catch (err) {}
+
+      return fallback[sectionName] || "No help text is available for this section yet.";
+    }
+
+    function openSectionHelp(sectionName) {
+      const title = `${sectionName} Settings`;
+      const text = getSectionHelpText(sectionName);
+
+      const modalTitle = document.getElementById("info-modal-title") || document.getElementById("modal-title");
+      const modalBody = document.getElementById("info-modal-body") || document.getElementById("modal-body");
+      const modal = document.getElementById("info-modal") || document.getElementById("modal");
+
+      if (modalTitle) modalTitle.textContent = title;
+      if (modalBody) modalBody.textContent = text;
+      if (modal) {
+        modal.style.display = "flex";
+        modal.classList.add("open");
+        return;
+      }
+
+      alert(title + "\n\n" + text);
+    }
+
+    // Override older section info functions after the page has loaded.
+    window.showSectionInfo = openSectionHelp;
+    window.openInfoModal = window.openInfoModal || openSectionHelp;
+    window.showInfo = window.showInfo || openSectionHelp;
+
+
+  
+    document.addEventListener("click", function (event) {
+      const btn = event.target.closest("[data-section-help]");
+      if (!btn) return;
+      event.preventDefault();
+      openSectionHelp(btn.getAttribute("data-section-help"));
+    });
+
+  </script>
+
+        <details class="compact-help">
+          <summary>Config format help</summary>
           <div class="helper-note">
-            <strong>Multiple threshold format:</strong> use comma-separated numbers only. Example:
-            <code>75,50,25,15</code>. Do not add percentage signs.
+            <strong>Multiple threshold format:</strong> use comma-separated numbers only.
+            Example: <code>75,50,25,15</code>. Do not add percentage signs.
           </div>
           <div class="helper-note">
-            <strong>Time format:</strong> use 24-hour <code>HH:MM</code> format. Examples:
-            <code>19:00</code>, <code>10:15</code>, <code>00:00</code>.
+            <strong>Time format:</strong> use 24-hour <code>HH:MM</code> format.
+            Examples: <code>19:00</code>, <code>10:15</code>, <code>00:00</code>.
           </div>
-        </section>
+        </details>
 
 
       <section class="card wide-card">
@@ -2158,9 +2292,20 @@ This cannot be undone.`);">
       <section class="card wide-card">
         <h2>Diagnostics</h2>
         <p>Health overview and redacted support information for the add-on. This page reads MQTT/add-on state only and does not write to the BMS.</p>
-        <div class="helper-note">
-          The Support Bundle ZIP includes diagnostics, recent events, backup summary and sanitized config. Sensitive values are redacted and full backup files are not included.
+        {% if diagnostics %}
+        <div class="compact-backup-row">
+          <span class="compact-pill">Overall: {{ diagnostics.live.overall_status }}</span>
+          <span class="compact-pill">Last analog: {{ diagnostics.live.last_analog_read }}</span>
+          <span class="compact-pill">Last warning: {{ diagnostics.live.last_warn_read }}</span>
+          <span class="compact-pill">Backups: {{ diagnostics.backup_summary.count }} / {{ diagnostics.backup_summary.keep_count }}</span>
         </div>
+        {% endif %}
+        <details class="compact-help" style="margin-top: 10px;">
+          <summary>Support bundle information</summary>
+          <div class="helper-note">
+            The Support Bundle ZIP includes diagnostics, recent events, backup summary and sanitized config. Sensitive values are redacted and full backup files are not included.
+          </div>
+        </details>
 
         <div class="actions">
           <button type="button" onclick="refreshDiagnostics()">Refresh Diagnostics</button>
@@ -2348,44 +2493,6 @@ This cannot be undone.`);">
         {% else %}
         <p>No cell data available. Check Status and confirm MQTT retained cell topics are available.</p>
         {% endif %}
-      </section>
-
-      <section class="card wide-card">
-        <h2>Current System Summary</h2>
-        <div class="status-grid">
-          <div class="status-tile">
-            <div class="tile-label">Overall Status</div>
-            <div id="diagnostics-overall-status" class="tile-value">{{ diagnostics.live.overall_status }}</div>
-          </div>
-          <div class="status-tile">
-            <div class="tile-label">BMS Serial</div>
-            <div id="diagnostics-bms-serial" class="tile-value">{{ diagnostics.clean_bms_serial }}</div>
-          </div>
-          <div class="status-tile">
-            <div class="tile-label">BMS Version</div>
-            <div id="diagnostics-bms-version" class="tile-value">{{ diagnostics.clean_bms_version }}</div>
-          </div>
-          <div class="status-tile">
-            <div class="tile-label">Detected Battery Layout</div>
-            <div id="diagnostics-layout" class="tile-value">{{ diagnostics.live.layout }}</div>
-          </div>
-          <div class="status-tile">
-            <div class="tile-label">Last Analog Read</div>
-            <div id="diagnostics-last-analog" class="tile-value">{{ diagnostics.live.last_analog_read }}</div>
-          </div>
-          <div class="status-tile">
-            <div class="tile-label">Last Warning Read</div>
-            <div id="diagnostics-last-warning" class="tile-value">{{ diagnostics.live.last_warn_read }}</div>
-          </div>
-          <div class="status-tile">
-            <div class="tile-label">Backup Count</div>
-            <div class="tile-value">{{ diagnostics.backup_summary.count }} / {{ diagnostics.backup_summary.keep_count }}</div>
-          </div>
-          <div class="status-tile">
-            <div class="tile-label">Events Stored</div>
-            <div class="tile-value">{{ diagnostics.events_count }}</div>
-          </div>
-        </div>
       </section>
 
       <section class="card wide-card">
