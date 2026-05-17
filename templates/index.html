@@ -3282,5 +3282,81 @@ Restart the add-on afterwards for runtime changes to apply.`);
 
 
   </script>
+<script>
+
+    // 2.6.10 restore Config info button handler
+    function openConfigHelp(groupName) {
+      const help = (typeof configHelpContent !== "undefined" && configHelpContent[groupName])
+        ? configHelpContent[groupName]
+        : {
+            title: groupName + " Settings",
+            html: "<p>No help text is available for this section yet.</p>"
+          };
+
+      const titleEl =
+        document.getElementById("configHelpTitle") ||
+        document.getElementById("config-help-title") ||
+        document.getElementById("info-modal-title") ||
+        document.getElementById("modal-title") ||
+        document.querySelector(".modal-title");
+
+      const bodyEl =
+        document.getElementById("configHelpBody") ||
+        document.getElementById("config-help-body") ||
+        document.getElementById("info-modal-body") ||
+        document.getElementById("modal-body") ||
+        document.querySelector(".modal-body");
+
+      const modalEl =
+        document.getElementById("configHelpModal") ||
+        document.getElementById("config-help-modal") ||
+        document.getElementById("info-modal") ||
+        document.getElementById("modal") ||
+        document.querySelector(".modal");
+
+      if (titleEl) {
+        titleEl.textContent = help.title || (groupName + " Settings");
+      }
+
+      if (bodyEl) {
+        bodyEl.innerHTML = help.html || "<p>No help text is available for this section yet.</p>";
+      }
+
+      if (modalEl) {
+        modalEl.style.display = "flex";
+        modalEl.classList.add("open");
+        modalEl.removeAttribute("hidden");
+      } else {
+        const plain = (help.html || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+        alert((help.title || groupName + " Settings") + "\n\n" + plain);
+      }
+    }
+
+    function closeConfigHelp() {
+      const modalEl =
+        document.getElementById("configHelpModal") ||
+        document.getElementById("config-help-modal") ||
+        document.getElementById("info-modal") ||
+        document.getElementById("modal") ||
+        document.querySelector(".modal");
+
+      if (modalEl) {
+        modalEl.style.display = "none";
+        modalEl.classList.remove("open");
+        modalEl.setAttribute("hidden", "hidden");
+      }
+    }
+
+    // Keep older aliases working.
+    window.openConfigHelp = openConfigHelp;
+    window.closeConfigHelp = closeConfigHelp;
+    window.showSectionInfo = openConfigHelp;
+    window.openSectionHelp = openConfigHelp;
+
+
+    window.closeInfoModal = window.closeInfoModal || closeConfigHelp;
+    window.closeModal = window.closeModal || closeConfigHelp;
+
+</script>
 </body>
 </html>

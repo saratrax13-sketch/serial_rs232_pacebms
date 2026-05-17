@@ -1,8 +1,9 @@
 # =============================================================================
 # bms_monitor.py — Pace BMS to MQTT Bridge
-# Version : 2.6.9
+# Version : 2.6.10
 # Changed : 2026-05-17
 # Changes :
+#   - Restored Config info button JavaScript handler
 #   - Added missing Config help content object entries
 #   - Unified Config section help system
 #   - Directly fixed Config section help text lookup
