@@ -73,3 +73,24 @@ This does not hide the warning in the app or MQTT. It only reduces repeated Tele
 
 No BMS protocol changes were made.
 No BMS write/control commands were added.
+
+
+## 2.6.25 update
+
+The cooldown is now visible/configurable in the web Config tab as:
+
+```yaml
+notify_warning_repeat_seconds
+```
+
+Recommended value:
+
+```yaml
+1800
+```
+
+Valid range:
+
+```text
+60 to 86400 seconds
+```

@@ -1,6 +1,6 @@
 name: "Pace BMS RS232 Monitor"
 description: "Read-only Pace BMS RS232 to MQTT bridge with Home Assistant discovery and Telegram notifications"
-version: "2.6.24"
+version: "2.6.25"
 slug: "pace_bms_rs232"
 url: "https://github.com/saratrax13-sketch/serial_rs232_pacebms"
 init: false
@@ -60,14 +60,17 @@ options:
   notify_retry_count: 1
 
   # ─────────────────────────────────────────────
-  # Notifications - Stale Data
+  # Notifications - Stale Data / Repeat Cooldowns
   # This checks the age of successful BMS reads, not whether values changed.
   # It does not write to or configure the BMS.
+  # notify_warning_repeat_seconds controls how often the same active BMS warning
+  # may repeat on Telegram. 1800 seconds = 30 minutes.
   # ─────────────────────────────────────────────
   notify_stale_data: true
   notify_stale_recovery: true
   notify_stale_data_seconds: 120
   notify_stale_data_repeat_seconds: 1800
+  notify_warning_repeat_seconds: 1800
 
   # ─────────────────────────────────────────────
   # Notifications - Warning Detail Reference Values
@@ -162,6 +165,7 @@ schema:
   notify_stale_recovery: bool
   notify_stale_data_seconds: int
   notify_stale_data_repeat_seconds: int
+  notify_warning_repeat_seconds: int
 
   notify_cell_high_warn_voltage: float
   notify_cell_low_warn_voltage: float

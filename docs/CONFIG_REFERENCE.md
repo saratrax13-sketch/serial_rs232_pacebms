@@ -90,3 +90,16 @@ Both decimal dot and decimal comma are accepted:
 4.20
 4,20
 ```
+
+
+## Warning repeat cooldown
+
+`notify_warning_repeat_seconds` controls how often the same active BMS warning may repeat on Telegram.
+
+Recommended default:
+
+```yaml
+notify_warning_repeat_seconds: 1800
+```
+
+This means repeat at most every 30 minutes for the same active warning family.

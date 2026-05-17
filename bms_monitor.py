@@ -1,8 +1,9 @@
 # =============================================================================
 # bms_monitor.py — Pace BMS to MQTT Bridge
-# Version : 2.6.24
+# Version : 2.6.25
 # Changed : 2026-05-17
 # Changes :
+#   - Made BMS warning repeat cooldown configurable in the web UI
 #   - Added BMS warning deduplication and repeat cooldown
 #   - Stable release documentation cleanup
 #   - Fixed Restart Add-on route for Home Assistant Ingress

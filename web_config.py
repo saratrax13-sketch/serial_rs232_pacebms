@@ -93,6 +93,7 @@ GROUPS = {
         "notify_retry_count",
         "notify_stale_data_seconds",
         "notify_stale_data_repeat_seconds",
+        "notify_warning_repeat_seconds",
     ],
     "Warning Detail": [
         "notify_warning_detail_enabled",
@@ -1069,6 +1070,7 @@ CARD_HELP = {
 }
 
 FIELD_HELP = {
+    "notify_warning_repeat_seconds": "Repeat interval in seconds for the same active BMS warning Telegram notification. Example: 1800 means repeat at most every 30 minutes.",
     "notify_soc_low_thresholds": "Comma-separated SOC low alert thresholds. Use numbers only, no percent signs. Example: 75,50,25,15.",
     "notify_soc_high_threshold": "Single SOC high alert threshold. Example: 98 means alert when SOC is at or above 98%.",
     "notify_soc_high_reset": "High SOC reset point. Example: 95 means the high SOC alert can trigger again after SOC drops below 95%.",
@@ -1541,6 +1543,7 @@ INTEGER_FIELDS = {
     "notify_retry_count": (0, 10),
     "notify_stale_data_seconds": (10, 86400),
     "notify_stale_data_repeat_seconds": (60, 86400),
+    "notify_warning_repeat_seconds": (60, 86400),
 }
 
 FLOAT_FIELDS = {
