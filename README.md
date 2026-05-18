@@ -26,7 +26,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.48"
+version: "2.6.49"
 ```
 
 ---
@@ -186,8 +186,7 @@ The web UI includes:
 - Configuration overview
 - Basic Required / Full Monitoring / Advanced configuration views
 - Battery Confidence dashboard with SOC, combined SOH, power flow, runtime/charge-time estimate, capacity, health, warning summary and compact refresh
-- Tech Status with grouped per-pack identity, energy, capacity, electrical, cell balance, reference, FET state and comparison charts
-- Monitoring Health status
+- Tech Status with warning intelligence, grouped per-pack identity, energy, capacity, electrical, cell balance, reference, FET state and comparison charts
 - Detected packs
 - Pack SOC / SOH
 - Pack cycles
@@ -239,7 +238,7 @@ Recommended screenshots to include when asking for support:
 
 - Home Assistant add-on Configuration tab.
 - Pace BMS Dashboard tab showing the User Dashboard.
-- Pace BMS Tech Status tab showing Monitoring Health and pack details.
+- Pace BMS Tech Status tab showing Warning Intelligence, pack details and comparison charts.
 - Pace BMS Setup tab showing Setup Checklist.
 - Test Full Monitoring result message.
 - Example Telegram alert if notifications are enabled.
@@ -291,15 +290,13 @@ Use the buttons on the Setup tab:
 
 If Telegram still contains placeholder values such as `YOUR_TELEGRAM_BOT_TOKEN` or `YOUR_TELEGRAM_CHAT_ID`, the checklist shows a warning and direct Telegram alerts will be skipped.
 
-The **Tech Status** tab includes a **Monitoring Health** card. This is the quickest way to answer whether the add-on is still actively watching the battery:
+The **Tech Status** tab focuses on technician review after the add-on is running:
 
-- **Monitor heartbeat** should remain fresh and within the watchdog timeout.
-- **MQTT monitor state** should show the monitor as running and available.
-- **Analog data age** should stay below the stale-data threshold.
-- **Warning data age** should stay below the stale-data threshold.
-- **Detected packs** and **Cell count** should match the connected battery layout.
+- **Warning Intelligence** explains active BMS warnings against current cell, pack and reference values.
+- **Pack cards** show per-pack identity, SOC, SOH, cycles, capacity, electrical state, FET state and reference checks.
+- **Comparison charts** help spot differences between packs for SOC, SOH, voltage, cell delta and highest/lowest cell values.
 
-If Monitoring Health shows stale data or missing MQTT values, the add-on may still be running but the user should investigate before relying on alerts.
+Tech Status refreshes silently while the tab is open. Use the **Setup** tab for first-run checks and Telegram/MQTT test buttons.
 
 ---
 

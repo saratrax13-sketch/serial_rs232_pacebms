@@ -1,3 +1,16 @@
+## 2.6.49 - 2026-05-18
+
+### Changed
+- Removed the visible Monitoring Health, Live Status and technician tool cards from Tech Status.
+- Kept Tech Status focused on Warning Intelligence, detailed pack cards and comparison charts.
+- Kept Tech Status auto-refresh running silently while the tab is open.
+- Updated README guidance to match the simplified Tech Status layout.
+
+### Notes
+- This is a UI/layout cleanup only.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.48 - 2026-05-18
 
 ### Changed

@@ -2018,81 +2018,12 @@
             Last refreshed: <span id="fetched-at-value">{{ live.fetched_at }}</span>
           </div>
         </div>
-
-        <div class="status-hero">
-          <div class="status-label">Technician Tools</div>
-          <p>Refresh retained MQTT values for this live view. This tab auto-refreshes every 15 seconds while open. Setup tests are on the Setup tab.</p>
-          <div class="actions">
-            <button type="button" onclick="refreshStatus()">Refresh Status</button>
-            <a class="button-link" href="?tab=setup">Open Setup</a>
-          </div>
-          <div id="refresh-message" class="summary-meta">Tech Status auto-refresh runs every 15 seconds while this tab is open.</div>
-        </div>
       </section>
+      <div id="refresh-message" hidden></div>
 
-      {% if live.monitoring_health %}
-      <section class="card wide-card">
-        <div class="monitoring-health-header">
-          <div>
-            <h2>Monitoring Health</h2>
-            <div id="monitoring-health-status" class="monitoring-health-status {{ live.monitoring_health.class }}">{{ live.monitoring_health.status }}</div>
-            <div id="monitoring-health-summary" class="monitoring-health-summary">{{ live.monitoring_health.summary }}</div>
-          </div>
-          <span class="setup-progress">Stale threshold: {{ live.monitoring_health.stale_threshold_seconds }}s</span>
-        </div>
-        <div class="monitoring-health-grid">
-          {% for check in live.monitoring_health.checks %}
-          <article class="monitoring-health-item">
-            <div class="monitoring-health-label">{{ check.label }}</div>
-            <div class="monitoring-health-value {{ check.class }}" data-health-value="{{ check.label }}">{{ check.value }}</div>
-            <div class="monitoring-health-detail" data-health-detail="{{ check.label }}">{{ check.detail }}</div>
-          </article>
-          {% endfor %}
-        </div>
-      </section>
+      {% if live.error %}
+        <div class="alert">{{ live.error }}</div>
       {% endif %}
-
-      <section class="card wide-card">
-        <h2>Live Status</h2>
-
-        {% if live.error %}
-          <div class="alert">{{ live.error }}</div>
-        {% endif %}
-
-        <div class="status-grid">
-          <div class="status-tile">
-            <div class="tile-label">Data Stale</div>
-            <div id="stale-value" class="tile-value {{ live.stale|lower }}">{{ live.stale }}</div>
-          </div>
-          <div class="status-tile">
-            <div class="tile-label">Stale Reason</div>
-            <div id="stale-reason-value" class="tile-value">{{ live.stale_reason }}</div>
-          </div>
-          <div class="status-tile">
-            <div class="tile-label">Last Analog Read</div>
-            <div id="last-analog-read-value" class="tile-value">{{ live.last_analog_read }}</div>
-          </div>
-          <div class="status-tile">
-            <div class="tile-label">Last Warning Read</div>
-            <div id="last-warn-read-value" class="tile-value">{{ live.last_warn_read }}</div>
-          </div>
-          <div class="status-tile">
-            <div class="tile-label">Analog Age</div>
-            <div id="analog-age-value" class="tile-value">{{ live.analog_age_seconds }}s</div>
-          </div>
-          <div class="status-tile">
-            <div class="tile-label">Warning Age</div>
-            <div id="warn-age-value" class="tile-value">{{ live.warn_age_seconds }}s</div>
-          </div>
-        </div>
-
-        {% if live.severity_summary %}
-        <div class="fet-row">
-          {% for label, count in live.severity_summary.items() %}
-            <span class="pill {{ label|lower }}">{{ label }}: {{ count }}</span>
-          {% endfor %}
-        </div>
-        {% endif %}
 
         {% if live.packs %}
         <section class="card wide-card">
