@@ -1,3 +1,14 @@
+## 2.6.51 - 2026-05-18
+
+### Changed
+- Removed the old duplicated BMS warning and Reference Check blocks from the Tech Status pack cards.
+- Kept warning explanation centralized in the expanded Warning Intelligence section.
+
+### Notes
+- This is a read-only UI cleanup.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.50 - 2026-05-18
 
 ### Added

@@ -2331,23 +2331,6 @@
               </div>
             </div>
 
-            {% if pack.warnings == 'Normal' %}
-              <div class="normal-box">No active BMS warnings.</div>
-            {% else %}
-              <div class="warning-box">
-                <strong>BMS internal warning active:</strong><br>
-                {{ pack.warnings }}
-              </div>
-            {% endif %}
-
-            <div class="reference-box">
-              <div class="reference-title">Reference Check</div>
-              <ul class="reference-list">
-                {% for check in pack.reference_checks %}
-                <li>{{ check }}</li>
-                {% endfor %}
-              </ul>
-            </div>
           </article>
           {% endfor %}
         </div>
