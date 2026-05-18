@@ -176,6 +176,18 @@
       align-items: stretch;
     }
 
+    .summary-card.compact-summary {
+      position: relative;
+      grid-template-columns: minmax(220px, 0.8fr) minmax(320px, 1.4fr);
+      padding-right: 70px;
+    }
+
+    .summary-card .summary-refresh {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+    }
+
     .status-hero {
       border-radius: 18px;
       padding: 18px;
@@ -432,9 +444,38 @@
       line-height: 1.45;
     }
 
+    .status-header-card {
+      position: relative;
+      padding-right: 70px;
+    }
+
+    .status-header-card.healthy {
+      border-color: rgba(34, 197, 94, 0.34);
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.11), rgba(30, 41, 59, 0.82));
+    }
+
+    .status-header-card.warning,
+    .status-header-card.caution {
+      border-color: rgba(245, 158, 11, 0.36);
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.10), rgba(30, 41, 59, 0.82));
+    }
+
+    .status-header-card.critical,
+    .status-header-card.offline,
+    .status-header-card.stale {
+      border-color: rgba(248, 113, 113, 0.38);
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.10), rgba(30, 41, 59, 0.82));
+    }
+
+    .status-header-card .icon-button {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+    }
+
     .chart-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 16px;
       margin-bottom: 16px;
     }
@@ -1579,6 +1620,8 @@
       .value { text-align: left; }
       .metric-grid { grid-template-columns: repeat(2, 1fr); }
       .pack-quick-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .summary-card.compact-summary { grid-template-columns: 1fr; }
+      .chart-grid { grid-template-columns: 1fr; }
       .event-item { grid-template-columns: 1fr auto; }
       .event-time { grid-column: 1 / -1; }
     }
@@ -2038,11 +2081,7 @@
 
     <section class="tab-panel {% if active_tab == 'status' %}active{% endif %}">
       {% if live %}
-      <div class="view-note">
-        <strong>Technician live view</strong>
-        <span>Use this page for per-pack values, warning interpretation, FET state, reference checks and live monitor freshness. Daily user confidence belongs on the Dashboard; first-run checks and test buttons belong on Setup.</span>
-      </div>
-      <section class="card wide-card summary-card">
+      <section class="card wide-card summary-card compact-summary">
         <div class="status-hero">
           <div class="status-label">Overall Status</div>
           <div id="overall-status" class="status-value {{ live.overall_class }}">{{ live.overall_status }}</div>
@@ -2062,6 +2101,14 @@
             Last refreshed: <span id="fetched-at-value">{{ live.fetched_at }}</span>
           </div>
         </div>
+        <button class="icon-button summary-refresh" type="button" onclick="refreshStatus()" aria-label="Refresh tech status" title="Refresh tech status">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M21 12a9 9 0 0 1-15.5 6.2"></path>
+            <path d="M3 12a9 9 0 0 1 15.5-6.2"></path>
+            <path d="M18.5 2.8v3.5h-3.5"></path>
+            <path d="M5.5 21.2v-3.5h3.5"></path>
+          </svg>
+        </button>
       </section>
       <div id="refresh-message" hidden></div>
 
@@ -2945,21 +2992,17 @@ This cannot be undone.`);">
     </div>
 
     <section class="tab-panel {% if active_tab == 'diagnostics' %}active{% endif %}">
-      <div class="view-note">
-        <strong>Technician / support proof view</strong>
-        <span>Use this page for health checks, battery identity, cell data, sanitized support reports and communication evidence.</span>
-      </div>
-      <section class="card wide-card">
+      <section class="card wide-card status-header-card {% if diagnostics %}{{ diagnostics.live.overall_class }}{% endif %}">
         <h2>Diagnostics</h2>
         <p>Health overview and redacted support information for the add-on. This page reads MQTT/add-on state only and does not write to the BMS. It auto-refreshes every 15 seconds while open.</p>
-        {% if diagnostics %}
-        <div class="compact-backup-row">
-          <span class="compact-pill">Overall: {{ diagnostics.live.overall_status }}</span>
-          <span class="compact-pill">Last analog: {{ diagnostics.live.last_analog_read }}</span>
-          <span class="compact-pill">Last warning: {{ diagnostics.live.last_warn_read }}</span>
-          <span class="compact-pill">Backups: {{ diagnostics.backup_summary.count }} / {{ diagnostics.backup_summary.keep_count }}</span>
-        </div>
-        {% endif %}
+        <button class="icon-button" type="button" onclick="refreshDiagnostics()" aria-label="Refresh diagnostics" title="Refresh diagnostics">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M21 12a9 9 0 0 1-15.5 6.2"></path>
+            <path d="M3 12a9 9 0 0 1 15.5-6.2"></path>
+            <path d="M18.5 2.8v3.5h-3.5"></path>
+            <path d="M5.5 21.2v-3.5h3.5"></path>
+          </svg>
+        </button>
         <details class="compact-help" style="margin-top: 10px;">
           <summary>Support bundle information</summary>
           <div class="helper-note">
@@ -2968,29 +3011,13 @@ This cannot be undone.`);">
         </details>
 
         <div class="actions">
-          <button type="button" onclick="refreshDiagnostics()">Refresh Diagnostics</button>
           <a class="button-link" href="download-diagnostics.json">Download Diagnostic Report</a>
           <a class="button-link" href="download-support-bundle.zip">Download Support Bundle ZIP</a>
-          <a class="button-link" href="?tab=status">Open Status</a>
-          <a class="button-link" href="?tab=backups">Open Backups</a>
         </div>
-        <div id="diagnostics-refresh-message" class="dashboard-refresh-message">Diagnostics loaded from current retained MQTT values. Auto-refresh runs every 15 seconds while this tab is open.</div>
+        <div id="diagnostics-refresh-message" hidden></div>
       </section>
 
       {% if diagnostics %}
-      <section class="card wide-card">
-        <h2>Health Checks</h2>
-        <div class="diagnostics-grid">
-          {% for card in diagnostics.health_cards %}
-          <div class="diagnostic-card" data-diagnostic-card="{{ card.title }}">
-            <div class="diagnostic-title">{{ card.title }}</div>
-            <div class="diagnostic-status {{ card.class }}" data-diagnostic-status="{{ card.title }}">{{ card.status }}</div>
-            <div class="diagnostic-detail" data-diagnostic-detail="{{ card.title }}">{{ card.detail }}</div>
-          </div>
-          {% endfor %}
-        </div>
-      </section>
-
       <section class="card wide-card">
         <h2>Battery Configuration</h2>
         <p>Detected pack topology and identity details. Pack serials are shown only where the current BMS read exposes them.</p>
@@ -3088,19 +3115,10 @@ This cannot be undone.`);">
           If a slave pack serial shows as "N/A", it means the current BMS read does not expose a unique serial for that pack. The UI will not invent serial numbers.
         </div>
 
-        <div class="helper-note">
-          Slave serial note: the current Pace C2 serial-number response exposes one unique serial only. Slave pack live values are still read correctly through the master BMS payload, but separate slave serial identity is not reported by the current decoded response.
-        </div>
-
       </section>
 
       <section class="card wide-card">
         <h2>Detailed Cell Data</h2>
-        <p>Current cell voltages per detected pack. Values come from retained MQTT cell topics and are shown for troubleshooting and balancing checks.</p>
-
-        <div class="helper-note">
-          Cell labels are based on the current snapshot. "Highest" and "Lowest" identify the pack's current cell extremes. Reference labels use the configured warning detail references.
-        </div>
 
         {% if live and live.packs %}
         <div class="cell-detail-grid">
@@ -3167,13 +3185,6 @@ This cannot be undone.`);">
         {% else %}
         <p>No cell data available. Check Status and confirm MQTT retained cell topics are available.</p>
         {% endif %}
-      </section>
-
-      <section class="card wide-card">
-        <h2>Read-Only Safety</h2>
-        <div class="normal-box">
-          The add-on remains read-only to the BMS. The web UI can save Home Assistant add-on options, but it does not write BMS thresholds, change BMS settings, or control charge/discharge FETs.
-        </div>
       </section>
       {% else %}
       <section class="card wide-card">

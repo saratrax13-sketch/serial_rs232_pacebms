@@ -395,7 +395,7 @@ class HealthEndpointTests(unittest.TestCase):
             response = web_config.app.test_client().get("/?tab=status")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Technician live view", response.data)
+        self.assertNotIn(b"Technician live view", response.data)
         self.assertNotIn(b"Monitoring Health", response.data)
         self.assertNotIn(b"Live Status", response.data)
         self.assertNotIn(b"Refresh Status", response.data)
@@ -826,7 +826,14 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"Max Cycles", response.data)
         self.assertIn(b"Lowest SOH", response.data)
         self.assertIn(b"Average SOC", response.data)
-        self.assertIn(b"Diagnostics loaded from current retained MQTT values. Auto-refresh runs every 15 seconds", response.data)
+        self.assertNotIn(b"Technician / support proof view", response.data)
+        self.assertNotIn(b"Health Checks", response.data)
+        self.assertNotIn(b"Refresh Diagnostics", response.data)
+        self.assertNotIn(b"Open Status", response.data)
+        self.assertNotIn(b"Open Backups", response.data)
+        self.assertNotIn(b"Read-Only Safety", response.data)
+        self.assertNotIn(b"Diagnostics loaded from current retained MQTT values. Auto-refresh runs every 15 seconds", response.data)
+        self.assertIn(b"Refresh diagnostics", response.data)
 
     def test_health_endpoint_fails_when_monitor_heartbeat_is_stale(self):
         with tempfile.TemporaryDirectory() as tmpdir:

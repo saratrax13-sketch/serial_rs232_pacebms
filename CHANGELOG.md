@@ -1,3 +1,17 @@
+## 2.6.53 - 2026-05-18
+
+### Changed
+- Removed Tech Status and Diagnostics explanatory banners to reduce visual noise.
+- Added icon refresh buttons to Tech Status and Diagnostics headers.
+- Removed duplicated Diagnostics health-check, safety and navigation sections.
+- Color-coded the Diagnostics header by current status.
+- Rebalanced Tech Status comparison charts into a cleaner two-column grid.
+
+### Notes
+- This is a read-only UI cleanup.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.52 - 2026-05-18
 
 ### Changed
