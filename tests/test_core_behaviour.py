@@ -358,7 +358,33 @@ class HealthEndpointTests(unittest.TestCase):
             "fetched_at": "now",
             "error": "",
             "severity_summary": {},
-            "packs": [],
+            "packs": [{
+                "id": "01",
+                "cell_count": 16,
+                "role": "Master",
+                "serial": "PACKTEST",
+                "soc": "95",
+                "soh": "99",
+                "cycles": "42",
+                "remaining_capacity_ah": "160",
+                "full_capacity_ah": "200",
+                "design_capacity_ah": "200",
+                "voltage": "54.0",
+                "current": "1.0",
+                "power_kw": "0.05",
+                "delta": "12",
+                "warnings": "Normal",
+                "severity_class": "healthy",
+                "severity_label": "Normal",
+                "highest_cell": {"number": "01", "voltage": "3.400"},
+                "lowest_cell": {"number": "02", "voltage": "3.388"},
+                "cell_high_ref": "4.20",
+                "pack_high_ref": "67.20",
+                "charge_fet": "ON",
+                "discharge_fet": "ON",
+                "fully": "OFF",
+                "reference_checks": ["No active BMS warning."],
+            }],
         }
 
         with (
@@ -372,6 +398,9 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"Technician live view", response.data)
         self.assertIn(b"Monitoring Health", response.data)
         self.assertIn(b"Tech Status auto-refresh runs every 15 seconds", response.data)
+        self.assertIn(b"Energy & Health", response.data)
+        self.assertIn(b"Capacity", response.data)
+        self.assertIn(b"Power", response.data)
 
     def test_monitoring_health_uses_heartbeat_and_live_mqtt(self):
         options = {
@@ -483,6 +512,9 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertEqual(summary["full_capacity_ah"], "400 Ah")
         self.assertEqual(summary["remaining_energy_kwh"], "15.60 kWh")
         self.assertEqual(summary["runtime_remaining"], "13h 38m")
+        self.assertEqual(summary["time_label"], "Runtime Estimate")
+        self.assertEqual(summary["power_flow"], "Discharging at 1.14 kW")
+        self.assertEqual(summary["warning_summary"], "No active warnings")
         self.assertEqual(summary["health"], "90.0%")
         self.assertEqual(summary["temperature_status"], "Normal")
 
@@ -514,12 +546,15 @@ class HealthEndpointTests(unittest.TestCase):
         charging["packs"] = [dict(base_live["packs"][0], current="10")]
         charging_summary = web_config._calculate_user_summary(options, charging)
         self.assertEqual(charging_summary["runtime_remaining"], "2h")
+        self.assertEqual(charging_summary["time_label"], "Charge Time Estimate")
+        self.assertEqual(charging_summary["power_flow"], "Charging at 0.50 kW")
         self.assertIn("Charge-to-full", charging_summary["runtime_detail"])
 
         idle = dict(base_live)
         idle["packs"] = [dict(base_live["packs"][0], current="0")]
         idle_summary = web_config._calculate_user_summary(options, idle)
         self.assertEqual(idle_summary["runtime_remaining"], "Idle")
+        self.assertEqual(idle_summary["time_label"], "Idle")
 
     def test_dashboard_page_renders_monitoring_snapshot(self):
         options = {
@@ -601,7 +636,8 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"pack-quick-strip", response.data)
         self.assertIn(b"User Dashboard", response.data)
         self.assertIn(b"Battery Power", response.data)
-        self.assertIn(b"Energy Time Estimate", response.data)
+        self.assertIn(b"Charge Time Estimate", response.data)
+        self.assertIn(b"Last Updated", response.data)
         self.assertIn(b"Remaining Capacity", response.data)
 
     def test_root_defaults_to_user_dashboard(self):

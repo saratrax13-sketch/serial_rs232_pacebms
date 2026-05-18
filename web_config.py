@@ -657,12 +657,19 @@ def _calculate_user_summary(options, live):
             "full_capacity_ah": "Unknown",
             "design_capacity_ah": "Unknown",
             "remaining_energy_kwh": "Unknown",
+            "capacity_detail": "Full and design capacity are not available yet.",
+            "time_label": "Battery Time",
             "runtime_remaining": "Unknown",
             "runtime_detail": "Waiting for retained energy and power values.",
             "health": "Unknown",
             "temperature": "Unknown",
             "temperature_status": "Unknown",
             "active_warnings": str(live.get("warning_count", 0) if isinstance(live, dict) else 0),
+            "warning_summary": "Waiting for retained warning values.",
+            "warning_class": "warning",
+            "power_detail": "Waiting for current and voltage values.",
+            "power_class": "warning",
+            "last_updated": live.get("fetched_at", "Unknown") if isinstance(live, dict) else "Unknown",
         }
 
     total_power_kw = 0.0
@@ -749,11 +756,17 @@ def _calculate_user_summary(options, live):
         status_class = "healthy"
 
     if total_power_kw > idle_threshold_kw:
-        power_flow = "Charging"
+        power_flow = f"Charging at {abs(total_power_kw):.2f} kW"
+        power_detail = "Power is flowing into the battery."
+        power_class = "charging"
     elif total_power_kw < -idle_threshold_kw:
-        power_flow = "Discharging"
+        power_flow = f"Discharging at {abs(total_power_kw):.2f} kW"
+        power_detail = "Power is flowing out of the battery."
+        power_class = "discharging"
     else:
         power_flow = "Idle"
+        power_detail = "No meaningful battery power flow detected."
+        power_class = "idle"
 
     temp_high = _to_float(options.get("notify_temp_high_warn_c", 55), 55)
     temp_low = _to_float(options.get("notify_temp_low_warn_c", 0), 0)
@@ -772,20 +785,44 @@ def _calculate_user_summary(options, live):
     health = min(soh_values) if soh_values else None
     summary = f"{status}. {len(packs)} pack(s), {live.get('total_cells', 0)} cells detected."
     runtime_remaining = "Unknown"
+    time_label = "Battery Time"
     runtime_detail = "Estimate needs current power and capacity values."
     if total_power_kw < -idle_threshold_kw and remaining_kwh > 0:
         discharge_kw = abs(total_power_kw)
+        time_label = "Runtime Estimate"
         runtime_remaining = runtime_label_from_hours(remaining_kwh / discharge_kw)
         runtime_detail = "Estimate based on current discharge power."
     elif total_power_kw > idle_threshold_kw and energy_needed_kwh > 0:
+        time_label = "Charge Time Estimate"
         runtime_remaining = runtime_label_from_hours(energy_needed_kwh / total_power_kw)
         runtime_detail = "Charge-to-full estimate based on current charge power."
     elif total_power_kw > idle_threshold_kw:
+        time_label = "Charge Time Estimate"
         runtime_remaining = "Charging"
         runtime_detail = "Charge time needs full and remaining capacity values."
     elif abs(total_power_kw) <= idle_threshold_kw:
+        time_label = "Idle"
         runtime_remaining = "Idle"
         runtime_detail = "No meaningful discharge load detected."
+
+    severity_rank = {"Critical": 3, "Warning": 2, "Caution": 1}
+    highest_warning = None
+    for pack in packs:
+        if pack.get("warnings") == "Normal":
+            continue
+        label = str(pack.get("severity_label", "Warning"))
+        if highest_warning is None or severity_rank.get(label, 2) > severity_rank.get(highest_warning, 2):
+            highest_warning = label
+    if warning_count:
+        warning_summary = f"{warning_count} active warning(s)"
+        if highest_warning:
+            warning_summary = f"{warning_summary} - highest severity: {highest_warning}"
+        warning_class = "warning" if highest_warning != "Critical" else "critical"
+    else:
+        warning_summary = "No active warnings"
+        warning_class = "healthy"
+
+    capacity_detail = f"Full: {_fmt_number(full_ah if full_ah else None, 0, ' Ah')} | Design: {_fmt_number(design_ah if design_ah else None, 0, ' Ah')}"
 
     return {
         "status": status,
@@ -794,12 +831,16 @@ def _calculate_user_summary(options, live):
         "combined_soc": _fmt_number(combined_soc, 1, "%"),
         "total_power_kw": _fmt_number(total_power_kw, 2, " kW"),
         "power_flow": power_flow,
+        "power_detail": power_detail,
+        "power_class": power_class,
         "pack_voltage": _fmt_number(avg_voltage, 2, " V"),
         "battery_current": _fmt_number(total_current, 2, " A"),
         "remaining_capacity_ah": _fmt_number(remaining_ah if remaining_ah else None, 0, " Ah"),
         "full_capacity_ah": _fmt_number(full_ah if full_ah else None, 0, " Ah"),
         "design_capacity_ah": _fmt_number(design_ah if design_ah else None, 0, " Ah"),
         "remaining_energy_kwh": _fmt_number(remaining_kwh if remaining_kwh else None, 2, " kWh"),
+        "capacity_detail": capacity_detail,
+        "time_label": time_label,
         "runtime_remaining": runtime_remaining,
         "runtime_detail": runtime_detail,
         "health": _fmt_number(health, 1, "%"),
@@ -807,6 +848,9 @@ def _calculate_user_summary(options, live):
         "temperature_status": temp_status,
         "temperature_class": temp_class,
         "active_warnings": str(warning_count),
+        "warning_summary": warning_summary,
+        "warning_class": warning_class,
+        "last_updated": live.get("fetched_at", "Unknown"),
     }
 
 
@@ -1178,6 +1222,10 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
                 })
 
         pack_v = _to_float(voltage)
+        pack_current = _to_float(current)
+        pack_power_kw = None
+        if pack_v is not None and pack_current is not None:
+            pack_power_kw = (pack_v * pack_current) / 1000.0
         pack_high_ref = cell_high_ref * cell_count if cell_count else None
         pack_low_ref = cell_low_ref * cell_count if cell_count else None
 
@@ -1226,8 +1274,17 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
         if not has_warning:
             reference_checks.append("No active BMS warning.")
 
+        is_master = str(pack_id) == "1"
+        pack_serial = clean_bms_serial(result.get("pack_sn", "Unknown"))
+        bms_serial = clean_bms_serial(result.get("bms_sn", "Unknown"))
+        serial_display = pack_serial if is_master and pack_serial != "Unknown" else bms_serial if is_master else "Not reported separately"
+        serial_note = "Reported by BMS" if is_master and serial_display != "Unknown" else "Current BMS read does not expose a separate serial for this pack"
+
         packs.append({
             "id": pack_id,
+            "role": "Master" if is_master else "Slave",
+            "serial": serial_display,
+            "serial_note": serial_note,
             "cell_count": cell_count,
             "soc": soc,
             "soh": soh,
@@ -1237,6 +1294,7 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
             "design_capacity_ah": design_capacity_ah,
             "voltage": voltage,
             "current": current,
+            "power_kw": f"{pack_power_kw:.2f}" if pack_power_kw is not None else "Unknown",
             "delta": delta,
             "temperatures": sorted(temp_values),
             "warnings": warnings,

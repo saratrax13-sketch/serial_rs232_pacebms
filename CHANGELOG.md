@@ -1,3 +1,22 @@
+## 2.6.46 - 2026-05-18
+
+### Added
+- Added a dynamic User Dashboard time label that switches between runtime, charge-time and idle states.
+- Added clearer charging/discharging power wording and last-updated visibility to the User Dashboard.
+- Added plain-language warning summary text to the User Dashboard.
+- Added per-pack role, serial context and power to the Tech Status pack cards.
+
+### Changed
+- Polished User Dashboard capacity wording so remaining energy, full capacity and design capacity are easier to read.
+- Re-grouped Tech Status pack cards into identity, energy/health, capacity, electrical, cell balance, references and BMS state.
+- Slimmed button and tab styling for a less bulky web UI.
+- Updated README guidance for runtime and charge-time estimates.
+
+### Notes
+- Charge time remains an estimate based on current charge power and reported capacity.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.45 - 2026-05-18
 
 ### Added

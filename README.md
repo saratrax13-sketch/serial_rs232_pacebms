@@ -26,7 +26,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.45"
+version: "2.6.46"
 ```
 
 ---
@@ -185,7 +185,8 @@ The web UI includes:
 
 - Configuration overview
 - Basic Required / Full Monitoring / Advanced configuration views
-- Live status
+- User Dashboard with SOC, power flow, runtime/charge-time estimate, capacity, health and warning summary
+- Tech Status with grouped per-pack identity, energy, capacity, electrical, cell balance, reference and FET state
 - Monitoring Health status
 - Detected packs
 - Pack SOC / SOH
@@ -209,6 +210,19 @@ The test buttons only test external services:
 - Test Telegram sends a Telegram test message.
 - Test MQTT checks broker connectivity.
 - Test Full Monitoring checks MQTT, Telegram configuration and notification thresholds without sending a Telegram message.
+
+### Runtime and Charge-Time Estimates
+
+The User Dashboard time tile changes with battery direction:
+
+- **Runtime Estimate** appears while the battery is discharging.
+- **Charge Time Estimate** appears while the battery is charging.
+- **Idle** appears when no meaningful charge or discharge power is detected.
+
+Runtime is calculated from current remaining energy divided by current discharge power.
+Charge time is calculated from the energy needed to reach reported full capacity divided by current charge power.
+
+These values are estimates from retained MQTT values. They will change as load or charge current changes, and charge time may increase near full SOC when charge current tapers.
 
 ---
 

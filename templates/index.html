@@ -112,7 +112,7 @@
     .tab-button {
       text-decoration: none;
       color: #cbd5e1;
-      padding: 10px 14px;
+      padding: 8px 12px;
       border-radius: 999px;
       border: 1px solid rgba(148, 163, 184, 0.22);
       background: rgba(15, 23, 42, 0.60);
@@ -231,14 +231,14 @@
       border: 1px solid rgba(56, 189, 248, 0.7);
       background: rgba(14, 165, 233, 0.16);
       color: #e0f2fe;
-      padding: 7px 11px;
-      border-radius: 10px;
+      padding: 6px 10px;
+      border-radius: 9px;
       font-weight: 800;
       text-decoration: none;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      font-size: 13px;
+      font-size: 12px;
       line-height: 1.2;
     }
 
@@ -307,8 +307,12 @@
     }
 
     .user-dashboard-value.healthy { color: var(--green); }
+    .user-dashboard-value.charging { color: #86efac; }
+    .user-dashboard-value.discharging { color: #fbbf24; }
+    .user-dashboard-value.idle { color: #cbd5e1; }
     .user-dashboard-value.warning,
     .user-dashboard-value.stale { color: var(--yellow); }
+    .user-dashboard-value.critical { color: var(--red); }
     .user-dashboard-value.offline { color: var(--red); }
 
     .user-dashboard-detail {
@@ -2155,7 +2159,25 @@
             </div>
 
             <div class="metric-section">
-              <div class="metric-section-title">Battery Health</div>
+              <div class="metric-section-title">Identity</div>
+              <div class="metric-grid">
+                <div class="metric">
+                  <div class="metric-label">Role</div>
+                  <div class="metric-value">{% if pack.role %}{{ pack.role }}{% elif pack.id == '01' %}Master{% else %}Slave{% endif %}</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">Serial</div>
+                  <div class="metric-value">{{ pack.serial|default('Not reported') }}</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">Cells</div>
+                  <div class="metric-value">{{ pack.cell_count }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="metric-section">
+              <div class="metric-section-title">Energy & Health</div>
               <div class="metric-grid">
                 <div class="metric">
                   <div class="metric-label">SOC</div>
@@ -2173,6 +2195,24 @@
             </div>
 
             <div class="metric-section">
+              <div class="metric-section-title">Capacity</div>
+              <div class="metric-grid">
+                <div class="metric">
+                  <div class="metric-label">Remaining</div>
+                  <div class="metric-value">{{ pack.remaining_capacity_ah }} Ah</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">Full</div>
+                  <div class="metric-value">{{ pack.full_capacity_ah }} Ah</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">Design</div>
+                  <div class="metric-value">{{ pack.design_capacity_ah }} Ah</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="metric-section">
               <div class="metric-section-title">Electrical</div>
               <div class="metric-grid">
                 <div class="metric">
@@ -2182,6 +2222,10 @@
                 <div class="metric">
                   <div class="metric-label">Current</div>
                   <div class="metric-value">{{ pack.current }} A</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">Power</div>
+                  <div class="metric-value">{{ pack.power_kw|default('Unknown') }} kW</div>
                 </div>
               </div>
             </div>
@@ -2284,11 +2328,11 @@
           </div>
           <div class="user-dashboard-tile">
             <div class="user-dashboard-label">Battery Power</div>
-            <div id="user-total-power" class="user-dashboard-value">{{ live.user_summary.total_power_kw }}</div>
-            <div class="user-dashboard-detail">Positive is charging, negative is discharging.</div>
+            <div id="user-total-power" class="user-dashboard-value {{ live.user_summary.power_class }}">{{ live.user_summary.total_power_kw }}</div>
+            <div id="user-power-detail" class="user-dashboard-detail">{{ live.user_summary.power_detail }}</div>
           </div>
           <div class="user-dashboard-tile">
-            <div class="user-dashboard-label">Energy Time Estimate</div>
+            <div id="user-time-label" class="user-dashboard-label">{{ live.user_summary.time_label }}</div>
             <div id="user-runtime" class="user-dashboard-value">{{ live.user_summary.runtime_remaining }}</div>
             <div id="user-runtime-detail" class="user-dashboard-detail">{{ live.user_summary.runtime_detail }}</div>
           </div>
@@ -2300,12 +2344,12 @@
           <div class="user-dashboard-tile">
             <div class="user-dashboard-label">Remaining Capacity</div>
             <div id="user-remaining-capacity" class="user-dashboard-value">{{ live.user_summary.remaining_capacity_ah }}</div>
-            <div id="user-remaining-energy" class="user-dashboard-detail">{{ live.user_summary.remaining_energy_kwh }}</div>
+            <div id="user-remaining-energy" class="user-dashboard-detail">{{ live.user_summary.remaining_energy_kwh }} remaining</div>
           </div>
           <div class="user-dashboard-tile">
             <div class="user-dashboard-label">Full / Design Capacity</div>
             <div id="user-full-capacity" class="user-dashboard-value">{{ live.user_summary.full_capacity_ah }}</div>
-            <div id="user-design-capacity" class="user-dashboard-detail">Design: {{ live.user_summary.design_capacity_ah }}</div>
+            <div id="user-design-capacity" class="user-dashboard-detail">{{ live.user_summary.capacity_detail }}</div>
           </div>
           <div class="user-dashboard-tile">
             <div class="user-dashboard-label">Battery Health</div>
@@ -2319,7 +2363,13 @@
           </div>
           <div class="user-dashboard-tile">
             <div class="user-dashboard-label">Active Warnings</div>
-            <div id="user-active-warnings" class="user-dashboard-value">{{ live.user_summary.active_warnings }}</div>
+            <div id="user-active-warnings" class="user-dashboard-value {{ live.user_summary.warning_class }}">{{ live.user_summary.active_warnings }}</div>
+            <div id="user-warning-summary" class="user-dashboard-detail">{{ live.user_summary.warning_summary }}</div>
+          </div>
+          <div class="user-dashboard-tile">
+            <div class="user-dashboard-label">Last Updated</div>
+            <div id="user-last-updated" class="user-dashboard-value">{{ live.user_summary.last_updated }}</div>
+            <div class="user-dashboard-detail">Auto-refresh runs every 30 seconds.</div>
           </div>
         </div>
       </section>
@@ -3809,20 +3859,28 @@ Restart the add-on afterwards for runtime changes to apply.`);
           if (operatingState) operatingState.className = "user-dashboard-value " + (data.user_summary.class || "warning");
           setDashboardText("#user-power-flow", data.user_summary.power_flow);
           setDashboardText("#user-total-power", data.user_summary.total_power_kw);
+          const totalPower = document.getElementById("user-total-power");
+          if (totalPower) totalPower.className = "user-dashboard-value " + (data.user_summary.power_class || "warning");
+          setDashboardText("#user-power-detail", data.user_summary.power_detail);
+          setDashboardText("#user-time-label", data.user_summary.time_label);
           setDashboardText("#user-runtime", data.user_summary.runtime_remaining);
           setDashboardText("#user-runtime-detail", data.user_summary.runtime_detail);
           setDashboardText("#user-voltage-current", data.user_summary.pack_voltage);
           setDashboardText("#user-current", data.user_summary.battery_current);
           setDashboardText("#user-remaining-capacity", data.user_summary.remaining_capacity_ah);
-          setDashboardText("#user-remaining-energy", data.user_summary.remaining_energy_kwh);
+          setDashboardText("#user-remaining-energy", data.user_summary.remaining_energy_kwh + " remaining");
           setDashboardText("#user-full-capacity", data.user_summary.full_capacity_ah);
-          setDashboardText("#user-design-capacity", "Design: " + data.user_summary.design_capacity_ah);
+          setDashboardText("#user-design-capacity", data.user_summary.capacity_detail);
           setDashboardText("#user-health", data.user_summary.health);
           setDashboardText("#user-temperature", data.user_summary.temperature);
           const tempValue = document.getElementById("user-temperature");
           if (tempValue) tempValue.className = "user-dashboard-value " + (data.user_summary.temperature_class || "warning");
           setDashboardText("#user-temperature-status", data.user_summary.temperature_status);
           setDashboardText("#user-active-warnings", data.user_summary.active_warnings);
+          const userWarnings = document.getElementById("user-active-warnings");
+          if (userWarnings) userWarnings.className = "user-dashboard-value " + (data.user_summary.warning_class || "warning");
+          setDashboardText("#user-warning-summary", data.user_summary.warning_summary);
+          setDashboardText("#user-last-updated", data.user_summary.last_updated);
         }
 
         if (data.monitoring_health) {
