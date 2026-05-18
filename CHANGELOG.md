@@ -1,3 +1,13 @@
+## 2.6.52 - 2026-05-18
+
+### Changed
+- Shortened slave pack serial placeholders from "Not reported separately" to "N/A" so pack cards align better.
+
+### Notes
+- This is a read-only UI text cleanup.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.51 - 2026-05-18
 
 ### Changed

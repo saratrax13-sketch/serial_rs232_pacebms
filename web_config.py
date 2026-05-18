@@ -1414,7 +1414,7 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
         is_master = pack_number == 1
         pack_serial = clean_bms_serial(result.get("pack_sn", "Unknown"))
         bms_serial = clean_bms_serial(result.get("bms_sn", "Unknown"))
-        serial_display = pack_serial if is_master and pack_serial != "Unknown" else bms_serial if is_master else "Not reported separately"
+        serial_display = pack_serial if is_master and pack_serial != "Unknown" else bms_serial if is_master else "N/A"
         serial_note = "Reported by BMS" if is_master and serial_display != "Unknown" else "Current BMS read does not expose a separate serial for this pack"
 
         pack_data = {
@@ -1589,7 +1589,7 @@ def build_battery_topology(options, live):
             serial_note = "Reported by BMS" if serial_display != "Unknown" else "Not reported"
         else:
             role = "Slave"
-            serial_display = "Not reported separately"
+            serial_display = "N/A"
             serial_note = "Current BMS read does not expose a separate serial for this pack"
 
         warnings = pack.get("warnings", "Normal")

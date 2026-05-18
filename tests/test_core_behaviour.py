@@ -408,6 +408,7 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"Pack SOC Comparison", response.data)
         self.assertIn(b"Highest vs Lowest Cell", response.data)
         self.assertNotIn(b"BMS internal warning active:", response.data)
+        self.assertNotIn(b"Not reported separately", response.data)
 
     def test_warning_intelligence_calculates_reference_margins(self):
         pack = {
