@@ -1,3 +1,14 @@
+## 2.6.61 - 2026-05-18
+
+### Fixed
+- Made automatic Dashboard, Tech Status and Diagnostics refreshes quiet so they no longer flash visible "refreshing" text during every timer update.
+- Stopped Setup auto-refresh from reloading the whole page; it now quietly refreshes the retained MQTT cache in the background.
+
+### Notes
+- This is a web UI polish update only.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.60 - 2026-05-18
 
 ### Added
