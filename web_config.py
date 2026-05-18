@@ -1888,14 +1888,14 @@ def redirect_to_tab(tab="status", result="", message=""):
     return redirect("./?" + "&".join(params), code=303)
 
 
-def render_index(action_result="", action_message="", active_tab="status", compare_data=None, restore_preview=None):
+def render_index(action_result="", action_message="", active_tab="dashboard", compare_data=None, restore_preview=None):
     options, error = load_options()
     grouped = build_grouped_config(options)
 
     # Performance note:
     # Fetching the live MQTT snapshot requires a short MQTT subscribe window.
     # Only do this on the Status tab. Config and Events should open quickly.
-    live = attach_monitoring_health(options, fetch_mqtt_snapshot(options)) if options and active_tab in ("status", "dashboard", "diagnostics") else None
+    live = attach_monitoring_health(options, fetch_mqtt_snapshot(options)) if options and active_tab in ("status", "dashboard", "setup", "diagnostics") else None
     setup_checklist = build_setup_checklist(options, live) if options else None
 
     return render_template(
@@ -1924,7 +1924,7 @@ def render_index(action_result="", action_message="", active_tab="status", compa
 
 @app.route("/", methods=["GET"])
 def index():
-    tab = request.args.get("tab", "status")
+    tab = request.args.get("tab", "dashboard")
     result = request.args.get("result", "")
     message = request.args.get("message", "")
 
@@ -1986,43 +1986,43 @@ def index():
 @app.route("/test-telegram", methods=["GET", "POST"])
 def route_test_telegram():
     if request.method == "GET":
-        return redirect_to_tab("status")
+        return redirect_to_tab("setup")
 
     options, error = load_options()
     if error:
-        return redirect_to_tab("status", "warn", error)
+        return redirect_to_tab("setup", "warn", error)
 
     ok, message = test_telegram(options)
     append_event("telegram_test", "Telegram test", message, "ok" if ok else "warn")
-    return redirect_to_tab("status", "ok" if ok else "warn", message)
+    return redirect_to_tab("setup", "ok" if ok else "warn", message)
 
 
 @app.route("/test-mqtt", methods=["GET", "POST"])
 def route_test_mqtt():
     if request.method == "GET":
-        return redirect_to_tab("status")
+        return redirect_to_tab("setup")
 
     options, error = load_options()
     if error:
-        return redirect_to_tab("status", "warn", error)
+        return redirect_to_tab("setup", "warn", error)
 
     ok, message = test_mqtt(options)
     append_event("mqtt_test", "MQTT test", message, "ok" if ok else "warn")
-    return redirect_to_tab("status", "ok" if ok else "warn", message)
+    return redirect_to_tab("setup", "ok" if ok else "warn", message)
 
 
 @app.route("/test-full-monitoring", methods=["GET", "POST"])
 def route_test_full_monitoring():
     if request.method == "GET":
-        return redirect_to_tab("status")
+        return redirect_to_tab("setup")
 
     options, error = load_options()
     if error:
-        return redirect_to_tab("status", "warn", error)
+        return redirect_to_tab("setup", "warn", error)
 
     ok, message = test_full_monitoring(options)
     append_event("full_monitoring_test", "Full Monitoring check", message, "ok" if ok else "warn")
-    return redirect_to_tab("status", "ok" if ok else "warn", message)
+    return redirect_to_tab("setup", "ok" if ok else "warn", message)
 
 
 @app.route("/clear-events", methods=["POST"])

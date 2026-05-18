@@ -1,3 +1,17 @@
+## 2.6.42 - 2026-05-18
+
+### Changed
+- Made the Dashboard the default normal-user view.
+- Renamed Status to Tech Status in the web UI navigation.
+- Added a dedicated Setup tab for Setup Checklist and MQTT/Telegram/Full Monitoring tests.
+- Moved setup tests away from the technician Status page.
+- Added audience notes to Dashboard, Tech Status, Setup, Admin Config, Diagnostics, Events and Backups.
+- Updated README and first-time setup guidance to match the user/technician/setup split.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.41 - 2026-05-18
 
 ### Added

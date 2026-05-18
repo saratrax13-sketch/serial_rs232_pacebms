@@ -278,7 +278,7 @@ class EnergyTrackingTests(unittest.TestCase):
 
 
 class HealthEndpointTests(unittest.TestCase):
-    def test_status_page_renders_setup_checklist(self):
+    def test_setup_page_renders_setup_checklist(self):
         options = {
             "connection_type": "Serial",
             "bms_serial": "/dev/ttyUSB0",
@@ -320,10 +320,56 @@ class HealthEndpointTests(unittest.TestCase):
             patch("web_config.fetch_mqtt_snapshot", return_value=live),
             patch("web_config.load_events", return_value=[]),
         ):
-            response = web_config.app.test_client().get("/")
+            response = web_config.app.test_client().get("/?tab=setup")
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Setup Checklist", response.data)
+        self.assertIn(b"Setup Tests", response.data)
+
+    def test_status_page_renders_technician_view(self):
+        options = {
+            "connection_type": "Serial",
+            "bms_serial": "/dev/ttyUSB0",
+            "scan_interval": 5,
+            "mqtt_host": "192.168.1.10",
+            "mqtt_port": 1883,
+            "mqtt_ha_discovery": True,
+            "mqtt_retain_state": True,
+            "notify_enabled": False,
+            "notify_warning_repeat_caution_seconds": 21600,
+            "notify_warning_repeat_warning_seconds": 3600,
+            "notify_warning_repeat_critical_seconds": 900,
+        }
+        live = {
+            "ok": True,
+            "availability": "online",
+            "monitor_state": "running",
+            "stale": "OFF",
+            "stale_reason": "Fresh",
+            "last_analog_read": "2026-05-17 20:00:00",
+            "last_warn_read": "2026-05-17 20:00:01",
+            "analog_age_seconds": 1,
+            "warn_age_seconds": 1,
+            "overall_status": "OK",
+            "overall_class": "healthy",
+            "layout": "2 pack(s), 32 cells total",
+            "bms_sn": "TEST",
+            "base_topic": "pacebms",
+            "fetched_at": "now",
+            "error": "",
+            "severity_summary": {},
+            "packs": [],
+        }
+
+        with (
+            patch("web_config.load_options", return_value=(options, "")),
+            patch("web_config.fetch_mqtt_snapshot", return_value=live),
+            patch("web_config.load_events", return_value=[]),
+        ):
+            response = web_config.app.test_client().get("/?tab=status")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Technician live view", response.data)
         self.assertIn(b"Monitoring Health", response.data)
 
     def test_monitoring_health_uses_heartbeat_and_live_mqtt(self):
@@ -519,6 +565,80 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"User Dashboard", response.data)
         self.assertIn(b"Battery Power", response.data)
         self.assertIn(b"Remaining Capacity", response.data)
+
+    def test_root_defaults_to_user_dashboard(self):
+        options = {
+            "connection_type": "Serial",
+            "bms_serial": "/dev/ttyUSB0",
+            "scan_interval": 5,
+            "mqtt_host": "192.168.1.10",
+            "mqtt_port": 1883,
+            "mqtt_ha_discovery": True,
+            "mqtt_retain_state": True,
+            "notify_enabled": False,
+            "notify_stale_data_seconds": 120,
+            "notify_warning_repeat_caution_seconds": 21600,
+            "notify_warning_repeat_warning_seconds": 3600,
+            "notify_warning_repeat_critical_seconds": 900,
+        }
+        live = {
+            "ok": True,
+            "availability": "online",
+            "monitor_state": "running",
+            "stale": "OFF",
+            "stale_reason": "Fresh",
+            "last_analog_read": "2026-05-17 20:00:00",
+            "last_warn_read": "2026-05-17 20:00:01",
+            "analog_age_seconds": 1,
+            "warn_age_seconds": 1,
+            "overall_status": "Healthy",
+            "overall_class": "healthy",
+            "layout": "1 pack(s), 16 cells total",
+            "bms_sn": "TEST",
+            "base_topic": "pacebms",
+            "fetched_at": "now",
+            "error": "",
+            "severity_summary": {},
+            "pack_count": 1,
+            "total_cells": 16,
+            "warning_count": 0,
+            "packs": [{
+                "id": "01",
+                "cell_count": 16,
+                "soc": "95",
+                "soh": "99",
+                "cycles": "42",
+                "remaining_capacity_ah": "160",
+                "full_capacity_ah": "200",
+                "design_capacity_ah": "200",
+                "voltage": "54.0",
+                "current": "1.0",
+                "delta": "12",
+                "temperatures": [25, 26],
+                "warnings": "Normal",
+                "severity_class": "healthy",
+                "severity_label": "Normal",
+                "highest_cell": {"number": "01", "voltage": "3.400"},
+                "lowest_cell": {"number": "02", "voltage": "3.388"},
+            }],
+        }
+
+        with (
+            patch("web_config.load_options", return_value=(options, "")),
+            patch("web_config.fetch_mqtt_snapshot", return_value=live),
+            patch("web_config.load_events", return_value=[]),
+            patch("web_config.load_monitor_health", return_value={
+                "updated_at": 1000,
+                "state": "running",
+                "health_timeout_seconds": 60,
+            }),
+            patch("web_config.time.time", return_value=1001),
+        ):
+            response = web_config.app.test_client().get("/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"User view", response.data)
+        self.assertIn(b"Battery Confidence", response.data)
 
     def test_diagnostics_battery_configuration_includes_cycles(self):
         options = {

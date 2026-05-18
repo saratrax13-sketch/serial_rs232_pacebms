@@ -128,6 +128,22 @@
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
 
+    .view-note {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 16px;
+      padding: 13px 15px;
+      border-radius: 14px;
+      background: rgba(59, 130, 246, 0.10);
+      border: 1px solid rgba(59, 130, 246, 0.24);
+      color: #bfdbfe;
+      line-height: 1.45;
+    }
+
+    .view-note strong {
+      color: #e0f2fe;
+    }
+
     .alert {
       background: rgba(245, 158, 11, 0.14);
       border: 1px solid rgba(245, 158, 11, 0.45);
@@ -1919,12 +1935,13 @@
     </header>
 
     <nav class="tabs">
-      <a class="tab-button {% if active_tab == 'status' %}active{% endif %}" href="?tab=status">Status</a>
       <a class="tab-button {% if active_tab == 'dashboard' %}active{% endif %}" href="?tab=dashboard">Dashboard</a>
-      <a class="tab-button {% if active_tab == 'config' %}active{% endif %}" href="?tab=config">Config</a>
+      <a class="tab-button {% if active_tab == 'status' %}active{% endif %}" href="?tab=status">Tech Status</a>
+      <a class="tab-button {% if active_tab == 'setup' %}active{% endif %}" href="?tab=setup">Setup</a>
+      <a class="tab-button {% if active_tab == 'config' %}active{% endif %}" href="?tab=config">Admin Config</a>
+      <a class="tab-button {% if active_tab == 'diagnostics' %}active{% endif %}" href="?tab=diagnostics">Diagnostics</a>
       <a class="tab-button {% if active_tab == 'events' %}active{% endif %}" href="?tab=events">Events</a>
       <a class="tab-button {% if active_tab == 'backups' %}active{% endif %}" href="?tab=backups">Backups</a>
-      <a class="tab-button {% if active_tab == 'diagnostics' %}active{% endif %}" href="?tab=diagnostics">Diagnostics</a>
     </nav>
 
     {% if error %}
@@ -1937,6 +1954,10 @@
 
     <section class="tab-panel {% if active_tab == 'status' %}active{% endif %}">
       {% if live %}
+      <div class="view-note">
+        <strong>Technician live view</strong>
+        <span>Use this page for per-pack values, warning interpretation, FET state, reference checks and live monitor freshness. Daily user confidence belongs on the Dashboard; first-run checks and test buttons belong on Setup.</span>
+      </div>
       <section class="card wide-card summary-card">
         <div class="status-hero">
           <div class="status-label">Overall Status</div>
@@ -1959,19 +1980,11 @@
         </div>
 
         <div class="status-hero">
-          <div class="status-label">Tools</div>
-          <p>Test Telegram and MQTT only. No BMS commands are sent.</p>
+          <div class="status-label">Technician Tools</div>
+          <p>Refresh retained MQTT values for this live view. Setup tests are on the Setup tab.</p>
           <div class="actions">
             <button type="button" onclick="refreshStatus()">Refresh Status</button>
-            <form method="post" action="test-telegram">
-              <button type="submit">Test Telegram</button>
-            </form>
-            <form method="post" action="test-mqtt">
-              <button type="submit">Test MQTT</button>
-            </form>
-            <form method="post" action="test-full-monitoring">
-              <button type="submit">Test Full Monitoring</button>
-            </form>
+            <a class="button-link" href="?tab=setup">Open Setup</a>
           </div>
           <div id="refresh-message" class="summary-meta"></div>
         </div>
@@ -1993,34 +2006,6 @@
             <div class="monitoring-health-label">{{ check.label }}</div>
             <div class="monitoring-health-value {{ check.class }}" data-health-value="{{ check.label }}">{{ check.value }}</div>
             <div class="monitoring-health-detail" data-health-detail="{{ check.label }}">{{ check.detail }}</div>
-          </article>
-          {% endfor %}
-        </div>
-      </section>
-      {% endif %}
-
-      {% if setup_checklist %}
-      <section class="card wide-card">
-        <div class="setup-checklist-header">
-          <div>
-            <h2>Setup Checklist</h2>
-            <p>{{ setup_checklist.summary }}</p>
-          </div>
-          <span class="setup-progress">{{ setup_checklist.ready_count }} / {{ setup_checklist.total_count }} ready</span>
-        </div>
-
-        {% if setup_checklist.telegram_enabled and not setup_checklist.telegram_configured %}
-          <div class="alert">Telegram notifications are enabled, but the bot token or chat ID is missing or still uses placeholder values. Direct Telegram alerts will be skipped until real values are saved.</div>
-        {% endif %}
-
-        <div class="setup-checklist-grid">
-          {% for item in setup_checklist["items"] %}
-          <article class="setup-check-item">
-            <div class="setup-check-top">
-              <div class="setup-check-title">{{ item.title }}</div>
-              <span class="setup-check-status {{ item.class }}">{{ item.status }}</span>
-            </div>
-            <div class="setup-check-detail">{{ item.detail }}</div>
           </article>
           {% endfor %}
         </div>
@@ -2268,11 +2253,15 @@
     </section>
 
     <section class="tab-panel {% if active_tab == 'dashboard' %}active{% endif %}">
+      <div class="view-note">
+        <strong>User view</strong>
+        <span>Use this page for daily confidence: battery percentage, operating state, power flow, capacity, health, temperature and active warnings.</span>
+      </div>
       <section class="card wide-card">
-        <h2>Dashboard Charts</h2>
-        <p>Current-value dashboard built from the latest retained MQTT values. These are not historical charts.</p>
+        <h2>User Dashboard</h2>
+        <p>Simple current battery view built from the latest retained MQTT values. These are not historical charts.</p>
         <div class="actions">
-          <a class="button-link" href="?tab=status">Open Status</a>
+          <a class="button-link" href="?tab=status">Open Tech Status</a>
           <button type="button" onclick="refreshDashboard()">Refresh Dashboard</button>
         </div>
         <div id="dashboard-refresh-message" class="dashboard-refresh-message">Dashboard loaded from current retained MQTT values.</div>
@@ -2281,7 +2270,7 @@
       {% if live and live.packs %}
       {% if live.user_summary %}
       <section class="card wide-card">
-        <h2>User Dashboard</h2>
+        <h2>Battery Confidence</h2>
         <p id="user-dashboard-summary">{{ live.user_summary.summary }}</p>
         <div class="user-dashboard-grid">
           <div class="user-dashboard-tile">
@@ -2540,7 +2529,63 @@
       {% endif %}
     </section>
 
+    <section class="tab-panel {% if active_tab == 'setup' %}active{% endif %}">
+      <div class="view-note">
+        <strong>Setup and installer checks</strong>
+        <span>Use this page for first-run validation, MQTT/Telegram tests and Full Monitoring dry checks. These tools do not send BMS write or control commands.</span>
+      </div>
+
+      {% if setup_checklist %}
+      <section class="card wide-card">
+        <div class="setup-checklist-header">
+          <div>
+            <h2>Setup Checklist</h2>
+            <p>{{ setup_checklist.summary }}</p>
+          </div>
+          <span class="setup-progress">{{ setup_checklist.ready_count }} / {{ setup_checklist.total_count }} ready</span>
+        </div>
+
+        {% if setup_checklist.telegram_enabled and not setup_checklist.telegram_configured %}
+          <div class="alert">Telegram notifications are enabled, but the bot token or chat ID is missing or still uses placeholder values. Direct Telegram alerts will be skipped until real values are saved.</div>
+        {% endif %}
+
+        <div class="setup-checklist-grid">
+          {% for item in setup_checklist["items"] %}
+          <article class="setup-check-item">
+            <div class="setup-check-top">
+              <div class="setup-check-title">{{ item.title }}</div>
+              <span class="setup-check-status {{ item.class }}">{{ item.status }}</span>
+            </div>
+            <div class="setup-check-detail">{{ item.detail }}</div>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      <section class="card wide-card">
+        <h2>Setup Tests</h2>
+        <p>These checks validate external services and configuration only. No BMS commands are sent.</p>
+        <div class="actions">
+          <form method="post" action="test-telegram">
+            <button type="submit">Test Telegram</button>
+          </form>
+          <form method="post" action="test-mqtt">
+            <button type="submit">Test MQTT</button>
+          </form>
+          <form method="post" action="test-full-monitoring">
+            <button type="submit">Test Full Monitoring</button>
+          </form>
+          <a class="button-link" href="?tab=config">Open Admin Config</a>
+        </div>
+      </section>
+    </section>
+
     <section class="tab-panel {% if active_tab == 'config' %}active{% endif %}">
+      <div class="view-note">
+        <strong>Admin / installer view</strong>
+        <span>Use this page to edit add-on options, notification thresholds, Telegram settings and report schedules. Configuration changes may require restart, but they do not write settings to the BMS.</span>
+      </div>
 
         <section class="card wide-card compact-config-header">
           <h2>Editable Add-on Configuration</h2>
@@ -2640,6 +2685,10 @@
     </section>
 
     <section class="tab-panel {% if active_tab == 'backups' %}active{% endif %}">
+      <div class="view-note">
+        <strong>Admin backup view</strong>
+        <span>Use this page to compare, download and restore add-on configuration backups. Restores change Home Assistant add-on options only and do not write to the BMS.</span>
+      </div>
       <section class="card wide-card">
         <h2>Configuration Backups</h2>
         <p>Backups are stored locally in <code>/data/config_backups/</code>. A backup is created before every web config save and before every restore.</p>
@@ -2809,6 +2858,10 @@ This cannot be undone.`);">
     </section>
 
     <section class="tab-panel {% if active_tab == 'events' %}active{% endif %}">
+      <div class="view-note">
+        <strong>Event history</strong>
+        <span>Use this page to review recent tests, disconnects, stale-data events, warnings and recoveries.</span>
+      </div>
       <section class="card wide-card">
         <h2>Last Events</h2>
         <p>Latest events are stored locally in <code>/data/events.json</code>. The latest 50 are kept.</p>
@@ -2854,6 +2907,10 @@ This cannot be undone.`);">
     </div>
 
     <section class="tab-panel {% if active_tab == 'diagnostics' %}active{% endif %}">
+      <div class="view-note">
+        <strong>Technician / support proof view</strong>
+        <span>Use this page for health checks, battery identity, cell data, sanitized support reports and communication evidence.</span>
+      </div>
       <section class="card wide-card">
         <h2>Diagnostics</h2>
         <p>Health overview and redacted support information for the add-on. This page reads MQTT/add-on state only and does not write to the BMS.</p>

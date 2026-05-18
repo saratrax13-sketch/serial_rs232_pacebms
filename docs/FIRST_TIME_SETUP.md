@@ -63,10 +63,10 @@ Warn read OK
 
 Open the web UI and check:
 
-- Status tab: Overall Status should not be Unknown once MQTT retained values are available.
-- Status tab: Monitoring Health should show whether heartbeat, MQTT monitor state, analog age and warning age are healthy.
-- Status tab: Setup Checklist should show Basic Required items as ready.
-- Dashboard tab: detected packs, cell count, SOC, SOH, cycles, voltage and warning summary should be visible.
+- Dashboard tab: user battery confidence values should be visible.
+- Tech Status tab: Overall Status should not be Unknown once MQTT retained values are available.
+- Tech Status tab: Monitoring Health should show whether heartbeat, MQTT monitor state, analog age and warning age are healthy.
+- Setup tab: Setup Checklist should show Basic Required items as ready.
 - Diagnostics tab: use this when you need a support report or deeper troubleshooting.
 
 ### Step 6: Capture setup screenshots
@@ -74,9 +74,10 @@ Open the web UI and check:
 For support or release notes, capture these screens:
 
 - Home Assistant add-on Configuration tab, with secrets hidden.
-- Pace BMS Status tab showing Overall Status, Monitoring Health and Setup Checklist.
+- Pace BMS Dashboard tab showing the User Dashboard.
+- Pace BMS Tech Status tab showing Overall Status and Monitoring Health.
+- Pace BMS Setup tab showing Setup Checklist.
 - Test Full Monitoring result.
-- Dashboard tab showing pack comparison.
 
 See `docs/screenshots/README.md` for screenshot names and privacy guidance.
 

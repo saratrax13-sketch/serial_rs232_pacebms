@@ -24,7 +24,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.41"
+version: "2.6.42"
 ```
 
 ---
@@ -212,18 +212,20 @@ The test buttons only test external services:
 
 ## Web UI Screenshots
 
-The first screen to check after setup is the **Status** tab. It should show three important sections near the top:
+The first screen for daily use is the **Dashboard** tab. For setup/support screenshots, capture the audience-specific tabs:
 
-- **Overall Status**: the retained MQTT view of the add-on and pack state.
-- **Monitoring Health**: heartbeat, stale-data and last-read confidence checks.
-- **Setup Checklist**: first-run configuration items that are ready or still need attention.
+- **Dashboard**: normal user view with combined battery confidence values.
+- **Tech Status**: live per-pack values, warning intelligence and reference checks.
+- **Setup**: first-run checklist and MQTT/Telegram/Full Monitoring tests.
+- **Diagnostics**: support proof, battery identity and detailed cell data.
 
 Recommended screenshots to include when asking for support:
 
 - Home Assistant add-on Configuration tab.
-- Pace BMS Status tab showing Overall Status, Monitoring Health and Setup Checklist.
+- Pace BMS Dashboard tab showing the User Dashboard.
+- Pace BMS Tech Status tab showing Monitoring Health and pack details.
+- Pace BMS Setup tab showing Setup Checklist.
 - Test Full Monitoring result message.
-- Dashboard tab with detected packs.
 - Example Telegram alert if notifications are enabled.
 
 Do not share screenshots that expose the full Telegram bot token, Telegram chat ID or MQTT password.
@@ -254,7 +256,7 @@ https://github.com/saratrax13-sketch/serial_rs232_pacebms
 
 After starting the add-on, open the **Pace BMS** web UI from the Home Assistant sidebar.
 
-The Status tab includes a **Setup Checklist** card. Use it as the guided first-run check:
+The **Setup** tab includes a **Setup Checklist** card. Use it as the guided first-run check:
 
 - **BMS Serial** should show that the USB/serial path is configured.
 - **MQTT** should show that broker host and port are configured.
@@ -265,7 +267,7 @@ The Status tab includes a **Setup Checklist** card. Use it as the guided first-r
 - **Telegram** confirms direct notification values are configured.
 - **Warning Noise Control** confirms severity-aware repeat intervals are valid.
 
-Use the buttons on the Status tab:
+Use the buttons on the Setup tab:
 
 - **Test MQTT** checks broker connectivity only.
 - **Test Telegram** sends a Telegram test message.
@@ -273,7 +275,7 @@ Use the buttons on the Status tab:
 
 If Telegram still contains placeholder values such as `YOUR_TELEGRAM_BOT_TOKEN` or `YOUR_TELEGRAM_CHAT_ID`, the checklist shows a warning and direct Telegram alerts will be skipped.
 
-The Status tab also includes a **Monitoring Health** card. This is the quickest way to answer whether the add-on is still actively watching the battery:
+The **Tech Status** tab includes a **Monitoring Health** card. This is the quickest way to answer whether the add-on is still actively watching the battery:
 
 - **Monitor heartbeat** should remain fresh and within the watchdog timeout.
 - **MQTT monitor state** should show the monitor as running and available.
