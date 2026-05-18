@@ -263,6 +263,41 @@ class TelegramConfigTests(unittest.TestCase):
         self.assertIn("No BMS commands or Telegram messages", message)
         urlopen.assert_not_called()
 
+    def test_bms_warning_telegram_matches_warning_intelligence_layout(self):
+        notify = bms_notify.NotifyState({
+            "notify_warning_detail_enabled": True,
+            "notify_cell_high_warn_voltage": 4.20,
+            "notify_cell_low_warn_voltage": 3.00,
+            "notify_include_highest_and_lowest_cell": True,
+            "notify_include_pack_voltage": True,
+            "notify_include_soc_soh": True,
+        })
+        pack = types.SimpleNamespace(
+            v_cells=[4163, 4176, 4168, 4169, 4170, 4171, 4172, 4200],
+            t_cells=[],
+            v_pack=54.377,
+            soc=100.0,
+            soh=90.3,
+            cells=13,
+            cell_max_diff=37,
+            cycles=987,
+        )
+
+        message = notify._build_warning_detail(
+            1,
+            "cell 2 Above upper limit, cell 8 Above upper limit, Warning State 1: Above cell volt warn | Above total volt warn",
+            pack,
+        )
+
+        self.assertIn("Quick Metrics", message)
+        self.assertIn("BMS Warning Details", message)
+        self.assertIn("- Cell 02: 4.176 V | Ref: 4.20 V | Margin: 0.024 V below ref | Not exceeded", message)
+        self.assertIn("- Cell 08: 4.200 V | Ref: 4.20 V | Margin: 0.000 V below ref | At reference", message)
+        self.assertIn("- Pack: 54.377 V | Ref: 54.60 V | Margin: 0.223 V below ref | Not exceeded", message)
+        self.assertIn("Reference Check", message)
+        self.assertIn("Interpretation", message)
+        self.assertIn("Suggested Action", message)
+
 
 class EnergyTrackingTests(unittest.TestCase):
     def test_energy_uses_elapsed_time_after_first_sample(self):

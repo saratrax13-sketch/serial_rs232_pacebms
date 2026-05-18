@@ -18,6 +18,7 @@ import time
 import json
 import logging
 import urllib.request
+import re
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field
 from typing import Optional
@@ -349,6 +350,39 @@ class NotifyState:
                 matches.append(f"Cell {i:02d}: {v:.3f} V")
         return matches
 
+    def _warning_cell_numbers(self, warning_text: str, phrase: str) -> list[int]:
+        numbers = []
+        for part in re.split(r"[\n|,;]+", str(warning_text or "")):
+            if phrase not in part.lower():
+                continue
+            match = re.search(r"\bcell\s*0*(\d+)\b", part, re.IGNORECASE)
+            if match:
+                numbers.append(int(match.group(1)))
+        return sorted(set(numbers))
+
+    def _reference_margin(self, value: Optional[float], reference: Optional[float], direction: str) -> tuple[str, str]:
+        if value is None or reference is None:
+            return "Unknown", "Unknown"
+        if direction == "above":
+            margin = reference - value
+            if margin > 0.0005:
+                return f"{margin:.3f} V below ref", "Not exceeded"
+            if margin < -0.0005:
+                return f"{abs(margin):.3f} V above ref", "Exceeded"
+            return "0.000 V below ref", "At reference"
+        margin = value - reference
+        if margin > 0.0005:
+            return f"{margin:.3f} V above ref", "Not exceeded"
+        if margin < -0.0005:
+            return f"{abs(margin):.3f} V below ref", "Exceeded"
+        return "0.000 V above ref", "At reference"
+
+    def _warning_detail_row(self, label: str, value: Optional[float], reference: Optional[float], direction: str) -> tuple[str, str]:
+        margin, status = self._reference_margin(value, reference, direction)
+        value_text = f"{value:.3f} V" if value is not None else "Unknown"
+        ref_text = f"{reference:.2f} V" if reference is not None else "Unknown"
+        return f"- {label}: {value_text} | Ref: {ref_text} | Margin: {margin} | {status}", status
+
     def _build_warning_detail(self, pack_num: int, cleaned: str, pack=None) -> str:
         """Build a concise Telegram warning message using latest analog data.
 
@@ -363,7 +397,6 @@ class NotifyState:
         try:
             cell_high = float(self.config.get('notify_cell_high_warn_voltage', 4.20))
             cell_low  = float(self.config.get('notify_cell_low_warn_voltage', 3.00))
-            delta_thr = float(self.config.get('notify_cell_delta_warn_mv', 100))
             temp_high = float(self.config.get('notify_temp_high_warn_c', 55))
             temp_low  = float(self.config.get('notify_temp_low_warn_c', 0))
 
@@ -380,48 +413,82 @@ class NotifyState:
             lines = ["BMS internal warning active:"]
             lines.extend(friendly)
 
+            high_idx = low_idx = None
+            high_v = low_v = None
             if cells_v and self.config.get('notify_include_highest_and_lowest_cell', True):
                 high_idx, high_v = max(enumerate(cells_v, start=1), key=lambda x: x[1])
                 low_idx, low_v = min(enumerate(cells_v, start=1), key=lambda x: x[1])
                 lines.extend([
                     "",
-                    f"Highest cell: Cell {high_idx:02d} = {high_v:.3f} V",
-                    f"Lowest cell: Cell {low_idx:02d} = {low_v:.3f} V",
-                    f"Cell delta: {delta_mv:.0f} mV (reference: {delta_thr:.0f} mV)",
+                    "Quick Metrics",
+                    f"Highest Cell: Cell {high_idx:02d} = {high_v:.3f} V",
+                    f"Lowest Cell: Cell {low_idx:02d} = {low_v:.3f} V",
+                    f"Delta: {delta_mv:.0f} mV",
+                    f"Pack Voltage: {pack_v:.3f} V",
+                    f"SOC: {soc:.1f}%",
+                    f"SOH: {soh:.1f}%",
                 ])
+                cycles = getattr(pack, 'cycles', None)
+                if cycles is not None:
+                    lines.append(f"Cycles: {cycles}")
 
+            exceeded = False
+            detail_added = False
+            lines.extend(["", "BMS Warning Details"])
+            cell_map = {idx: value for idx, value in enumerate(cells_v, start=1)}
+
+            if cells_v:
                 if 'Above cell volt warn' in cleaned:
-                    over = self._format_cells_over_under(cells_v, cell_high, 'above')
-                    lines.append(f"Reference high cell: {cell_high:.2f} V")
-                    if over and self.config.get('notify_include_all_cells_above_threshold', True):
-                        lines.append("Cells above reference:")
-                        lines.extend(over)
-                    elif not over:
-                        lines.append("No cell is above the configured reference.")
-                        lines.append("BMS internal warning is active below reference.")
+                    candidates = self._warning_cell_numbers(cleaned, "above upper limit")
+                    if not candidates and high_idx is not None:
+                        candidates = [high_idx]
+                    lines.append("Above upper limit:")
+                    for cell_num in candidates:
+                        row, status = self._warning_detail_row(f"Cell {cell_num:02d}", cell_map.get(cell_num), cell_high, "above")
+                        lines.append(row)
+                        exceeded = exceeded or status == "Exceeded"
+                    detail_added = True
 
                 if 'Lower cell volt warn' in cleaned or 'Below lower limit' in cleaned:
-                    under = self._format_cells_over_under(cells_v, cell_low, 'below')
-                    lines.append(f"Reference low cell: {cell_low:.2f} V")
-                    if under and self.config.get('notify_include_all_cells_below_threshold', True):
-                        lines.append("Cells below reference:")
-                        lines.extend(under)
-                    elif not under:
-                        lines.append("No cell is below the configured reference.")
-                        lines.append("BMS internal warning is active above reference.")
+                    candidates = self._warning_cell_numbers(cleaned, "below lower limit")
+                    if not candidates and low_idx is not None:
+                        candidates = [low_idx]
+                    lines.append("Below lower limit:")
+                    for cell_num in candidates:
+                        row, status = self._warning_detail_row(f"Cell {cell_num:02d}", cell_map.get(cell_num), cell_low, "below")
+                        lines.append(row)
+                        exceeded = exceeded or status == "Exceeded"
+                    detail_added = True
 
             if self.config.get('notify_include_pack_voltage', True):
                 pack_high = cell_high * cell_count if cell_count else 0.0
                 pack_low = cell_low * cell_count if cell_count else 0.0
-                lines.extend(["", f"Pack voltage: {pack_v:.3f} V"])
                 if 'Above total volt warn' in cleaned or 'total voltage Above upper limit' in cleaned:
-                    lines.append(f"Pack high reference: {pack_high:.2f} V ({cell_high:.2f} V x {cell_count} cells)")
-                    if pack_high and pack_v <= pack_high:
-                        lines.append("Pack voltage is not above the configured reference.")
+                    lines.extend(["", "Pack voltage:"])
+                    row, status = self._warning_detail_row("Pack", pack_v, pack_high, "above")
+                    lines.append(row)
+                    exceeded = exceeded or status == "Exceeded"
+                    detail_added = True
                 if 'Lower total volt warn' in cleaned or 'total voltage Below lower limit' in cleaned:
-                    lines.append(f"Pack low reference: {pack_low:.2f} V ({cell_low:.2f} V x {cell_count} cells)")
-                    if pack_low and pack_v >= pack_low:
-                        lines.append("Pack voltage is not below the configured reference.")
+                    lines.extend(["", "Low pack voltage:"])
+                    row, status = self._warning_detail_row("Pack", pack_v, pack_low, "below")
+                    lines.append(row)
+                    exceeded = exceeded or status == "Exceeded"
+                    detail_added = True
+
+            if not detail_added:
+                lines.append("No configured reference comparison matched this warning text.")
+
+            lines.extend([
+                "",
+                "Reference Check",
+                f"- Cell high reference: {cell_high:.2f} V",
+                f"- Pack high reference: {(cell_high * cell_count):.2f} V" if cell_count else "- Pack high reference: Unknown",
+            ])
+            if exceeded:
+                lines.append("- One or more measured values exceed the configured reference.")
+            else:
+                lines.append("- BMS warning is active below configured reference.")
 
             if temps and 'temp' in cleaned.lower():
                 high_t_idx, high_t = max(enumerate(temps, start=1), key=lambda x: x[1])
@@ -433,8 +500,17 @@ class NotifyState:
                     f"Temperature references: high {temp_high:.0f} °C / low {temp_low:.0f} °C",
                 ])
 
-            if self.config.get('notify_include_soc_soh', True):
-                lines.extend(["", f"SOC: {soc:.1f}%", f"SOH: {soh:.1f}%"])
+            lines.extend(["", "Interpretation"])
+            if exceeded:
+                lines.append("BMS warning is active and at least one current measured value exceeds the configured reference.")
+            else:
+                lines.append("BMS warning is active even though the configured reference has not been exceeded. This usually means the BMS internal threshold is lower than the dashboard reference, or the warning was triggered briefly before the latest retained reading.")
+
+            lines.extend(["", "Suggested Action"])
+            if exceeded:
+                lines.append("Review immediately and compare against the battery manufacturer limits.")
+            else:
+                lines.append("Watch top-of-charge and verify the BMS internal high-cell and pack-voltage thresholds against the configured references.")
 
             return '\n'.join(lines)
         except Exception as e:

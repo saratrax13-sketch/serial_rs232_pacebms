@@ -1,3 +1,14 @@
+## 2.6.55 - 2026-05-18
+
+### Changed
+- Updated first BMS Warning Telegram messages to match the web UI Warning Intelligence structure.
+- Added Quick Metrics, BMS Warning Details, reference margins, Reference Check, Interpretation and Suggested Action to detailed BMS warning alerts.
+
+### Notes
+- This is a read-only notification wording/layout update.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.54 - 2026-05-18
 
 ### Changed
