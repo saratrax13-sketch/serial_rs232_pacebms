@@ -1,3 +1,16 @@
+## 2.6.64 - 2026-05-18
+
+### Changed
+- Simplified the Logs tab into a clearer Log Viewer section and a separate Debug Capture Setting section.
+- Renamed the confusing debug display selector to View Detail with Normal, Summary, Detailed and Debug / Web access choices.
+- Added clearer guidance that Logs tab filters do not change what the monitor records.
+- Added Open Config and Restart Add-on actions beside the current `debug_output` capture setting.
+
+### Notes
+- This is a web UI wording and workflow polish update only.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.63 - 2026-05-18
 
 ### Changed

@@ -1478,6 +1478,42 @@
       border: 1px solid rgba(148, 163, 184, 0.16);
     }
 
+    .log-section-title {
+      margin-top: 16px;
+      color: #e0f2fe;
+      font-size: 15px;
+      font-weight: 950;
+    }
+
+    .log-metric-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+      margin: 12px 0;
+    }
+
+    .log-metric {
+      border-radius: 14px;
+      padding: 12px;
+      background: rgba(15, 23, 42, 0.66);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .log-metric-label {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+
+    .log-metric-value {
+      color: #f8fafc;
+      font-size: 20px;
+      font-weight: 950;
+    }
+
     .config-input {
       width: 100%;
       border-radius: 10px;
@@ -3133,26 +3169,36 @@ This cannot be undone.`);">
       </div>
       <section class="card wide-card">
         <h2>Logs</h2>
-        <p>Configured monitor <code>debug_output</code> is currently <code>{{ log_view.debug_output if log_view else 0 }}</code>. Changing <code>debug_output</code> in Config affects new monitor log detail after the add-on is restarted. The filters below only change what is displayed here.</p>
+        <p>This is a viewer for logs already captured by the add-on. The controls below only filter the display; they do not change what the monitor records.</p>
         {% if log_view %}
-        <p>
-          Captured lines: <strong>{{ log_view.rows|length }}</strong>.
-          Visible at current level: <strong>{{ log_view.visible_at_default }}</strong>.
-          Level 2 would show <strong>{{ log_view.counts_by_level[2] }}</strong> line(s); level 3 would show <strong>{{ log_view.counts_by_level[3] }}</strong> line(s).
-        </p>
+        <div class="log-metric-row">
+          <div class="log-metric">
+            <div class="log-metric-label">Captured lines</div>
+            <div class="log-metric-value">{{ log_view.rows|length }}</div>
+          </div>
+          <div class="log-metric">
+            <div class="log-metric-label">Current capture setting</div>
+            <div class="log-metric-value">debug_output {{ log_view.debug_output }}</div>
+          </div>
+          <div class="log-metric">
+            <div class="log-metric-label">Visible now</div>
+            <div class="log-metric-value">{{ log_view.visible_at_default }}</div>
+          </div>
+        </div>
         {% endif %}
         <div class="helper-note">
-          Routine web access lines such as <code>GET /api/status</code> and <code>GET /health</code> are treated as Web UI debug level 3 noise. Keep the view on level 0 or 1 for daily use.
+          View Detail only changes what you see on this page. To capture more detailed monitor logs, change <code>debug_output</code> in Config and restart the add-on.
         </div>
 
+        <div class="log-section-title">Log Viewer</div>
         <div class="log-controls">
           <div class="log-control">
-            <label for="log-level-filter">Debug data to display</label>
+            <label for="log-level-filter">View detail</label>
             <select id="log-level-filter" onchange="filterLogs()">
-              <option value="0" {% if log_view and log_view.debug_output == 0 %}selected{% endif %}>0 - Normal events only</option>
-              <option value="1" {% if log_view and log_view.debug_output == 1 %}selected{% endif %}>1 - Summary troubleshooting</option>
-              <option value="2" {% if log_view and log_view.debug_output == 2 %}selected{% endif %}>2 - Poll detail</option>
-              <option value="3" {% if log_view and log_view.debug_output >= 3 %}selected{% endif %}>3 - Protocol / Web UI debug</option>
+              <option value="0" {% if log_view and log_view.debug_output == 0 %}selected{% endif %}>Normal</option>
+              <option value="1" {% if log_view and log_view.debug_output == 1 %}selected{% endif %}>Summary</option>
+              <option value="2" {% if log_view and log_view.debug_output == 2 %}selected{% endif %}>Detailed</option>
+              <option value="3" {% if log_view and log_view.debug_output >= 3 %}selected{% endif %}>Debug / Web access</option>
             </select>
           </div>
           <div class="log-control">
@@ -3177,6 +3223,19 @@ This cannot be undone.`);">
           <button type="button" onclick="reloadTab('logs')">Refresh Logs</button>
           <button type="button" onclick="clearLogView()">Clear View</button>
           <a class="button-link" href="download-logs.txt">Download Logs</a>
+        </div>
+
+        <div class="log-section-title">Debug Capture Setting</div>
+        <div class="helper-note">
+          Current monitor capture setting is <code>debug_output {{ log_view.debug_output if log_view else 0 }}</code>.
+          Use <code>0</code> for daily operation, <code>2</code> for poll troubleshooting, and <code>3</code> only for protocol/raw-frame troubleshooting.
+          A restart is required after changing <code>debug_output</code>.
+        </div>
+        <div class="actions">
+          <a class="button-link" href="?tab=config">Open Config</a>
+          <form method="post" action="restart-addon" onsubmit="return confirm('Restart this add-on now? The web UI may disconnect briefly.');">
+            <button class="danger-button" type="submit">Restart Add-on</button>
+          </form>
         </div>
 
         {% if log_view and log_view.rows %}
@@ -4239,7 +4298,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
         empty.hidden = visibleCount > 0;
         if (!empty.hidden) {
           empty.textContent = level < 2
-            ? "No log lines match this view. Increase Debug data to display to level 2 for Analog/Warn read summaries, or level 3 for Web UI access lines."
+            ? "No log lines match this view. Change View Detail to Detailed for Analog/Warn read summaries, or Debug / Web access for web access lines."
             : "No log lines match the current filters. Try All categories or clear the search box.";
         }
       }
