@@ -26,7 +26,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.47"
+version: "2.6.48"
 ```
 
 ---
@@ -185,8 +185,8 @@ The web UI includes:
 
 - Configuration overview
 - Basic Required / Full Monitoring / Advanced configuration views
-- User Dashboard with SOC, combined SOH, power flow, runtime/charge-time estimate, capacity, health and warning summary
-- Tech Status with grouped per-pack identity, energy, capacity, electrical, cell balance, reference and FET state
+- Battery Confidence dashboard with SOC, combined SOH, power flow, runtime/charge-time estimate, capacity, health, warning summary and compact refresh
+- Tech Status with grouped per-pack identity, energy, capacity, electrical, cell balance, reference, FET state and comparison charts
 - Monitoring Health status
 - Detected packs
 - Pack SOC / SOH
@@ -231,7 +231,7 @@ These values are estimates from retained MQTT values. They will change as load o
 The first screen for daily use is the **Dashboard** tab. For setup/support screenshots, capture the audience-specific tabs:
 
 - **Dashboard**: normal user view with combined battery confidence values.
-- **Tech Status**: live per-pack values, warning intelligence and reference checks.
+- **Tech Status**: live per-pack values, warning intelligence, comparison charts and reference checks.
 - **Setup**: first-run checklist and MQTT/Telegram/Full Monitoring tests.
 - **Diagnostics**: support proof, battery identity and detailed cell data.
 

@@ -1288,7 +1288,11 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
         if not has_warning:
             reference_checks.append("No active BMS warning.")
 
-        is_master = str(pack_id) == "1"
+        try:
+            pack_number = int(pack_id)
+        except (TypeError, ValueError):
+            pack_number = 0
+        is_master = pack_number == 1
         pack_serial = clean_bms_serial(result.get("pack_sn", "Unknown"))
         bms_serial = clean_bms_serial(result.get("bms_sn", "Unknown"))
         serial_display = pack_serial if is_master and pack_serial != "Unknown" else bms_serial if is_master else "Not reported separately"

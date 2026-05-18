@@ -401,6 +401,8 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"Energy & Health", response.data)
         self.assertIn(b"Capacity", response.data)
         self.assertIn(b"Power", response.data)
+        self.assertIn(b"Pack SOC Comparison", response.data)
+        self.assertIn(b"Highest vs Lowest Cell", response.data)
 
     def test_monitoring_health_uses_heartbeat_and_live_mqtt(self):
         options = {
@@ -628,19 +630,20 @@ class HealthEndpointTests(unittest.TestCase):
             response = web_config.app.test_client().get("/?tab=dashboard")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Monitoring Snapshot", response.data)
-        self.assertIn(b"dashboard-monitoring-health", response.data)
         self.assertIn(b"Cycles", response.data)
         self.assertIn(b"42", response.data)
         self.assertIn(b"Combined SOH", response.data)
         self.assertIn(b"Lowest Pack SOH", response.data)
-        self.assertIn(b"Cell Balance", response.data)
         self.assertIn(b"pack-quick-strip", response.data)
-        self.assertIn(b"User Dashboard", response.data)
+        self.assertIn(b"Refresh dashboard", response.data)
+        self.assertIn(b"Master", response.data)
+        self.assertIn(b"pack-metric-value healthy", response.data)
         self.assertIn(b"Battery Power", response.data)
         self.assertIn(b"Charge Time Estimate", response.data)
         self.assertIn(b"Last Updated", response.data)
         self.assertIn(b"Remaining Capacity", response.data)
+        self.assertNotIn(b"Monitoring Snapshot", response.data)
+        self.assertNotIn(b"Warning Summary", response.data)
 
     def test_root_defaults_to_user_dashboard(self):
         options = {

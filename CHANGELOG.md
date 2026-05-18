@@ -1,3 +1,18 @@
+## 2.6.48 - 2026-05-18
+
+### Changed
+- Removed the extra Dashboard intro, Monitoring Snapshot and Warning Summary cards to reduce user-facing noise.
+- Added a compact refresh icon button to the Battery Confidence card.
+- Moved pack comparison charts from Dashboard to Tech Status.
+- Reordered the top navigation to Dashboard, Tech Status, Diagnostics, Setup, Admin Config, Events and Backups.
+- Fixed Pack Comparison role display so Pack 01 shows as Master and later packs show as Slave.
+- Color-coded Pack Comparison status values for normal, warning/caution and critical states.
+
+### Notes
+- This is a UI/layout cleanup only.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.47 - 2026-05-18
 
 ### Added

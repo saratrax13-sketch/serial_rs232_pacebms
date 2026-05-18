@@ -268,6 +268,36 @@
       color: #fecaca;
     }
 
+    .card-header-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+
+    .card-header-row h2 {
+      margin-bottom: 8px;
+    }
+
+    .icon-button {
+      width: 38px;
+      height: 38px;
+      padding: 0;
+      border-radius: 999px;
+      flex: 0 0 auto;
+    }
+
+    .icon-button svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      stroke-width: 2.3;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
     .dashboard-summary {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -388,6 +418,12 @@
       font-size: 16px;
       font-weight: 950;
     }
+
+    .pack-metric-value.healthy { color: var(--green); }
+    .pack-metric-value.warning,
+    .pack-metric-value.caution { color: var(--yellow); }
+    .pack-metric-value.critical,
+    .pack-metric-value.offline { color: var(--red); }
 
     .dashboard-refresh-message {
       color: var(--muted);
@@ -1941,9 +1977,9 @@
     <nav class="tabs">
       <a class="tab-button {% if active_tab == 'dashboard' %}active{% endif %}" href="?tab=dashboard">Dashboard</a>
       <a class="tab-button {% if active_tab == 'status' %}active{% endif %}" href="?tab=status">Tech Status</a>
+      <a class="tab-button {% if active_tab == 'diagnostics' %}active{% endif %}" href="?tab=diagnostics">Diagnostics</a>
       <a class="tab-button {% if active_tab == 'setup' %}active{% endif %}" href="?tab=setup">Setup</a>
       <a class="tab-button {% if active_tab == 'config' %}active{% endif %}" href="?tab=config">Admin Config</a>
-      <a class="tab-button {% if active_tab == 'diagnostics' %}active{% endif %}" href="?tab=diagnostics">Diagnostics</a>
       <a class="tab-button {% if active_tab == 'events' %}active{% endif %}" href="?tab=events">Events</a>
       <a class="tab-button {% if active_tab == 'backups' %}active{% endif %}" href="?tab=backups">Backups</a>
     </nav>
@@ -2291,6 +2327,95 @@
           </article>
           {% endfor %}
         </div>
+
+        <section class="chart-grid">
+          <article class="chart-card">
+            <div class="chart-title">Pack SOC Comparison</div>
+            <div class="chart-subtitle">State of Charge per detected pack. Scale: 0% to 100%.</div>
+            {% for pack in live.packs %}
+            <div class="bar-row">
+              <div class="bar-label">Pack {{ pack.id }}</div>
+              <div class="bar-track"><div class="bar-fill" data-chart="soc" data-pack="{{ pack.id }}" style="width: {{ pack.soc|float }}%;"></div></div>
+              <div class="bar-value" data-chart-value="soc-{{ pack.id }}">{{ pack.soc }}%</div>
+            </div>
+            {% endfor %}
+          </article>
+
+          <article class="chart-card">
+            <div class="chart-title">Pack SOH Comparison</div>
+            <div class="chart-subtitle">State of Health per detected pack. Scale: 0% to 100%.</div>
+            {% for pack in live.packs %}
+            <div class="bar-row">
+              <div class="bar-label">Pack {{ pack.id }}</div>
+              <div class="bar-track"><div class="bar-fill" data-chart="soh" data-pack="{{ pack.id }}" style="width: {{ pack.soh|float }}%;"></div></div>
+              <div class="bar-value" data-chart-value="soh-{{ pack.id }}">{{ pack.soh }}%</div>
+            </div>
+            {% endfor %}
+          </article>
+
+          <article class="chart-card">
+            <div class="chart-title">Pack Voltage Comparison</div>
+            <div class="chart-subtitle">Voltage scaled against the highest detected pack voltage in the current snapshot.</div>
+            {% set max_voltage = namespace(value=0) %}
+            {% for pack in live.packs %}
+              {% if pack.voltage|float > max_voltage.value %}
+                {% set max_voltage.value = pack.voltage|float %}
+              {% endif %}
+            {% endfor %}
+            {% for pack in live.packs %}
+            <div class="bar-row">
+              <div class="bar-label">Pack {{ pack.id }}</div>
+              <div class="bar-track"><div class="bar-fill" data-chart="voltage" data-pack="{{ pack.id }}" style="width: {% if max_voltage.value > 0 %}{{ ((pack.voltage|float / max_voltage.value) * 100)|round(1) }}{% else %}0{% endif %}%;"></div></div>
+              <div class="bar-value" data-chart-value="voltage-{{ pack.id }}">{{ pack.voltage }} V</div>
+            </div>
+            {% endfor %}
+          </article>
+
+          <article class="chart-card">
+            <div class="chart-title">Cell Delta Comparison</div>
+            <div class="chart-subtitle">Cell voltage difference per pack. Lower is better. Scale is relative to the highest current delta.</div>
+            {% set max_delta = namespace(value=0) %}
+            {% for pack in live.packs %}
+              {% if pack.delta|float > max_delta.value %}
+                {% set max_delta.value = pack.delta|float %}
+              {% endif %}
+            {% endfor %}
+            {% for pack in live.packs %}
+            <div class="bar-row">
+              <div class="bar-label">Pack {{ pack.id }}</div>
+              <div class="bar-track"><div class="bar-fill warn" data-chart="delta" data-pack="{{ pack.id }}" style="width: {% if max_delta.value > 0 %}{{ ((pack.delta|float / max_delta.value) * 100)|round(1) }}{% else %}0{% endif %}%;"></div></div>
+              <div class="bar-value" data-chart-value="delta-{{ pack.id }}">{{ pack.delta }} mV</div>
+            </div>
+            {% endfor %}
+          </article>
+
+          <article class="chart-card">
+            <div class="chart-title">Highest vs Lowest Cell</div>
+            <div class="chart-subtitle">Current highest and lowest cell voltages per pack. Blue = lowest, orange = highest.</div>
+            {% for pack in live.packs %}
+              {% set low = pack.lowest_cell.voltage|float %}
+              {% set high = pack.highest_cell.voltage|float %}
+              {% set min_ref = 2.5 %}
+              {% set max_ref = 4.3 %}
+              {% set low_pos = (((low - min_ref) / (max_ref - min_ref)) * 100) %}
+              {% set high_pos = (((high - min_ref) / (max_ref - min_ref)) * 100) %}
+              {% if low_pos < 0 %}{% set low_pos = 0 %}{% endif %}
+              {% if low_pos > 100 %}{% set low_pos = 100 %}{% endif %}
+              {% if high_pos < 0 %}{% set high_pos = 0 %}{% endif %}
+              {% if high_pos > 100 %}{% set high_pos = 100 %}{% endif %}
+            <div class="cell-range">
+              <div class="bar-label">Pack {{ pack.id }}</div>
+              <div>
+                <div class="range-track">
+                  <span class="range-dot low" data-range-dot="low-{{ pack.id }}" style="left: {{ low_pos|round(1) }}%;"></span>
+                  <span class="range-dot high" data-range-dot="high-{{ pack.id }}" style="left: {{ high_pos|round(1) }}%;"></span>
+                </div>
+                <div class="range-values" data-range-value="{{ pack.id }}">Lowest: Cell {{ pack.lowest_cell.number }} = {{ pack.lowest_cell.voltage }} V | Highest: Cell {{ pack.highest_cell.number }} = {{ pack.highest_cell.voltage }} V</div>
+              </div>
+            </div>
+            {% endfor %}
+          </article>
+        </section>
         {% endif %}
       </section>
       {% endif %}
@@ -2301,21 +2426,25 @@
         <strong>User view</strong>
         <span>Use this page for daily confidence: battery percentage, operating state, power flow, capacity, health, temperature and active warnings.</span>
       </div>
-      <section class="card wide-card">
-        <h2>User Dashboard</h2>
-        <p>Simple current battery view built from the latest retained MQTT values. These are refreshed automatically while this tab is open.</p>
-        <div class="actions">
-          <a class="button-link" href="?tab=status">Open Tech Status</a>
-          <button type="button" onclick="refreshDashboard()">Refresh Dashboard</button>
-        </div>
-        <div id="dashboard-refresh-message" class="dashboard-refresh-message">Dashboard loaded from current retained MQTT values. Auto-refresh runs every 30 seconds while this tab is open.</div>
-      </section>
 
       {% if live and live.packs %}
       {% if live.user_summary %}
       <section class="card wide-card">
-        <h2>Battery Confidence</h2>
-        <p id="user-dashboard-summary">{{ live.user_summary.summary }}</p>
+        <div class="card-header-row">
+          <div>
+            <h2>Battery Confidence</h2>
+            <p id="user-dashboard-summary">{{ live.user_summary.summary }}</p>
+            <div id="dashboard-refresh-message" class="dashboard-refresh-message">Dashboard refreshed at {{ live.fetched_at }}</div>
+          </div>
+          <button class="icon-button" type="button" onclick="refreshDashboard()" aria-label="Refresh dashboard" title="Refresh dashboard">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M21 12a9 9 0 0 1-15.5 6.2"></path>
+              <path d="M3 12a9 9 0 0 1 15.5-6.2"></path>
+              <path d="M18.5 2.8v3.5h-3.5"></path>
+              <path d="M5.5 21.2v-3.5h3.5"></path>
+            </svg>
+          </button>
+        </div>
         <div class="user-dashboard-grid">
           <div class="user-dashboard-tile">
             <div class="user-dashboard-label">Operating State</div>
@@ -2381,72 +2510,6 @@
       </section>
       {% endif %}
 
-      <section class="dashboard-summary">
-        <div class="status-tile">
-          <div class="tile-label">Overall Status</div>
-          <div id="dashboard-overall-status" class="tile-value">{{ live.overall_status }}</div>
-        </div>
-        {% if live.monitoring_health %}
-        <div class="status-tile">
-          <div class="tile-label">Monitoring Health</div>
-          <div id="dashboard-monitoring-health" class="tile-value {{ live.monitoring_health.class }}">{{ live.monitoring_health.status }}</div>
-        </div>
-        <div class="status-tile">
-          <div class="tile-label">Analog Age</div>
-          <div id="dashboard-analog-age" class="tile-value">{{ live.analog_age_seconds }}s</div>
-        </div>
-        <div class="status-tile">
-          <div class="tile-label">Warning Age</div>
-          <div id="dashboard-warning-age" class="tile-value">{{ live.warn_age_seconds }}s</div>
-        </div>
-        {% endif %}
-        <div class="status-tile">
-          <div class="tile-label">Detected Packs</div>
-          <div id="dashboard-pack-count" class="tile-value">{{ live.pack_count }}</div>
-        </div>
-        <div class="status-tile">
-          <div class="tile-label">Total Cells</div>
-          <div id="dashboard-total-cells" class="tile-value">{{ live.total_cells }}</div>
-        </div>
-        <div class="status-tile">
-          <div class="tile-label">Warnings</div>
-          <div id="dashboard-warning-count" class="tile-value">{{ live.warning_count }}</div>
-        </div>
-        <div class="status-tile">
-          <div class="tile-label">Data Stale</div>
-          <div id="dashboard-stale" class="tile-value">{{ live.stale }}</div>
-        </div>
-        <div class="status-tile">
-          <div class="tile-label">Last Refresh</div>
-          <div id="dashboard-last-refresh" class="tile-value">{{ live.fetched_at }}</div>
-        </div>
-      </section>
-
-      {% if live.monitoring_health %}
-      <section class="card wide-card">
-        <h2>Monitoring Snapshot</h2>
-        <div id="dashboard-health-summary" class="normal-box">{{ live.monitoring_health.summary }}</div>
-        <div class="fet-row">
-          <span class="pill {{ live.monitoring_health.class }}" id="dashboard-health-pill">{{ live.monitoring_health.status }}</span>
-          <span class="pill">Heartbeat timeout: {{ live.monitoring_health.heartbeat_timeout_seconds }}s</span>
-          <span class="pill">Stale threshold: {{ live.monitoring_health.stale_threshold_seconds }}s</span>
-        </div>
-      </section>
-      {% endif %}
-
-      <section class="card wide-card">
-        <h2>Warning Summary</h2>
-        {% if live.warning_count %}
-          <div id="dashboard-warning-summary" class="alert">
-            {{ live.warning_count }} pack(s) currently have active BMS warnings. Open the Status tab for the full warning text and reference checks.
-          </div>
-        {% else %}
-          <div id="dashboard-warning-summary" class="normal-box">
-            No active BMS warnings reported in the current retained MQTT snapshot.
-          </div>
-        {% endif %}
-      </section>
-
       <section class="card wide-card">
         <h2>Pack Comparison Cards</h2>
         <div class="pack-comparison-grid" id="pack-comparison-grid">
@@ -2455,9 +2518,9 @@
             <div class="pack-comparison-header">
               <div>
                 <div class="pack-comparison-title">Pack {{ pack.id }}</div>
-                <div class="topology-note">{% if pack.role %}{{ pack.role }}{% elif pack.id == '01' %}Master{% else %}Slave{% endif %}</div>
+                <div class="topology-note">{% if pack.id == '01' or pack.id == '1' %}Master{% else %}Slave{% endif %}</div>
               </div>
-              <span class="pack-role">{% if pack.role %}{{ pack.role }}{% elif pack.id == '01' %}Master{% else %}Slave{% endif %}</span>
+              <span class="pack-role">{% if pack.id == '01' or pack.id == '1' %}Master{% else %}Slave{% endif %}</span>
             </div>
             <div class="pack-metric-grid">
               <div class="pack-metric">
@@ -2486,7 +2549,7 @@
               </div>
               <div class="pack-metric">
                 <div class="pack-metric-label">Status</div>
-                <div class="pack-metric-value" data-pack-field="{{ pack.id }}-status">{% if pack.warnings == 'Normal' %}Normal{% else %}{{ pack.severity_label }}{% endif %}</div>
+                <div class="pack-metric-value {% if pack.warnings == 'Normal' %}healthy{% else %}{{ pack.severity_class }}{% endif %}" data-pack-field="{{ pack.id }}-status">{% if pack.warnings == 'Normal' %}Normal{% else %}{{ pack.severity_label }}{% endif %}</div>
               </div>
             </div>
           </article>
@@ -2494,99 +2557,6 @@
         </div>
       </section>
 
-      <section class="chart-grid">
-        <article class="chart-card">
-          <div class="chart-title">Pack SOC Comparison</div>
-          <div class="chart-subtitle">State of Charge per detected pack. Scale: 0% to 100%.</div>
-          {% for pack in live.packs %}
-          <div class="bar-row">
-            <div class="bar-label">Pack {{ pack.id }}</div>
-            <div class="bar-track"><div class="bar-fill" data-chart="soc" data-pack="{{ pack.id }}" style="width: {{ pack.soc|float }}%;"></div></div>
-            <div class="bar-value" data-chart-value="soc-{{ pack.id }}">{{ pack.soc }}%</div>
-          </div>
-          {% endfor %}
-        </article>
-
-        <article class="chart-card">
-          <div class="chart-title">Pack SOH Comparison</div>
-          <div class="chart-subtitle">State of Health per detected pack. Scale: 0% to 100%.</div>
-          {% for pack in live.packs %}
-          <div class="bar-row">
-            <div class="bar-label">Pack {{ pack.id }}</div>
-            <div class="bar-track"><div class="bar-fill" data-chart="soh" data-pack="{{ pack.id }}" style="width: {{ pack.soh|float }}%;"></div></div>
-            <div class="bar-value" data-chart-value="soh-{{ pack.id }}">{{ pack.soh }}%</div>
-          </div>
-          {% endfor %}
-        </article>
-
-        <article class="chart-card">
-          <div class="chart-title">Pack Voltage Comparison</div>
-          <div class="chart-subtitle">Voltage scaled against the highest detected pack voltage in the current snapshot.</div>
-          {% set max_voltage = namespace(value=0) %}
-          {% for pack in live.packs %}
-            {% if pack.voltage|float > max_voltage.value %}
-              {% set max_voltage.value = pack.voltage|float %}
-            {% endif %}
-          {% endfor %}
-          {% for pack in live.packs %}
-          <div class="bar-row">
-            <div class="bar-label">Pack {{ pack.id }}</div>
-            <div class="bar-track"><div class="bar-fill" data-chart="voltage" data-pack="{{ pack.id }}" style="width: {% if max_voltage.value > 0 %}{{ ((pack.voltage|float / max_voltage.value) * 100)|round(1) }}{% else %}0{% endif %}%;"></div></div>
-            <div class="bar-value" data-chart-value="voltage-{{ pack.id }}">{{ pack.voltage }} V</div>
-          </div>
-          {% endfor %}
-        </article>
-
-        <article class="chart-card">
-          <div class="chart-title">Cell Delta Comparison</div>
-          <div class="chart-subtitle">Cell voltage difference per pack. Lower is better. Scale is relative to the highest current delta.</div>
-          {% set max_delta = namespace(value=0) %}
-          {% for pack in live.packs %}
-            {% if pack.delta|float > max_delta.value %}
-              {% set max_delta.value = pack.delta|float %}
-            {% endif %}
-          {% endfor %}
-          {% for pack in live.packs %}
-          <div class="bar-row">
-            <div class="bar-label">Pack {{ pack.id }}</div>
-            <div class="bar-track"><div class="bar-fill warn" data-chart="delta" data-pack="{{ pack.id }}" style="width: {% if max_delta.value > 0 %}{{ ((pack.delta|float / max_delta.value) * 100)|round(1) }}{% else %}0{% endif %}%;"></div></div>
-            <div class="bar-value" data-chart-value="delta-{{ pack.id }}">{{ pack.delta }} mV</div>
-          </div>
-          {% endfor %}
-        </article>
-
-        <article class="chart-card">
-          <div class="chart-title">Highest vs Lowest Cell</div>
-          <div class="chart-subtitle">Current highest and lowest cell voltages per pack. Blue = lowest, orange = highest.</div>
-          {% for pack in live.packs %}
-            {% set low = pack.lowest_cell.voltage|float %}
-            {% set high = pack.highest_cell.voltage|float %}
-            {% set min_ref = 2.5 %}
-            {% set max_ref = 4.3 %}
-            {% set low_pos = (((low - min_ref) / (max_ref - min_ref)) * 100) %}
-            {% set high_pos = (((high - min_ref) / (max_ref - min_ref)) * 100) %}
-            {% if low_pos < 0 %}{% set low_pos = 0 %}{% endif %}
-            {% if low_pos > 100 %}{% set low_pos = 100 %}{% endif %}
-            {% if high_pos < 0 %}{% set high_pos = 0 %}{% endif %}
-            {% if high_pos > 100 %}{% set high_pos = 100 %}{% endif %}
-          <div class="cell-range">
-            <div class="bar-label">Pack {{ pack.id }}</div>
-            <div>
-              <div class="range-track">
-                <span class="range-dot low" data-range-dot="low-{{ pack.id }}" style="left: {{ low_pos|round(1) }}%;"></span>
-                <span class="range-dot high" data-range-dot="high-{{ pack.id }}" style="left: {{ high_pos|round(1) }}%;"></span>
-              </div>
-              <div class="range-values" data-range-value="{{ pack.id }}">Lowest: Cell {{ pack.lowest_cell.number }} = {{ pack.lowest_cell.voltage }} V | Highest: Cell {{ pack.highest_cell.number }} = {{ pack.highest_cell.voltage }} V</div>
-            </div>
-          </div>
-          {% endfor %}
-        </article>
-      </section>
-      {% else %}
-      <section class="card wide-card">
-        <h2>No chart data available</h2>
-        <p>No pack data was found from MQTT. The Dashboard uses the same retained MQTT pack data as the Status tab. Check that the monitor is running, MQTT is connected, and retained pack topics are available.</p>
-      </section>
       {% endif %}
     </section>
 
@@ -3279,6 +3249,27 @@ This cannot be undone.`);">
           });
         }
 
+        const packs = data.packs || [];
+        const maxVoltage = Math.max(...packs.map(p => Number(p.voltage) || 0), 0);
+        const maxDelta = Math.max(...packs.map(p => Number(p.delta) || 0), 0);
+
+        packs.forEach(function (pack) {
+          const id = String(pack.id);
+          setBar("soc", id, Number(pack.soc) || 0, `${pack.soc}%`);
+          setBar("soh", id, Number(pack.soh) || 0, `${pack.soh}%`);
+          setBar("voltage", id, maxVoltage > 0 ? ((Number(pack.voltage) || 0) / maxVoltage) * 100 : 0, `${pack.voltage} V`);
+          setBar("delta", id, maxDelta > 0 ? ((Number(pack.delta) || 0) / maxDelta) * 100 : 0, `${pack.delta} mV`);
+
+          const lowDot = document.querySelector(`[data-range-dot="low-${id}"]`);
+          const highDot = document.querySelector(`[data-range-dot="high-${id}"]`);
+          const rangeValue = document.querySelector(`[data-range-value="${id}"]`);
+          if (lowDot && pack.lowest_cell) lowDot.style.left = cellDotPosition(pack.lowest_cell.voltage) + "%";
+          if (highDot && pack.highest_cell) highDot.style.left = cellDotPosition(pack.highest_cell.voltage) + "%";
+          if (rangeValue && pack.lowest_cell && pack.highest_cell) {
+            rangeValue.textContent = `Lowest: Cell ${pack.lowest_cell.number} = ${pack.lowest_cell.voltage} V | Highest: Cell ${pack.highest_cell.number} = ${pack.highest_cell.voltage} V`;
+          }
+        });
+
         if (msg) {
           msg.textContent = "Live status refreshed at " + (data.fetched_at || new Date().toLocaleTimeString());
         }
@@ -3926,7 +3917,11 @@ Restart the add-on afterwards for runtime changes to apply.`);
           setDashboardText(`[data-pack-field="${id}-voltage"]`, `${pack.voltage} V`);
           setDashboardText(`[data-pack-field="${id}-current"]`, `${pack.current} A`);
           setDashboardText(`[data-pack-field="${id}-delta"]`, `${pack.delta} mV`);
-          setDashboardText(`[data-pack-field="${id}-status"]`, pack.warnings === "Normal" ? "Normal" : (pack.severity_label || "Warning"));
+          const statusField = document.querySelector(`[data-pack-field="${id}-status"]`);
+          if (statusField) {
+            statusField.textContent = pack.warnings === "Normal" ? "Normal" : (pack.severity_label || "Warning");
+            statusField.className = "pack-metric-value " + (pack.warnings === "Normal" ? "healthy" : (pack.severity_class || "warning"));
+          }
 
           setBar("soc", id, Number(pack.soc) || 0, `${pack.soc}%`);
           setBar("soh", id, Number(pack.soh) || 0, `${pack.soh}%`);
