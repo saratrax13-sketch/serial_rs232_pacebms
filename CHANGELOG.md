@@ -1,3 +1,18 @@
+## 2.6.60 - 2026-05-18
+
+### Added
+- Added a background retained-MQTT live snapshot cache for the web UI.
+
+### Changed
+- Dashboard, Tech Status, Setup and Diagnostics now render from the warm snapshot cache when available, so tab clicks no longer wait on a fresh MQTT broker round trip.
+- `/api/status` still performs a full MQTT retained-value read and refreshes the cache after each live refresh.
+- Dashboard, Tech Status and Diagnostics now request a live `/api/status` refresh immediately after the page opens instead of waiting for the first auto-refresh interval.
+
+### Notes
+- This is a web UI responsiveness update only.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.59 - 2026-05-18
 
 ### Fixed

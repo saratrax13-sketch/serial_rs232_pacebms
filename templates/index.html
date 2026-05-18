@@ -3384,6 +3384,7 @@ This cannot be undone.`);">
     document.addEventListener("DOMContentLoaded", function () {
       const statusPanel = document.querySelector('.tab-panel.active #refresh-message');
       if (!statusPanel) return;
+      refreshStatus();
       window.setInterval(function () {
         refreshStatus();
       }, 15000);
@@ -4048,6 +4049,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
     document.addEventListener("DOMContentLoaded", function () {
       const dashboardPanel = document.querySelector('.tab-panel.active #dashboard-refresh-message');
       if (!dashboardPanel) return;
+      refreshDashboard();
       window.setInterval(function () {
         refreshDashboard();
       }, 30000);
@@ -4159,6 +4161,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
     document.addEventListener("DOMContentLoaded", function () {
       const diagnosticsPanel = document.querySelector('.tab-panel.active #diagnostics-refresh-message');
       if (!diagnosticsPanel) return;
+      refreshDiagnostics();
       window.setInterval(function () {
         refreshDiagnostics();
       }, 15000);

@@ -4,6 +4,7 @@ import json
 import re
 import os
 from pathlib import Path
+import threading
 import time
 import zipfile
 import urllib.error
@@ -25,6 +26,16 @@ MAX_CONFIG_BACKUPS = 10
 MAX_EVENT_LOG_ENTRIES = 50
 DEPRECATED_OPTION_KEYS = {"bms_ip", "bms_port"}
 WEB_STARTED_AT = time.time()
+LIVE_SNAPSHOT_REFRESH_SECONDS = 5
+LIVE_SNAPSHOT_MAX_AGE_SECONDS = 60
+_LIVE_SNAPSHOT_LOCK = threading.Lock()
+_LIVE_SNAPSHOT_CACHE = {
+    "options_key": None,
+    "snapshot": None,
+    "updated_at": 0.0,
+    "error": "",
+}
+_LIVE_SNAPSHOT_WORKER_STARTED = False
 
 SECTION_HELP = {
     "Notification Thresholds": "Controls SOC, SOH, stale-data and BMS warning repeat timing. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale and warning repeat values are in seconds. BMS warning repeats are severity-aware: caution repeats for low-risk ongoing warnings, warning repeats for near-limit conditions, and critical repeats for protection/fault or measured values outside configured references.",
@@ -1513,6 +1524,102 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
     return result
 
 
+def live_snapshot_options_key(options):
+    """Build a non-secret key for values that change the retained MQTT snapshot."""
+    keys = (
+        "mqtt_host",
+        "mqtt_port",
+        "mqtt_base_topic",
+        "notify_cell_high_warn_voltage",
+        "notify_cell_low_warn_voltage",
+        "notify_cell_delta_threshold_mv",
+        "notify_pack_high_voltage",
+        "notify_pack_low_voltage",
+    )
+    return tuple((key, str(options.get(key, ""))) for key in keys)
+
+
+def clone_live_snapshot(snapshot):
+    if not isinstance(snapshot, dict):
+        return None
+    return json.loads(json.dumps(snapshot))
+
+
+def clear_live_snapshot_cache():
+    with _LIVE_SNAPSHOT_LOCK:
+        _LIVE_SNAPSHOT_CACHE["options_key"] = None
+        _LIVE_SNAPSHOT_CACHE["snapshot"] = None
+        _LIVE_SNAPSHOT_CACHE["updated_at"] = 0.0
+        _LIVE_SNAPSHOT_CACHE["error"] = ""
+
+
+def update_live_snapshot_cache(options, snapshot, error=""):
+    if not options or not isinstance(snapshot, dict):
+        return
+    with _LIVE_SNAPSHOT_LOCK:
+        _LIVE_SNAPSHOT_CACHE["options_key"] = live_snapshot_options_key(options)
+        _LIVE_SNAPSHOT_CACHE["snapshot"] = clone_live_snapshot(snapshot)
+        _LIVE_SNAPSHOT_CACHE["updated_at"] = time.time()
+        _LIVE_SNAPSHOT_CACHE["error"] = str(error or snapshot.get("error", ""))
+
+
+def get_cached_live_snapshot(options, max_age_seconds=LIVE_SNAPSHOT_MAX_AGE_SECONDS):
+    if not options:
+        return None
+    with _LIVE_SNAPSHOT_LOCK:
+        if _LIVE_SNAPSHOT_CACHE["options_key"] != live_snapshot_options_key(options):
+            return None
+        snapshot = _LIVE_SNAPSHOT_CACHE["snapshot"]
+        updated_at = float(_LIVE_SNAPSHOT_CACHE["updated_at"] or 0.0)
+
+    if not snapshot:
+        return None
+    if max_age_seconds is not None and time.time() - updated_at > max_age_seconds:
+        return None
+    return clone_live_snapshot(snapshot)
+
+
+def refresh_live_snapshot_cache_once(options):
+    snapshot = fetch_mqtt_snapshot(options)
+    update_live_snapshot_cache(options, snapshot)
+    return snapshot
+
+
+def live_snapshot_cache_worker():
+    while True:
+        try:
+            options, error = load_options()
+            if options and not error:
+                refresh_live_snapshot_cache_once(options)
+        except Exception as exc:
+            with _LIVE_SNAPSHOT_LOCK:
+                _LIVE_SNAPSHOT_CACHE["error"] = str(exc)
+        time.sleep(LIVE_SNAPSHOT_REFRESH_SECONDS)
+
+
+def ensure_live_snapshot_cache_worker():
+    global _LIVE_SNAPSHOT_WORKER_STARTED
+    with _LIVE_SNAPSHOT_LOCK:
+        if _LIVE_SNAPSHOT_WORKER_STARTED:
+            return
+        _LIVE_SNAPSHOT_WORKER_STARTED = True
+
+    thread = threading.Thread(
+        target=live_snapshot_cache_worker,
+        name="pacebms-live-snapshot-cache",
+        daemon=True,
+    )
+    thread.start()
+
+
+def get_page_live_snapshot(options):
+    """Return retained MQTT data for page renders without waiting on MQTT when cached."""
+    cached = get_cached_live_snapshot(options)
+    if cached is not None:
+        return cached
+    return refresh_live_snapshot_cache_once(options)
+
+
 def input_type_for_value(key, value):
     if isinstance(value, bool):
         return "checkbox"
@@ -2134,8 +2241,9 @@ def render_index(action_result="", action_message="", active_tab="dashboard", co
     options, error = load_options()
     grouped = build_grouped_config(options)
 
-    # Fetch retained MQTT values for live tabs so server-rendered data is populated.
-    live = attach_monitoring_health(options, fetch_mqtt_snapshot(options)) if options and active_tab in ("status", "dashboard", "setup", "diagnostics") else None
+    # Live tabs render from a warm retained-MQTT cache so tab clicks are not blocked
+    # by a fresh broker round trip. The cache is refreshed in the background.
+    live = attach_monitoring_health(options, get_page_live_snapshot(options)) if options and active_tab in ("status", "dashboard", "setup", "diagnostics") else None
     setup_checklist = build_setup_checklist(options, live) if options else None
 
     return render_template(
@@ -2754,7 +2862,8 @@ def api_status():
     options, error = load_options()
     if error:
         return jsonify({"ok": False, "error": error}), 500
-    return jsonify(attach_monitoring_health(options, fetch_mqtt_snapshot(options)))
+    live = refresh_live_snapshot_cache_once(options)
+    return jsonify(attach_monitoring_health(options, live))
 
 
 @app.route("/api/events", methods=["GET"])
@@ -2841,4 +2950,5 @@ def health():
 
 
 if __name__ == "__main__":
+    ensure_live_snapshot_cache_worker()
     app.run(host="0.0.0.0", port=8099)

@@ -313,6 +313,12 @@ class EnergyTrackingTests(unittest.TestCase):
 
 
 class HealthEndpointTests(unittest.TestCase):
+    def setUp(self):
+        web_config.clear_live_snapshot_cache()
+
+    def tearDown(self):
+        web_config.clear_live_snapshot_cache()
+
     def test_setup_page_renders_setup_checklist(self):
         options = {
             "connection_type": "Serial",
@@ -447,6 +453,51 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"Highest vs Lowest Cell", response.data)
         self.assertNotIn(b"BMS internal warning active:", response.data)
         self.assertNotIn(b"Not reported separately", response.data)
+
+    def test_live_tab_uses_cached_snapshot_without_blocking_on_mqtt(self):
+        options = {
+            "connection_type": "Serial",
+            "bms_serial": "/dev/ttyUSB0",
+            "scan_interval": 5,
+            "mqtt_host": "192.168.1.10",
+            "mqtt_port": 1883,
+            "mqtt_base_topic": "pacebms",
+            "notify_enabled": False,
+        }
+        live = {
+            "ok": True,
+            "availability": "online",
+            "monitor_state": "running",
+            "stale": "OFF",
+            "stale_reason": "Fresh",
+            "last_analog_read": "2026-05-18 18:20:00",
+            "last_warn_read": "2026-05-18 18:20:00",
+            "analog_age_seconds": 1,
+            "warn_age_seconds": 1,
+            "overall_status": "Healthy",
+            "overall_class": "healthy",
+            "layout": "1 pack(s), 13 cells total",
+            "bms_sn": "CACHE-SN",
+            "base_topic": "pacebms",
+            "pack_count": 1,
+            "total_cells": 13,
+            "fetched_at": "2026-05-18 18:20:00",
+            "error": "",
+            "severity_summary": {},
+            "packs": [],
+        }
+        web_config.update_live_snapshot_cache(options, live)
+
+        with (
+            patch("web_config.load_options", return_value=(options, "")),
+            patch("web_config.fetch_mqtt_snapshot") as fetch_snapshot,
+            patch("web_config.load_events", return_value=[]),
+        ):
+            response = web_config.app.test_client().get("/?tab=dashboard")
+
+        self.assertEqual(response.status_code, 200)
+        fetch_snapshot.assert_not_called()
+        self.assertIn(b"CACHE-SN", response.data)
 
     def test_warning_intelligence_calculates_reference_margins(self):
         pack = {
