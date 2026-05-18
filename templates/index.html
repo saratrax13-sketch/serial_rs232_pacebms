@@ -1981,12 +1981,12 @@
 
         <div class="status-hero">
           <div class="status-label">Technician Tools</div>
-          <p>Refresh retained MQTT values for this live view. Setup tests are on the Setup tab.</p>
+          <p>Refresh retained MQTT values for this live view. This tab auto-refreshes every 15 seconds while open. Setup tests are on the Setup tab.</p>
           <div class="actions">
             <button type="button" onclick="refreshStatus()">Refresh Status</button>
             <a class="button-link" href="?tab=setup">Open Setup</a>
           </div>
-          <div id="refresh-message" class="summary-meta"></div>
+          <div id="refresh-message" class="summary-meta">Tech Status auto-refresh runs every 15 seconds while this tab is open.</div>
         </div>
       </section>
 
@@ -2918,7 +2918,7 @@ This cannot be undone.`);">
       </div>
       <section class="card wide-card">
         <h2>Diagnostics</h2>
-        <p>Health overview and redacted support information for the add-on. This page reads MQTT/add-on state only and does not write to the BMS.</p>
+        <p>Health overview and redacted support information for the add-on. This page reads MQTT/add-on state only and does not write to the BMS. It auto-refreshes every 15 seconds while open.</p>
         {% if diagnostics %}
         <div class="compact-backup-row">
           <span class="compact-pill">Overall: {{ diagnostics.live.overall_status }}</span>
@@ -2941,7 +2941,7 @@ This cannot be undone.`);">
           <a class="button-link" href="?tab=status">Open Status</a>
           <a class="button-link" href="?tab=backups">Open Backups</a>
         </div>
-        <div id="diagnostics-refresh-message" class="dashboard-refresh-message">Diagnostics loaded from current retained MQTT values.</div>
+        <div id="diagnostics-refresh-message" class="dashboard-refresh-message">Diagnostics loaded from current retained MQTT values. Auto-refresh runs every 15 seconds while this tab is open.</div>
       </section>
 
       {% if diagnostics %}
@@ -3232,6 +3232,14 @@ This cannot be undone.`);">
         }
       }
     }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      const statusPanel = document.querySelector('.tab-panel.active #refresh-message');
+      if (!statusPanel) return;
+      window.setInterval(function () {
+        refreshStatus();
+      }, 15000);
+    });
   
     async function copyConfigYaml() {
       const area = document.getElementById("config-yaml");
@@ -3977,6 +3985,14 @@ Restart the add-on afterwards for runtime changes to apply.`);
         if (msg) msg.textContent = "Diagnostics refresh failed: " + err.message;
       }
     }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      const diagnosticsPanel = document.querySelector('.tab-panel.active #diagnostics-refresh-message');
+      if (!diagnosticsPanel) return;
+      window.setInterval(function () {
+        refreshDiagnostics();
+      }, 15000);
+    });
 
 
   

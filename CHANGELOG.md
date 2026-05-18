@@ -1,3 +1,17 @@
+## 2.6.44 - 2026-05-18
+
+### Added
+- Added Tech Status auto-refresh every 15 seconds while the Tech Status tab is open.
+- Added Diagnostics auto-refresh every 15 seconds while the Diagnostics tab is open.
+- Added visible refresh notes for Tech Status and Diagnostics.
+
+### Notes
+- Setup remains manual only.
+- Config has no auto-refresh.
+- Events and Backups behaviour was not changed.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.43 - 2026-05-18
 
 ### Added

@@ -371,6 +371,7 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Technician live view", response.data)
         self.assertIn(b"Monitoring Health", response.data)
+        self.assertIn(b"Tech Status auto-refresh runs every 15 seconds", response.data)
 
     def test_monitoring_health_uses_heartbeat_and_live_mqtt(self):
         options = {
@@ -751,6 +752,7 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"Max Cycles", response.data)
         self.assertIn(b"Lowest SOH", response.data)
         self.assertIn(b"Average SOC", response.data)
+        self.assertIn(b"Diagnostics loaded from current retained MQTT values. Auto-refresh runs every 15 seconds", response.data)
 
     def test_health_endpoint_fails_when_monitor_heartbeat_is_stale(self):
         with tempfile.TemporaryDirectory() as tmpdir:
