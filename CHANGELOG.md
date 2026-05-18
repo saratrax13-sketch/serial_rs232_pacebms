@@ -1,3 +1,16 @@
+## 2.6.41 - 2026-05-18
+
+### Added
+- Added a simple User Dashboard section for daily battery confidence.
+- Added combined SOC, operating state, power flow, total battery power, voltage/current, remaining Ah, estimated remaining kWh, full/design Ah, battery health, temperature status and active warning count.
+- Added derived read-only user summary data to `/api/status` so Dashboard refresh updates the user view.
+
+### Notes
+- Power and energy values are calculated from existing BMS-reported voltage/current/capacity values.
+- Runtime remaining is still not estimated because no reliable external load/inverter consumption source is available in this add-on yet.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.40 - 2026-05-17
 
 ### Added

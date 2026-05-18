@@ -14,6 +14,9 @@ The add-on includes:
 - Auto cell-count detection
 - Auto multi-pack detection
 - Stale-data monitoring
+- Combined user dashboard summary
+- Battery power flow
+- Remaining Ah and estimated remaining kWh
 - Read-only BMS communication
 
 ---
@@ -21,7 +24,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.40"
+version: "2.6.41"
 ```
 
 ---

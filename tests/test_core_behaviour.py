@@ -389,6 +389,55 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertEqual(health["status"], "Data Stale")
         self.assertEqual(health["class"], "stale")
 
+    def test_user_summary_combines_pack_values(self):
+        options = {
+            "notify_temp_high_warn_c": 55,
+            "notify_temp_low_warn_c": 0,
+        }
+        live = {
+            "ok": True,
+            "availability": "online",
+            "monitor_state": "running",
+            "stale": "OFF",
+            "warning_count": 0,
+            "total_cells": 32,
+            "packs": [
+                {
+                    "voltage": "52.0",
+                    "current": "-10.0",
+                    "soc": "80",
+                    "soh": "95",
+                    "remaining_capacity_ah": "160",
+                    "full_capacity_ah": "200",
+                    "design_capacity_ah": "200",
+                    "temperatures": [25, 26],
+                    "fully": "OFF",
+                },
+                {
+                    "voltage": "52.0",
+                    "current": "-12.0",
+                    "soc": "70",
+                    "soh": "90",
+                    "remaining_capacity_ah": "140",
+                    "full_capacity_ah": "200",
+                    "design_capacity_ah": "200",
+                    "temperatures": [27, 28],
+                    "fully": "OFF",
+                },
+            ],
+        }
+
+        summary = web_config._calculate_user_summary(options, live)
+
+        self.assertEqual(summary["status"], "Discharging")
+        self.assertEqual(summary["combined_soc"], "75.0%")
+        self.assertEqual(summary["total_power_kw"], "-1.14 kW")
+        self.assertEqual(summary["remaining_capacity_ah"], "300 Ah")
+        self.assertEqual(summary["full_capacity_ah"], "400 Ah")
+        self.assertEqual(summary["remaining_energy_kwh"], "15.60 kWh")
+        self.assertEqual(summary["health"], "90.0%")
+        self.assertEqual(summary["temperature_status"], "Normal")
+
     def test_dashboard_page_renders_monitoring_snapshot(self):
         options = {
             "connection_type": "Serial",
@@ -431,9 +480,13 @@ class HealthEndpointTests(unittest.TestCase):
                 "soc": "95",
                 "soh": "99",
                 "cycles": "42",
+                "remaining_capacity_ah": "160",
+                "full_capacity_ah": "200",
+                "design_capacity_ah": "200",
                 "voltage": "54.0",
                 "current": "1.0",
                 "delta": "12",
+                "temperatures": [25, 26],
                 "warnings": "Normal",
                 "severity_class": "healthy",
                 "severity_label": "Normal",
@@ -463,6 +516,9 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"Battery Health", response.data)
         self.assertIn(b"Cell Balance", response.data)
         self.assertIn(b"pack-quick-strip", response.data)
+        self.assertIn(b"User Dashboard", response.data)
+        self.assertIn(b"Battery Power", response.data)
+        self.assertIn(b"Remaining Capacity", response.data)
 
     def test_diagnostics_battery_configuration_includes_cycles(self):
         options = {

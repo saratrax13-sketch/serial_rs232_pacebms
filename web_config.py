@@ -618,6 +618,162 @@ def seconds_label(value):
     return f"{days}d {hours}h" if hours else f"{days}d"
 
 
+def _fmt_number(value, decimals=1, suffix=""):
+    number = _to_float(value)
+    if number is None:
+        return "Unknown"
+    if decimals == 0:
+        return f"{int(round(number))}{suffix}"
+    return f"{number:.{decimals}f}{suffix}"
+
+
+def _calculate_user_summary(options, live):
+    packs = live.get("packs", []) if isinstance(live, dict) else []
+    if not packs:
+        return {
+            "status": "Waiting for data",
+            "class": "warning",
+            "summary": "No retained pack values are available yet.",
+            "combined_soc": "Unknown",
+            "total_power_kw": "Unknown",
+            "power_flow": "Unknown",
+            "pack_voltage": "Unknown",
+            "battery_current": "Unknown",
+            "remaining_capacity_ah": "Unknown",
+            "full_capacity_ah": "Unknown",
+            "design_capacity_ah": "Unknown",
+            "remaining_energy_kwh": "Unknown",
+            "health": "Unknown",
+            "temperature": "Unknown",
+            "temperature_status": "Unknown",
+            "active_warnings": str(live.get("warning_count", 0) if isinstance(live, dict) else 0),
+        }
+
+    total_power_kw = 0.0
+    total_current = 0.0
+    voltage_values = []
+    soc_values = []
+    soh_values = []
+    temp_values = []
+    remaining_ah = 0.0
+    full_ah = 0.0
+    design_ah = 0.0
+    remaining_kwh = 0.0
+    weighted_soc_total = 0.0
+    weighted_soc_weight = 0.0
+
+    for pack in packs:
+        voltage = _to_float(pack.get("voltage"))
+        current = _to_float(pack.get("current"))
+        soc = _to_float(pack.get("soc"))
+        soh = _to_float(pack.get("soh"))
+        remain = _to_float(pack.get("remaining_capacity_ah"))
+        full = _to_float(pack.get("full_capacity_ah"))
+        design = _to_float(pack.get("design_capacity_ah"))
+
+        if voltage is not None:
+            voltage_values.append(voltage)
+        if current is not None:
+            total_current += current
+        if voltage is not None and current is not None:
+            total_power_kw += (voltage * current) / 1000.0
+        if soc is not None:
+            soc_values.append(soc)
+            if full is not None and full > 0:
+                weighted_soc_total += soc * full
+                weighted_soc_weight += full
+        if soh is not None:
+            soh_values.append(soh)
+        if remain is not None:
+            remaining_ah += remain
+            if voltage is not None:
+                remaining_kwh += voltage * remain / 1000.0
+        if full is not None:
+            full_ah += full
+        if design is not None:
+            design_ah += design
+        for temp in pack.get("temperatures", []):
+            temp_f = _to_float(temp)
+            if temp_f is not None:
+                temp_values.append(temp_f)
+
+    if weighted_soc_weight:
+        combined_soc = weighted_soc_total / weighted_soc_weight
+    elif soc_values:
+        combined_soc = sum(soc_values) / len(soc_values)
+    else:
+        combined_soc = None
+
+    fully_count = sum(1 for pack in packs if str(pack.get("fully", "")).upper() == "ON")
+    warning_count = int(_to_float(live.get("warning_count"), 0) or 0)
+    stale = str(live.get("stale", "Unknown")).upper()
+    availability = str(live.get("availability", "Unknown")).lower()
+
+    idle_threshold_kw = 0.05
+    if availability == "offline" or stale == "ON":
+        status = "Communication stale"
+        status_class = "stale"
+    elif warning_count:
+        status = "Warning"
+        status_class = "warning"
+    elif fully_count == len(packs) and abs(total_power_kw) <= idle_threshold_kw:
+        status = "Fully charged"
+        status_class = "healthy"
+    elif total_power_kw > idle_threshold_kw:
+        status = "Charging"
+        status_class = "healthy"
+    elif total_power_kw < -idle_threshold_kw:
+        status = "Discharging"
+        status_class = "warning"
+    else:
+        status = "Idle"
+        status_class = "healthy"
+
+    if total_power_kw > idle_threshold_kw:
+        power_flow = "Charging"
+    elif total_power_kw < -idle_threshold_kw:
+        power_flow = "Discharging"
+    else:
+        power_flow = "Idle"
+
+    temp_high = _to_float(options.get("notify_temp_high_warn_c", 55), 55)
+    temp_low = _to_float(options.get("notify_temp_low_warn_c", 0), 0)
+    highest_temp = max(temp_values) if temp_values else None
+    if highest_temp is None:
+        temp_status = "Unknown"
+        temp_class = "warning"
+    elif highest_temp >= temp_high or min(temp_values) <= temp_low:
+        temp_status = "Warning"
+        temp_class = "warning"
+    else:
+        temp_status = "Normal"
+        temp_class = "healthy"
+
+    avg_voltage = sum(voltage_values) / len(voltage_values) if voltage_values else None
+    health = min(soh_values) if soh_values else None
+    summary = f"{status}. {len(packs)} pack(s), {live.get('total_cells', 0)} cells detected."
+
+    return {
+        "status": status,
+        "class": status_class,
+        "summary": summary,
+        "combined_soc": _fmt_number(combined_soc, 1, "%"),
+        "total_power_kw": _fmt_number(total_power_kw, 2, " kW"),
+        "power_flow": power_flow,
+        "pack_voltage": _fmt_number(avg_voltage, 2, " V"),
+        "battery_current": _fmt_number(total_current, 2, " A"),
+        "remaining_capacity_ah": _fmt_number(remaining_ah if remaining_ah else None, 0, " Ah"),
+        "full_capacity_ah": _fmt_number(full_ah if full_ah else None, 0, " Ah"),
+        "design_capacity_ah": _fmt_number(design_ah if design_ah else None, 0, " Ah"),
+        "remaining_energy_kwh": _fmt_number(remaining_kwh if remaining_kwh else None, 2, " kWh"),
+        "health": _fmt_number(health, 1, "%"),
+        "temperature": _fmt_number(highest_temp, 1, " C"),
+        "temperature_status": temp_status,
+        "temperature_class": temp_class,
+        "active_warnings": str(warning_count),
+    }
+
+
 def build_monitoring_health(options, live=None, heartbeat=None):
     """Summarize whether the monitor is still watching the battery.
 
@@ -738,6 +894,7 @@ def build_monitoring_health(options, live=None, heartbeat=None):
 def attach_monitoring_health(options, live):
     if isinstance(live, dict):
         live["monitoring_health"] = build_monitoring_health(options, live)
+        live["user_summary"] = _calculate_user_summary(options, live)
     return live
 
 
@@ -904,8 +1061,10 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
         pfx = f"{base_topic}/pack_{pack_id}"
 
         cell_prefix = f"{pfx}/v_cells/cell_"
+        temp_prefix = f"{pfx}/temps/temp_"
         cell_numbers = []
         cell_values = []
+        temp_values = []
 
         for topic, value in messages.items():
             if topic.startswith(cell_prefix):
@@ -915,6 +1074,13 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
                     if cell_mv is not None:
                         cell_numbers.append(cell_num)
                         cell_values.append((cell_num, cell_mv / 1000.0))
+                except Exception:
+                    pass
+            if topic.startswith(temp_prefix):
+                try:
+                    temp_f = _to_float(value)
+                    if temp_f is not None:
+                        temp_values.append(temp_f)
                 except Exception:
                     pass
 
@@ -938,6 +1104,9 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
         soh = messages.get(f"{pfx}/soh", "Unknown")
         cycles = messages.get(f"{pfx}/cycles", "Unknown")
         delta = messages.get(f"{pfx}/cells_max_diff_calc", "Unknown")
+        remaining_capacity_ah = messages.get(f"{pfx}/i_remain_cap", "Unknown")
+        full_capacity_ah = messages.get(f"{pfx}/i_full_cap", "Unknown")
+        design_capacity_ah = messages.get(f"{pfx}/i_design_cap", "Unknown")
 
         cell_high_ref = _to_float(options.get("notify_cell_high_warn_voltage", 4.20), 4.20)
         cell_low_ref = _to_float(options.get("notify_cell_low_warn_voltage", 3.00), 3.00)
@@ -1027,9 +1196,13 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
             "soc": soc,
             "soh": soh,
             "cycles": cycles,
+            "remaining_capacity_ah": remaining_capacity_ah,
+            "full_capacity_ah": full_capacity_ah,
+            "design_capacity_ah": design_capacity_ah,
             "voltage": voltage,
             "current": current,
             "delta": delta,
+            "temperatures": sorted(temp_values),
             "warnings": warnings,
             "has_warning": has_warning,
             "severity_class": severity_class,
