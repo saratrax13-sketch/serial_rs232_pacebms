@@ -18,6 +18,7 @@ The add-on includes:
 - Battery power flow
 - Remaining Ah and estimated remaining kWh
 - Estimated runtime remaining while discharging
+- Estimated charge time remaining while charging
 - Read-only BMS communication
 
 ---
@@ -25,7 +26,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.44"
+version: "2.6.45"
 ```
 
 ---

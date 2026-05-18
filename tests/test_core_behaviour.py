@@ -513,7 +513,8 @@ class HealthEndpointTests(unittest.TestCase):
         charging = dict(base_live)
         charging["packs"] = [dict(base_live["packs"][0], current="10")]
         charging_summary = web_config._calculate_user_summary(options, charging)
-        self.assertEqual(charging_summary["runtime_remaining"], "Charging")
+        self.assertEqual(charging_summary["runtime_remaining"], "2h")
+        self.assertIn("Charge-to-full", charging_summary["runtime_detail"])
 
         idle = dict(base_live)
         idle["packs"] = [dict(base_live["packs"][0], current="0")]
@@ -600,7 +601,7 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"pack-quick-strip", response.data)
         self.assertIn(b"User Dashboard", response.data)
         self.assertIn(b"Battery Power", response.data)
-        self.assertIn(b"Runtime Estimate", response.data)
+        self.assertIn(b"Energy Time Estimate", response.data)
         self.assertIn(b"Remaining Capacity", response.data)
 
     def test_root_defaults_to_user_dashboard(self):

@@ -675,6 +675,7 @@ def _calculate_user_summary(options, live):
     full_ah = 0.0
     design_ah = 0.0
     remaining_kwh = 0.0
+    energy_needed_kwh = 0.0
     weighted_soc_total = 0.0
     weighted_soc_weight = 0.0
 
@@ -704,6 +705,8 @@ def _calculate_user_summary(options, live):
             remaining_ah += remain
             if voltage is not None:
                 remaining_kwh += voltage * remain / 1000.0
+        if remain is not None and full is not None and voltage is not None and full > remain:
+            energy_needed_kwh += voltage * (full - remain) / 1000.0
         if full is not None:
             full_ah += full
         if design is not None:
@@ -769,14 +772,17 @@ def _calculate_user_summary(options, live):
     health = min(soh_values) if soh_values else None
     summary = f"{status}. {len(packs)} pack(s), {live.get('total_cells', 0)} cells detected."
     runtime_remaining = "Unknown"
-    runtime_detail = "Runtime needs current discharge power and remaining energy."
+    runtime_detail = "Estimate needs current power and capacity values."
     if total_power_kw < -idle_threshold_kw and remaining_kwh > 0:
         discharge_kw = abs(total_power_kw)
         runtime_remaining = runtime_label_from_hours(remaining_kwh / discharge_kw)
         runtime_detail = "Estimate based on current discharge power."
+    elif total_power_kw > idle_threshold_kw and energy_needed_kwh > 0:
+        runtime_remaining = runtime_label_from_hours(energy_needed_kwh / total_power_kw)
+        runtime_detail = "Charge-to-full estimate based on current charge power."
     elif total_power_kw > idle_threshold_kw:
         runtime_remaining = "Charging"
-        runtime_detail = "Runtime estimate appears when battery is discharging."
+        runtime_detail = "Charge time needs full and remaining capacity values."
     elif abs(total_power_kw) <= idle_threshold_kw:
         runtime_remaining = "Idle"
         runtime_detail = "No meaningful discharge load detected."

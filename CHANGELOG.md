@@ -1,3 +1,15 @@
+## 2.6.45 - 2026-05-18
+
+### Added
+- Added charge-to-full estimate while charging.
+- Updated the User Dashboard time tile to show runtime while discharging and charge time while charging.
+
+### Notes
+- Charge time is calculated from current charge power and the energy needed to reach reported full capacity.
+- Charge time is an estimate and may increase near full SOC if charge current tapers.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.44 - 2026-05-18
 
 ### Added
