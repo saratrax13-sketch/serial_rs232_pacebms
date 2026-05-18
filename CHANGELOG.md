@@ -1,3 +1,17 @@
+## 2.6.47 - 2026-05-18
+
+### Added
+- Added combined SOH to the Battery Confidence dashboard.
+
+### Changed
+- Reordered Battery Confidence tiles so operating state, SOC, SOH, time estimate, power, electrical values, capacity, health and safety fields are grouped more naturally.
+- Renamed the previous health tile to Lowest Pack SOH so the difference between combined SOH and weakest-pack SOH is clearer.
+
+### Notes
+- Combined SOH is capacity-weighted when full capacity is reported; otherwise it falls back to the average of detected pack SOH values.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.46 - 2026-05-18
 
 ### Added

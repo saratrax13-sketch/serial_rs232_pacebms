@@ -649,6 +649,7 @@ def _calculate_user_summary(options, live):
             "class": "warning",
             "summary": "No retained pack values are available yet.",
             "combined_soc": "Unknown",
+            "combined_soh": "Unknown",
             "total_power_kw": "Unknown",
             "power_flow": "Unknown",
             "pack_voltage": "Unknown",
@@ -685,6 +686,8 @@ def _calculate_user_summary(options, live):
     energy_needed_kwh = 0.0
     weighted_soc_total = 0.0
     weighted_soc_weight = 0.0
+    weighted_soh_total = 0.0
+    weighted_soh_weight = 0.0
 
     for pack in packs:
         voltage = _to_float(pack.get("voltage"))
@@ -708,6 +711,9 @@ def _calculate_user_summary(options, live):
                 weighted_soc_weight += full
         if soh is not None:
             soh_values.append(soh)
+            if full is not None and full > 0:
+                weighted_soh_total += soh * full
+                weighted_soh_weight += full
         if remain is not None:
             remaining_ah += remain
             if voltage is not None:
@@ -729,6 +735,13 @@ def _calculate_user_summary(options, live):
         combined_soc = sum(soc_values) / len(soc_values)
     else:
         combined_soc = None
+
+    if weighted_soh_weight:
+        combined_soh = weighted_soh_total / weighted_soh_weight
+    elif soh_values:
+        combined_soh = sum(soh_values) / len(soh_values)
+    else:
+        combined_soh = None
 
     fully_count = sum(1 for pack in packs if str(pack.get("fully", "")).upper() == "ON")
     warning_count = int(_to_float(live.get("warning_count"), 0) or 0)
@@ -829,6 +842,7 @@ def _calculate_user_summary(options, live):
         "class": status_class,
         "summary": summary,
         "combined_soc": _fmt_number(combined_soc, 1, "%"),
+        "combined_soh": _fmt_number(combined_soh, 1, "%"),
         "total_power_kw": _fmt_number(total_power_kw, 2, " kW"),
         "power_flow": power_flow,
         "power_detail": power_detail,

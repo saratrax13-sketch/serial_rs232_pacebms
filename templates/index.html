@@ -2318,23 +2318,29 @@
         <p id="user-dashboard-summary">{{ live.user_summary.summary }}</p>
         <div class="user-dashboard-grid">
           <div class="user-dashboard-tile">
-            <div class="user-dashboard-label">Battery SOC</div>
-            <div id="user-combined-soc" class="user-dashboard-value">{{ live.user_summary.combined_soc }}</div>
-          </div>
-          <div class="user-dashboard-tile">
             <div class="user-dashboard-label">Operating State</div>
             <div id="user-operating-state" class="user-dashboard-value {{ live.user_summary.class }}">{{ live.user_summary.status }}</div>
             <div id="user-power-flow" class="user-dashboard-detail">{{ live.user_summary.power_flow }}</div>
           </div>
           <div class="user-dashboard-tile">
-            <div class="user-dashboard-label">Battery Power</div>
-            <div id="user-total-power" class="user-dashboard-value {{ live.user_summary.power_class }}">{{ live.user_summary.total_power_kw }}</div>
-            <div id="user-power-detail" class="user-dashboard-detail">{{ live.user_summary.power_detail }}</div>
+            <div class="user-dashboard-label">Battery SOC</div>
+            <div id="user-combined-soc" class="user-dashboard-value">{{ live.user_summary.combined_soc }}</div>
+            <div class="user-dashboard-detail">Combined across detected packs.</div>
+          </div>
+          <div class="user-dashboard-tile">
+            <div class="user-dashboard-label">Combined SOH</div>
+            <div id="user-combined-soh" class="user-dashboard-value">{{ live.user_summary.combined_soh }}</div>
+            <div class="user-dashboard-detail">Capacity-weighted where full capacity is reported.</div>
           </div>
           <div class="user-dashboard-tile">
             <div id="user-time-label" class="user-dashboard-label">{{ live.user_summary.time_label }}</div>
             <div id="user-runtime" class="user-dashboard-value">{{ live.user_summary.runtime_remaining }}</div>
             <div id="user-runtime-detail" class="user-dashboard-detail">{{ live.user_summary.runtime_detail }}</div>
+          </div>
+          <div class="user-dashboard-tile">
+            <div class="user-dashboard-label">Battery Power</div>
+            <div id="user-total-power" class="user-dashboard-value {{ live.user_summary.power_class }}">{{ live.user_summary.total_power_kw }}</div>
+            <div id="user-power-detail" class="user-dashboard-detail">{{ live.user_summary.power_detail }}</div>
           </div>
           <div class="user-dashboard-tile">
             <div class="user-dashboard-label">Voltage / Current</div>
@@ -2352,7 +2358,7 @@
             <div id="user-design-capacity" class="user-dashboard-detail">{{ live.user_summary.capacity_detail }}</div>
           </div>
           <div class="user-dashboard-tile">
-            <div class="user-dashboard-label">Battery Health</div>
+            <div class="user-dashboard-label">Lowest Pack SOH</div>
             <div id="user-health" class="user-dashboard-value">{{ live.user_summary.health }}</div>
             <div class="user-dashboard-detail">Lowest SOH across detected packs.</div>
           </div>
@@ -3854,6 +3860,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
         if (data.user_summary) {
           setDashboardText("#user-dashboard-summary", data.user_summary.summary);
           setDashboardText("#user-combined-soc", data.user_summary.combined_soc);
+          setDashboardText("#user-combined-soh", data.user_summary.combined_soh);
           setDashboardText("#user-operating-state", data.user_summary.status);
           const operatingState = document.getElementById("user-operating-state");
           if (operatingState) operatingState.className = "user-dashboard-value " + (data.user_summary.class || "warning");

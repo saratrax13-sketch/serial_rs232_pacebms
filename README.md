@@ -26,7 +26,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.46"
+version: "2.6.47"
 ```
 
 ---
@@ -185,7 +185,7 @@ The web UI includes:
 
 - Configuration overview
 - Basic Required / Full Monitoring / Advanced configuration views
-- User Dashboard with SOC, power flow, runtime/charge-time estimate, capacity, health and warning summary
+- User Dashboard with SOC, combined SOH, power flow, runtime/charge-time estimate, capacity, health and warning summary
 - Tech Status with grouped per-pack identity, energy, capacity, electrical, cell balance, reference and FET state
 - Monitoring Health status
 - Detected packs

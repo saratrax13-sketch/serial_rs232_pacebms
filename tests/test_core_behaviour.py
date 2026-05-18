@@ -507,6 +507,7 @@ class HealthEndpointTests(unittest.TestCase):
 
         self.assertEqual(summary["status"], "Discharging")
         self.assertEqual(summary["combined_soc"], "75.0%")
+        self.assertEqual(summary["combined_soh"], "92.5%")
         self.assertEqual(summary["total_power_kw"], "-1.14 kW")
         self.assertEqual(summary["remaining_capacity_ah"], "300 Ah")
         self.assertEqual(summary["full_capacity_ah"], "400 Ah")
@@ -631,7 +632,8 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"dashboard-monitoring-health", response.data)
         self.assertIn(b"Cycles", response.data)
         self.assertIn(b"42", response.data)
-        self.assertIn(b"Battery Health", response.data)
+        self.assertIn(b"Combined SOH", response.data)
+        self.assertIn(b"Lowest Pack SOH", response.data)
         self.assertIn(b"Cell Balance", response.data)
         self.assertIn(b"pack-quick-strip", response.data)
         self.assertIn(b"User Dashboard", response.data)
