@@ -1,3 +1,17 @@
+## 2.6.54 - 2026-05-18
+
+### Changed
+- Made visible refresh buttons reload the full current tab so server-rendered page data refreshes together.
+- Added Setup tab auto-refresh every 15 seconds and a matching refresh icon button.
+- Improved Tech Status spacing between pack cards and comparison charts.
+- Grouped Admin Config actions by save changes, backups, export and add-on action.
+- Made top navigation tabs equal width for a more balanced header.
+
+### Notes
+- This is a read-only UI behavior and layout update.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.53 - 2026-05-18
 
 ### Changed

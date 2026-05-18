@@ -117,6 +117,8 @@
       border: 1px solid rgba(148, 163, 184, 0.22);
       background: rgba(15, 23, 42, 0.60);
       font-weight: 900;
+      width: 122px;
+      text-align: center;
     }
 
     .tab-button.active {
@@ -631,6 +633,13 @@
       margin-bottom: 12px;
     }
 
+    .setup-checklist-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 0 0 auto;
+    }
+
     .setup-checklist-header h2 {
       margin: 0 0 6px;
     }
@@ -1048,7 +1057,7 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
       gap: 14px;
-      margin-top: 10px;
+      margin: 10px 0 16px;
     }
 
     .pack-card {
@@ -1937,11 +1946,45 @@
     }
 
     .compact-config-toolbar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      align-items: stretch;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .config-action-group {
+      display: grid;
+      gap: 8px;
+      align-content: start;
+      padding: 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      background: rgba(15, 23, 42, 0.48);
+    }
+
+    .config-action-group.danger {
+      border-color: rgba(248, 113, 113, 0.30);
+      background: rgba(127, 29, 29, 0.10);
+    }
+
+    .config-action-label {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .config-action-buttons {
       display: flex;
       flex-wrap: wrap;
-      align-items: center;
       gap: 8px;
-      margin-bottom: 10px;
+    }
+
+    .config-action-buttons .button-link,
+    .config-action-buttons button {
+      min-width: 132px;
     }
 
     .config-mode-panel {
@@ -2101,7 +2144,7 @@
             Last refreshed: <span id="fetched-at-value">{{ live.fetched_at }}</span>
           </div>
         </div>
-        <button class="icon-button summary-refresh" type="button" onclick="refreshStatus()" aria-label="Refresh tech status" title="Refresh tech status">
+        <button class="icon-button summary-refresh" type="button" onclick="reloadTab('status')" aria-label="Refresh tech status" title="Refresh tech status">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M21 12a9 9 0 0 1-15.5 6.2"></path>
             <path d="M3 12a9 9 0 0 1 15.5-6.2"></path>
@@ -2490,7 +2533,7 @@
             <p id="user-dashboard-summary">{{ live.user_summary.summary }}</p>
             <div id="dashboard-refresh-message" class="dashboard-refresh-message">Dashboard refreshed at {{ live.fetched_at }}</div>
           </div>
-          <button class="icon-button" type="button" onclick="refreshDashboard()" aria-label="Refresh dashboard" title="Refresh dashboard">
+          <button class="icon-button" type="button" onclick="reloadTab('dashboard')" aria-label="Refresh dashboard" title="Refresh dashboard">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M21 12a9 9 0 0 1-15.5 6.2"></path>
               <path d="M3 12a9 9 0 0 1 15.5-6.2"></path>
@@ -2627,8 +2670,19 @@
             <h2>Setup Checklist</h2>
             <p>{{ setup_checklist.summary }}</p>
           </div>
-          <span class="setup-progress">{{ setup_checklist.ready_count }} / {{ setup_checklist.total_count }} ready</span>
+          <div class="setup-checklist-actions">
+            <span class="setup-progress">{{ setup_checklist.ready_count }} / {{ setup_checklist.total_count }} ready</span>
+            <button class="icon-button" type="button" onclick="reloadTab('setup')" aria-label="Refresh setup" title="Refresh setup">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M21 12a9 9 0 0 1-15.5 6.2"></path>
+                <path d="M3 12a9 9 0 0 1 15.5-6.2"></path>
+                <path d="M18.5 2.8v3.5h-3.5"></path>
+                <path d="M5.5 21.2v-3.5h3.5"></path>
+              </svg>
+            </button>
+          </div>
         </div>
+        <div id="setup-refresh-marker" hidden></div>
 
         {% if setup_checklist.telegram_enabled and not setup_checklist.telegram_configured %}
           <div class="alert">Telegram notifications are enabled, but the bot token or chat ID is missing or still uses placeholder values. Direct Telegram alerts will be skipped until real values are saved.</div>
@@ -2679,18 +2733,38 @@
           </div>
 
           <div class="compact-config-toolbar">
-            <button id="save-config-button" class="primary-button" type="submit" form="config-save-form">Save Configuration</button>
-            <button id="discard-all-button" type="button" class="secondary-button" onclick="discardAllConfigChanges()">Discard Changes</button>
-            <form class="inline-action-form" method="post" action="create-config-backup">
-              <input type="hidden" name="active_tab" value="config">
-              <button class="secondary-button" type="submit">Create Backup</button>
-            </form>
-            <a class="button-link secondary-button" href="?tab=backups">Manage Backups</a>
-            <a class="button-link secondary-button" href="download-sanitized-yaml">Download Sanitized YAML</a>
-            <form class="inline-action-form" method="post" action="restart-addon">
-              <input type="hidden" name="active_tab" value="config">
-              <button type="submit" class="danger-button">Restart Add-on</button>
-            </form>
+            <div class="config-action-group">
+              <div class="config-action-label">Save changes</div>
+              <div class="config-action-buttons">
+                <button id="save-config-button" class="primary-button" type="submit" form="config-save-form">Save Configuration</button>
+                <button id="discard-all-button" type="button" class="secondary-button" onclick="discardAllConfigChanges()">Discard Changes</button>
+              </div>
+            </div>
+            <div class="config-action-group">
+              <div class="config-action-label">Backups</div>
+              <div class="config-action-buttons">
+                <form class="inline-action-form" method="post" action="create-config-backup">
+                  <input type="hidden" name="active_tab" value="config">
+                  <button class="secondary-button" type="submit">Create Backup</button>
+                </form>
+                <a class="button-link secondary-button" href="?tab=backups">Manage Backups</a>
+              </div>
+            </div>
+            <div class="config-action-group">
+              <div class="config-action-label">Export</div>
+              <div class="config-action-buttons">
+                <a class="button-link secondary-button" href="download-sanitized-yaml">Download Sanitized YAML</a>
+              </div>
+            </div>
+            <div class="config-action-group danger">
+              <div class="config-action-label">Add-on action</div>
+              <div class="config-action-buttons">
+                <form class="inline-action-form" method="post" action="restart-addon">
+                  <input type="hidden" name="active_tab" value="config">
+                  <button type="submit" class="danger-button">Restart Add-on</button>
+                </form>
+              </div>
+            </div>
           </div>
 
           <div class="config-mode-panel">
@@ -2995,7 +3069,7 @@ This cannot be undone.`);">
       <section class="card wide-card status-header-card {% if diagnostics %}{{ diagnostics.live.overall_class }}{% endif %}">
         <h2>Diagnostics</h2>
         <p>Health overview and redacted support information for the add-on. This page reads MQTT/add-on state only and does not write to the BMS. It auto-refreshes every 15 seconds while open.</p>
-        <button class="icon-button" type="button" onclick="refreshDiagnostics()" aria-label="Refresh diagnostics" title="Refresh diagnostics">
+        <button class="icon-button" type="button" onclick="reloadTab('diagnostics')" aria-label="Refresh diagnostics" title="Refresh diagnostics">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M21 12a9 9 0 0 1-15.5 6.2"></path>
             <path d="M3 12a9 9 0 0 1 15.5-6.2"></path>
@@ -3201,6 +3275,10 @@ This cannot be undone.`);">
   </main>
 
   <script>
+    function reloadTab(tabName) {
+      window.location.href = "?tab=" + encodeURIComponent(tabName);
+    }
+
     function setText(id, value) {
       const el = document.getElementById(id);
       if (el) {
@@ -3968,6 +4046,15 @@ Restart the add-on afterwards for runtime changes to apply.`);
       window.setInterval(function () {
         refreshDashboard();
       }, 30000);
+    });
+
+
+    document.addEventListener("DOMContentLoaded", function () {
+      const setupPanel = document.querySelector('.tab-panel.active #setup-refresh-marker');
+      if (!setupPanel) return;
+      window.setInterval(function () {
+        reloadTab("setup");
+      }, 15000);
     });
 
 

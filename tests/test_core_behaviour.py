@@ -325,6 +325,8 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Setup Checklist", response.data)
         self.assertIn(b"Setup Tests", response.data)
+        self.assertIn(b"Refresh setup", response.data)
+        self.assertIn(b"setup-refresh-marker", response.data)
 
     def test_status_page_renders_technician_view(self):
         options = {
@@ -401,6 +403,7 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertNotIn(b"Refresh Status", response.data)
         self.assertNotIn(b"Open Setup", response.data)
         self.assertNotIn(b"Tech Status auto-refresh runs every 15 seconds", response.data)
+        self.assertIn(b"Refresh tech status", response.data)
         self.assertIn(b"Warning Intelligence", response.data)
         self.assertIn(b"Energy & Health", response.data)
         self.assertIn(b"Capacity", response.data)
