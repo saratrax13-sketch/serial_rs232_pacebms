@@ -1743,6 +1743,79 @@
 
     .row:last-child { border-bottom: none; }
 
+    .reference-profile-bar {
+      display: grid;
+      grid-template-columns: minmax(170px, 0.8fr) minmax(220px, 1.2fr);
+      gap: 12px;
+      align-items: center;
+      margin: 8px 0 14px;
+    }
+
+    .reference-table-wrap {
+      overflow-x: auto;
+      margin-top: 8px;
+    }
+
+    .reference-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+    }
+
+    .reference-table th,
+    .reference-table td {
+      border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+      padding: 10px 8px;
+      vertical-align: middle;
+      text-align: left;
+    }
+
+    .reference-table th {
+      color: #bfdbfe;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    .reference-table td {
+      color: #e5e7eb;
+      font-size: 13px;
+    }
+
+    .reference-table .config-input {
+      min-width: 92px;
+      max-width: 132px;
+    }
+
+    .reference-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 10px 0 2px;
+    }
+
+    .reference-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 5px 9px;
+      background: rgba(59, 130, 246, 0.12);
+      border: 1px solid rgba(59, 130, 246, 0.24);
+      color: #bfdbfe;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .reference-checkbox-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #dbeafe;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
     .key {
       color: #cbd5e1;
       font-size: 14px;
@@ -2971,6 +3044,66 @@
               </div>
 
               {% for item in items %}
+              {% if group_name == 'Battery Profile & References' %}
+                {% if loop.first %}
+                <div class="reference-profile-bar">
+                  <label class="key" for="cfg_battery_profile">battery_profile</label>
+                  <div class="value">
+                    <select id="cfg_battery_profile" class="config-input config-field" name="battery_profile" data-group="{{ group_name }}" data-original="{{ battery_reference_table.selected if battery_reference_table else 'auto' }}" onchange="updateBatteryReferencePreview()">
+                      {% for choice_value, choice_label in item.choices.items() %}
+                        <option value="{{ choice_value }}" {% if (battery_reference_table and battery_reference_table.selected == choice_value) or (not battery_reference_table and item.raw_value == choice_value) %}selected{% endif %}>{{ choice_label }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+
+                {% if battery_reference_table %}
+                <div class="reference-meta">
+                  <span class="reference-pill">Detected cells: {{ battery_reference_table.detected_cell_count }}</span>
+                  <span class="reference-pill" id="profile-reference-label">{{ battery_reference_table.profile_label }}</span>
+                  <span class="reference-pill" id="profile-reference-source">{{ battery_reference_table.reference_source }}</span>
+                </div>
+                <div class="reference-table-wrap">
+                  <table class="reference-table" aria-label="Battery profile reference values">
+                    <thead>
+                      <tr>
+                        <th>Reference value</th>
+                        <th>Profile reference</th>
+                        <th>Measured</th>
+                        <th>User defined</th>
+                        <th>Related option</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for row in battery_reference_table.rows %}
+                      <tr data-reference-row="{{ row.key }}">
+                        <td>{{ row.label }}</td>
+                        <td class="profile-reference-value" data-reference-key="{{ row.key }}">{{ row.reference }}</td>
+                        <td>{{ row.measured }}</td>
+                        <td>
+                          <input id="cfg_{{ row.user_key }}" class="config-input config-field" type="number" step="{{ row.step }}" name="{{ row.user_key }}" value="{{ row.user_value }}" data-group="{{ group_name }}" data-original="{{ row.user_value }}">
+                        </td>
+                        <td>
+                          {% if row.checkbox_key %}
+                            <label class="reference-checkbox-label">
+                              <input id="cfg_{{ row.checkbox_key }}" class="config-checkbox config-field" type="checkbox" name="{{ row.checkbox_key }}" data-group="{{ group_name }}" data-original="{% if row.checkbox_value %}true{% else %}false{% endif %}" {% if row.checkbox_value %}checked{% endif %}>
+                              {{ row.checkbox_label }}
+                            </label>
+                          {% else %}
+                            <span class="reference-pill">{{ row.checkbox_label }}</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+                <div class="helper-note">
+                  Profile references are used for UI and Telegram explanation only. User-defined values are saved as add-on options and are never written to the BMS.
+                </div>
+                {% endif %}
+                {% endif %}
+              {% else %}
               <div class="row">
                 <label class="key" for="cfg_{{ item.key }}">{{ item.key }}</label>
                 <div class="value">
@@ -2991,6 +3124,7 @@
                   {% endif %}
                 </div>
               </div>
+              {% endif %}
               {% endfor %}
 
               <button class="revert-card-button" type="button" onclick="revertConfigCard('{{ group_name }}')">Revert This Card</button>
@@ -4037,9 +4171,14 @@ Restart the add-on afterwards for runtime changes to apply.`);
         form.querySelectorAll(".config-field").forEach(function (field) {
           field.addEventListener("change", markConfigDirty);
           field.addEventListener("input", markConfigDirty);
+          if (["battery_profile", "notify_cell_high_warn_voltage", "notify_cell_low_warn_voltage", "notify_cell_delta_warn_mv", "notify_temp_high_warn_c", "notify_temp_low_warn_c"].includes(field.name)) {
+            field.addEventListener("change", updateBatteryReferencePreview);
+            field.addEventListener("input", updateBatteryReferencePreview);
+          }
         });
 
         updateConfigDirtyState();
+        updateBatteryReferencePreview();
 
         form.addEventListener("submit", function () {
           configSaveSubmitting = true;
@@ -4050,6 +4189,31 @@ Restart the add-on afterwards for runtime changes to apply.`);
 
 
     const configHelpContent = {
+      "Battery Profile & References": {
+        title: "Battery Profile & References Settings",
+        html: `
+          <p>This section compares the latest measured battery values with the read-only reference values used by the add-on for Telegram and UI explanations.</p>
+
+          <h3>How the table works</h3>
+          <ul>
+            <li><strong>Profile reference</strong> changes when you select a battery profile.</li>
+            <li><strong>Measured</strong> is the latest retained MQTT value from the BMS.</li>
+            <li><strong>User defined</strong> is the editable add-on option that can override the profile when you use <code>custom</code>.</li>
+            <li><strong>Related option</strong> controls whether that detail is included or reported.</li>
+          </ul>
+
+          <h3>Profiles</h3>
+          <ul>
+            <li><code>auto</code> chooses a profile from the detected cell count.</li>
+            <li><code>p13s_hubble_am2</code> uses 13S / Hubble AM2-style references.</li>
+            <li><code>p16s_eenovance_mana</code> uses 16S LFP / Eenovance MANA-style references.</li>
+            <li><code>custom</code> uses the user-defined values in this table.</li>
+          </ul>
+
+          <h3>Safety note</h3>
+          <p>These values are reference values for explanation and notification policy only. They do not write thresholds to the BMS and they do not control charge or discharge FETs.</p>
+        `
+      },
       "Telegram": {
         title: "Telegram Settings",
         html: `
@@ -4066,6 +4230,17 @@ Restart the add-on afterwards for runtime changes to apply.`);
           </ul>
           <h3>Safety note</h3>
           <p>Telegram settings only affect notifications. They do not write to the BMS.</p>
+        `
+      },
+      "FET Notifications": {
+        title: "FET Notification Settings",
+        html: `
+          <p>These settings only decide when the add-on should notify about charge/discharge FET state changes.</p>
+          <ul>
+            <li><code>notify_ignore_charge_fet_off_when_full</code> avoids noisy charge-FET alerts when the pack is already full.</li>
+            <li><code>notify_alert_discharge_fet_off</code> enables an alert when the discharge FET turns off.</li>
+          </ul>
+          <p>These settings do not control FETs and do not write to the BMS.</p>
         `
       },
       "Notifications": {
@@ -4085,7 +4260,6 @@ Restart the add-on afterwards for runtime changes to apply.`);
             <li><code>notify_warnings</code> enables BMS warning notifications.</li>
             <li><code>notify_fet</code> enables charge/discharge FET notifications.</li>
             <li><code>notify_daily_summary</code> enables the daily battery summary.</li>
-            <li><code>notify_delta_report</code> enables cell delta reports.</li>
           </ul>
           <p>These settings only decide what the add-on reports. They do not change BMS behaviour.</p>
         `
@@ -4152,29 +4326,9 @@ Restart the add-on afterwards for runtime changes to apply.`);
             <li><code>notify_warning_detail_enabled</code> — enables detailed warning explanations. When enabled, the add-on includes extra information such as highest cell, lowest cell, pack voltage and reference checks.</li>
           </ul>
 
-          <h3>Voltage reference values</h3>
+          <h3>Detail options</h3>
           <ul>
-            <li><code>battery_profile</code> — selects the read-only reference profile. <code>auto</code> uses detected cell count, <code>p13s_hubble_am2</code> uses 13S references, <code>p16s_eenovance_mana</code> uses 16S LFP references, and <code>custom</code> uses your configured values.</li>
-            <li><code>notify_cell_high_warn_voltage</code> — the high-cell voltage reference used for explanations. Example: <code>4.20</code> V. If the BMS reports a high-cell warning, the add-on compares the highest cell against this value.</li>
-            <li><code>notify_cell_low_warn_voltage</code> — the low-cell voltage reference used for explanations. Example: <code>3.00</code> V. If the BMS reports a low-cell warning, the add-on compares the lowest cell against this value.</li>
-            <li><code>notify_cell_delta_warn_mv</code> — the cell voltage difference reference in millivolts. Example: <code>100</code> mV. This helps identify if the highest and lowest cells are too far apart.</li>
-          </ul>
-
-          <h3>Temperature reference values</h3>
-          <ul>
-            <li><code>notify_temp_high_warn_c</code> — the high temperature reference in degrees Celsius. Example: <code>55</code> °C.</li>
-            <li><code>notify_temp_low_warn_c</code> — the low temperature reference in degrees Celsius. Example: <code>10</code> °C or <code>0</code> °C, depending on your preference and battery specification.</li>
-          </ul>
-
-          <h3>Cell detail options</h3>
-          <ul>
-            <li><code>notify_include_all_cells_above_threshold</code> — when enabled, the warning message can include all cells above the configured high-cell reference, not only the highest cell.</li>
-            <li><code>notify_include_all_cells_below_threshold</code> — when enabled, the warning message can include all cells below the configured low-cell reference, not only the lowest cell.</li>
             <li><code>notify_include_highest_and_lowest_cell</code> — includes the highest and lowest cell numbers and voltages in warning detail messages.</li>
-          </ul>
-
-          <h3>Pack and summary detail options</h3>
-          <ul>
             <li><code>notify_include_pack_voltage</code> — includes the pack voltage and calculated pack reference voltage. For example, a 13-cell pack with a 4.20 V high-cell reference gives a 54.60 V pack high reference.</li>
             <li><code>notify_include_soc_soh</code> — includes State of Charge and State of Health in detailed warning messages.</li>
           </ul>
@@ -4184,8 +4338,8 @@ Restart the add-on afterwards for runtime changes to apply.`);
           <p>The BMS may trigger an internal warning before your configured reference is exceeded. The web UI separates <strong>BMS internal warning active</strong> from the configured <strong>Reference Check</strong> so you can see the difference.</p>
         `
       },
-      "Report Schedules": {
-        title: "Report Schedules Settings",
+      "Scheduled Reports": {
+        title: "Scheduled Reports Settings",
         html: `
           <p>These settings control when scheduled Telegram reports are sent.</p>
 
@@ -4200,6 +4354,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
           <ul>
             <li><code>notify_daily_summary_time</code> — the time the daily summary notification is sent. Example: <code>19:00</code>.</li>
             <li><code>daily_energy_current_deadband_a</code> — current below this value is ignored for daily charged/discharged kWh, so tiny zero-current noise does not create fake energy movement.</li>
+            <li><code>notify_delta_report</code> is shown in Battery Profile & References because it belongs to the cell-delta reference row.</li>
           </ul>
 
           <h3>Cell delta report</h3>
@@ -4310,6 +4465,98 @@ Restart the add-on afterwards for runtime changes to apply.`);
       if (title) title.textContent = help.title;
       if (content) content.innerHTML = help.html;
       if (modal) modal.classList.add("show");
+    }
+
+    const BATTERY_PROFILE_REFERENCE_DEFAULTS = {
+      auto: {
+        label: "Auto detect from cell count",
+        source: "profile defaults when cell count is known",
+        p13s: { high: 4.20, low: 3.00, delta: 100, tempHigh: 55, tempLow: 0 },
+        p16s: { high: 3.51, low: 2.80, delta: 50, tempHigh: 55, tempLow: 0 }
+      },
+      p13s_hubble_am2: {
+        label: "P13S / Hubble AM2 51V",
+        source: "battery profile defaults",
+        high: 4.20,
+        low: 3.00,
+        delta: 100,
+        tempHigh: 55,
+        tempLow: 0
+      },
+      p16s_eenovance_mana: {
+        label: "P16S / Eenovance MANA LFP 51.2V",
+        source: "battery profile defaults",
+        high: 3.51,
+        low: 2.80,
+        delta: 50,
+        tempHigh: 55,
+        tempLow: 0
+      },
+      custom: {
+        label: "Custom references",
+        source: "user custom settings"
+      }
+    };
+
+    function configNumberValue(name, fallback) {
+      const field = document.querySelector(`[name="${name}"]`);
+      if (!field) return fallback;
+      const parsed = parseFloat(String(field.value || "").replace(",", "."));
+      return Number.isFinite(parsed) ? parsed : fallback;
+    }
+
+    function setReferenceCell(key, value) {
+      const cell = document.querySelector(`[data-reference-key="${key}"]`);
+      if (cell) cell.textContent = value;
+    }
+
+    function updateBatteryReferencePreview() {
+      const profileField = document.getElementById("cfg_battery_profile");
+      if (!profileField) return;
+
+      const selected = profileField.value || "auto";
+      const detectedText = "{{ battery_reference_table.detected_cell_count if battery_reference_table else 'Unknown' }}";
+      const detectedCells = parseInt(detectedText, 10);
+      let reference = BATTERY_PROFILE_REFERENCE_DEFAULTS[selected] || BATTERY_PROFILE_REFERENCE_DEFAULTS.auto;
+
+      if (selected === "auto") {
+        if (Number.isFinite(detectedCells) && detectedCells >= 15) {
+          reference = { ...BATTERY_PROFILE_REFERENCE_DEFAULTS.p16s_eenovance_mana };
+        } else if (Number.isFinite(detectedCells) && detectedCells === 13) {
+          reference = { ...BATTERY_PROFILE_REFERENCE_DEFAULTS.p13s_hubble_am2 };
+        } else {
+          reference = {
+            label: "Auto detect from cell count",
+            source: "waiting for detected cell count",
+            high: configNumberValue("notify_cell_high_warn_voltage", 4.20),
+            low: configNumberValue("notify_cell_low_warn_voltage", 3.00),
+            delta: configNumberValue("notify_cell_delta_warn_mv", 100),
+            tempHigh: configNumberValue("notify_temp_high_warn_c", 55),
+            tempLow: configNumberValue("notify_temp_low_warn_c", 0)
+          };
+        }
+      } else if (selected === "custom") {
+        reference = {
+          label: "Custom references",
+          source: "user custom settings",
+          high: configNumberValue("notify_cell_high_warn_voltage", 4.20),
+          low: configNumberValue("notify_cell_low_warn_voltage", 3.00),
+          delta: configNumberValue("notify_cell_delta_warn_mv", 100),
+          tempHigh: configNumberValue("notify_temp_high_warn_c", 55),
+          tempLow: configNumberValue("notify_temp_low_warn_c", 0)
+        };
+      }
+
+      setReferenceCell("notify_cell_high_warn_voltage", `${reference.high.toFixed(2)} V`);
+      setReferenceCell("notify_cell_low_warn_voltage", `${reference.low.toFixed(2)} V`);
+      setReferenceCell("notify_cell_delta_warn_mv", `${reference.delta.toFixed(0)} mV`);
+      setReferenceCell("notify_temp_high_warn_c", `${reference.tempHigh.toFixed(0)} C`);
+      setReferenceCell("notify_temp_low_warn_c", `${reference.tempLow.toFixed(0)} C`);
+
+      const label = document.getElementById("profile-reference-label");
+      const source = document.getElementById("profile-reference-source");
+      if (label) label.textContent = reference.label;
+      if (source) source.textContent = reference.source;
     }
 
     function closeConfigHelp(event) {
@@ -4794,7 +5041,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
       validateReportScheduleValue("notify_delta_window_end", form, errors);
 
       if (errors.length) {
-        alert("Please fix the Report Schedules fields before saving:\n\n" + errors.map((e) => "- " + e).join("\n"));
+        alert("Please fix the Scheduled Reports fields before saving:\n\n" + errors.map((e) => "- " + e).join("\n"));
         return false;
       }
       return true;

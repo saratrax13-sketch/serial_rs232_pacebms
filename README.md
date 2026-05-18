@@ -26,7 +26,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.67"
+version: "2.6.68"
 ```
 
 ---
@@ -364,7 +364,7 @@ Optional groups:
 - **Notification Thresholds**: SOC/SOH/stale thresholds and severity-aware warning repeat intervals.
 - **Battery Profile & References**: read-only profile defaults and custom reference values used to explain BMS warnings.
 - **Warning Detail**: controls which measured values appear in warning explanations.
-- **Report Schedules**: daily summary and cell-delta report times.
+- **Scheduled Reports**: daily summary timing, daily energy deadband and cell-delta report times.
 
 With Full Monitoring configured:
 

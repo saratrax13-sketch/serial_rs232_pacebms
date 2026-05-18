@@ -22,6 +22,9 @@ BATTERY_PROFILE_DEFAULTS = {
         "cell_count": 13,
         "cell_high": 4.20,
         "cell_low": 3.00,
+        "delta_mv": 100,
+        "temp_high": 55,
+        "temp_low": 0,
         "note": "13S 51V profile. Pack high reference is 13 x 4.20 V = 54.60 V.",
     },
     PROFILE_P16S_MANA: {
@@ -29,6 +32,9 @@ BATTERY_PROFILE_DEFAULTS = {
         "cell_count": 16,
         "cell_high": 3.51,
         "cell_low": 2.80,
+        "delta_mv": 50,
+        "temp_high": 55,
+        "temp_low": 0,
         "note": "16S LFP profile based on 44.8-56.16 V operating range.",
     },
 }
@@ -81,17 +87,26 @@ def effective_warning_references(config, cell_count=None):
 
     configured_high = _as_float(config.get("notify_cell_high_warn_voltage", 4.20), 4.20)
     configured_low = _as_float(config.get("notify_cell_low_warn_voltage", 3.00), 3.00)
+    configured_delta = _as_float(config.get("notify_cell_delta_warn_mv", 100), 100)
+    configured_temp_high = _as_float(config.get("notify_temp_high_warn_c", 55), 55)
+    configured_temp_low = _as_float(config.get("notify_temp_low_warn_c", 0), 0)
 
     if effective in BATTERY_PROFILE_DEFAULTS:
         profile = BATTERY_PROFILE_DEFAULTS[effective]
         cell_high = float(profile["cell_high"])
         cell_low = float(profile["cell_low"])
+        delta_mv = float(profile["delta_mv"])
+        temp_high = float(profile["temp_high"])
+        temp_low = float(profile["temp_low"])
         source = "profile"
         label = str(profile["label"])
         note = str(profile["note"])
     else:
         cell_high = configured_high
         cell_low = configured_low
+        delta_mv = configured_delta
+        temp_high = configured_temp_high
+        temp_low = configured_temp_low
         source = "custom"
         label = BATTERY_PROFILE_CHOICES[PROFILE_CUSTOM]
         note = "Custom user-configured warning references."
@@ -112,6 +127,9 @@ def effective_warning_references(config, cell_count=None):
         "cell_low": cell_low,
         "pack_high": cell_high * cells if cells else None,
         "pack_low": cell_low * cells if cells else None,
+        "delta_mv": delta_mv,
+        "temp_high": temp_high,
+        "temp_low": temp_low,
         "cell_count": cells,
         "uses_configured_values": source == "custom",
     }

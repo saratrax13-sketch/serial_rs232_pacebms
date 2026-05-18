@@ -1,3 +1,17 @@
+## 2.6.68 - 2026-05-19
+
+### Changed
+- Reworked the Config tab Battery Profile & References card into a measured/reference/user-defined table.
+- Added profile-aware reference preview updates when the battery profile dropdown changes.
+- Added full help text for the Battery Profile & References info button.
+- Reorganized Config cards so FET notification settings, scheduled reports and battery reference settings are no longer mixed into unrelated sections.
+- Moved the daily energy current deadband into Scheduled Reports where the daily summary behavior is configured.
+
+### Notes
+- Battery profile/reference values remain read-only display and notification references.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.67 - 2026-05-18
 
 ### Added

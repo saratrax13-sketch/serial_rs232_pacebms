@@ -48,7 +48,7 @@ _LIVE_SNAPSHOT_WORKER_STARTED = False
 SECTION_HELP = {
     "Battery Profile & References": "Selects the read-only battery profile used for warning explanations. Auto detect uses detected cell count: 13S defaults suit Hubble AM2-style packs, and 16S defaults suit Eenovance MANA LFP-style packs. Custom references use your configured cell high/low values. These references affect UI and Telegram interpretation only; they never write to the BMS.",
     "Notification Thresholds": "Controls SOC, SOH, stale-data and BMS warning repeat timing. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale and warning repeat values are in seconds. BMS warning repeats are severity-aware: caution repeats for low-risk ongoing warnings, warning repeats for near-limit conditions, and critical repeats for protection/fault or measured values outside configured references.",
-    "Report Schedules": "Controls scheduled notification times for the daily summary and cell delta report. Use 24-hour HH:MM format, for example 19:00, 10:15 or 00:00. The delta window start/end values define the time range used for the delta report.",
+    "Scheduled Reports": "Controls scheduled Telegram report toggles, report times, delta report window and the daily energy current deadband. Use 24-hour HH:MM format, for example 19:00, 10:15 or 00:00.",
 }
 
 CONFIG_SECTION_BADGES = {
@@ -57,10 +57,11 @@ CONFIG_SECTION_BADGES = {
     "Advanced": "Required",
     "Telegram": "Optional",
     "Notifications": "Optional",
+    "FET Notifications": "Optional",
     "Battery Profile & References": "Optional",
     "Notification Thresholds": "Optional",
     "Warning Detail": "Optional",
-    "Report Schedules": "Optional",
+    "Scheduled Reports": "Optional",
 }
 
 CONFIG_SECTION_TIERS = {
@@ -69,10 +70,11 @@ CONFIG_SECTION_TIERS = {
     "Advanced": "required",
     "Telegram": "monitoring",
     "Notifications": "monitoring",
+    "FET Notifications": "monitoring",
     "Battery Profile & References": "monitoring",
     "Notification Thresholds": "monitoring",
     "Warning Detail": "monitoring",
-    "Report Schedules": "monitoring",
+    "Scheduled Reports": "monitoring",
 }
 
 GROUPS = {
@@ -116,8 +118,8 @@ GROUPS = {
         "notify_soh_on_startup",
         "notify_warnings",
         "notify_fet",
-        "notify_daily_summary",
-        "notify_delta_report",
+    ],
+    "FET Notifications": [
         "notify_ignore_charge_fet_off_when_full",
         "notify_alert_discharge_fet_off",
     ],
@@ -141,16 +143,18 @@ GROUPS = {
         "notify_cell_delta_warn_mv",
         "notify_temp_high_warn_c",
         "notify_temp_low_warn_c",
+        "notify_include_all_cells_above_threshold",
+        "notify_include_all_cells_below_threshold",
+        "notify_delta_report",
     ],
     "Warning Detail": [
         "notify_warning_detail_enabled",
-        "notify_include_all_cells_above_threshold",
-        "notify_include_all_cells_below_threshold",
         "notify_include_highest_and_lowest_cell",
         "notify_include_pack_voltage",
         "notify_include_soc_soh",
     ],
-    "Report Schedules": [
+    "Scheduled Reports": [
+        "notify_daily_summary",
         "notify_daily_summary_time",
         "daily_energy_current_deadband_a",
         "notify_delta_report_time",
@@ -2020,8 +2024,10 @@ It does not send BMS control commands.
 
 
 CARD_HELP = {
+    "Battery Profile & References": "Shows measured battery values beside profile/default references and user-configured references. The profile dropdown changes the reference column. The editable values are Home Assistant add-on options only and never write to the BMS.",
+    "FET Notifications": "Controls charge/discharge FET notification behavior. These settings only decide when to alert; they do not control FETs.",
     "Notification Thresholds": "Controls SOC, SOH, stale-data and BMS warning repeat timing. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale and warning repeat values are in seconds. BMS warning repeats are severity-aware: caution repeats for low-risk ongoing warnings, warning repeats for near-limit conditions, and critical repeats for protection/fault or measured values outside configured references.",
-    "Report Schedules": "Controls scheduled notification times for the daily summary and cell delta report. Use 24-hour HH:MM format, for example 19:00, 10:15 or 00:00. The delta window start/end values define the time range used for the delta report.",
+    "Scheduled Reports": "Controls scheduled Telegram reports, daily summary timing, energy deadband and cell delta report window. These settings do not write to the BMS.",
 }
 
 FIELD_HELP = {
@@ -2452,6 +2458,128 @@ def build_log_view(options):
     }
 
 
+def _fmt_reference_value(value, unit="", decimals=2):
+    try:
+        number = float(value)
+    except Exception:
+        return "Unknown"
+    if decimals == 0:
+        return f"{number:.0f}{unit}"
+    return f"{number:.{decimals}f}{unit}"
+
+
+def build_battery_reference_table(options, live):
+    """Build the Config-tab profile/reference table.
+
+    This is a display/form helper only. It does not write to the BMS.
+    """
+    options = options or {}
+    live = live or {}
+    packs = live.get("packs") or []
+    cell_counts = []
+    highest_cells = []
+    lowest_cells = []
+    deltas = []
+    temps = []
+
+    for pack in packs:
+        try:
+            cell_counts.append(int(pack.get("cell_count") or 0))
+        except Exception:
+            pass
+        high_v = _to_float((pack.get("highest_cell") or {}).get("voltage"))
+        low_v = _to_float((pack.get("lowest_cell") or {}).get("voltage"))
+        delta_v = _to_float(pack.get("delta"))
+        if high_v is not None:
+            highest_cells.append(high_v)
+        if low_v is not None:
+            lowest_cells.append(low_v)
+        if delta_v is not None:
+            deltas.append(delta_v)
+        for temp in pack.get("temperatures", []) or []:
+            temp_v = _to_float(temp)
+            if temp_v is not None:
+                temps.append(temp_v)
+
+    detected_cell_count = max(cell_counts) if cell_counts else None
+    refs = effective_warning_references(options, detected_cell_count)
+    selected = normalize_profile(options.get("battery_profile", "auto"))
+
+    def opt(key, default=""):
+        return options.get(key, DEFAULT_OPTION_VALUES.get(key, default))
+
+    rows = [
+        {
+            "label": "High cell voltage",
+            "key": "notify_cell_high_warn_voltage",
+            "reference": _fmt_reference_value(refs.get("cell_high"), " V", 2),
+            "measured": _fmt_reference_value(max(highest_cells), " V", 3) if highest_cells else "Waiting for data",
+            "user_key": "notify_cell_high_warn_voltage",
+            "user_value": opt("notify_cell_high_warn_voltage", 4.20),
+            "step": "0.01",
+            "checkbox_key": "notify_include_all_cells_above_threshold",
+            "checkbox_label": "Include all high cells",
+            "checkbox_value": bool(opt("notify_include_all_cells_above_threshold", True)),
+        },
+        {
+            "label": "Low cell voltage",
+            "key": "notify_cell_low_warn_voltage",
+            "reference": _fmt_reference_value(refs.get("cell_low"), " V", 2),
+            "measured": _fmt_reference_value(min(lowest_cells), " V", 3) if lowest_cells else "Waiting for data",
+            "user_key": "notify_cell_low_warn_voltage",
+            "user_value": opt("notify_cell_low_warn_voltage", 3.00),
+            "step": "0.01",
+            "checkbox_key": "notify_include_all_cells_below_threshold",
+            "checkbox_label": "Include all low cells",
+            "checkbox_value": bool(opt("notify_include_all_cells_below_threshold", True)),
+        },
+        {
+            "label": "Cell delta",
+            "key": "notify_cell_delta_warn_mv",
+            "reference": _fmt_reference_value(refs.get("delta_mv"), " mV", 0),
+            "measured": _fmt_reference_value(max(deltas), " mV", 0) if deltas else "Waiting for data",
+            "user_key": "notify_cell_delta_warn_mv",
+            "user_value": opt("notify_cell_delta_warn_mv", 100),
+            "step": "1",
+            "checkbox_key": "notify_delta_report",
+            "checkbox_label": "Delta report",
+            "checkbox_value": bool(opt("notify_delta_report", True)),
+        },
+        {
+            "label": "High temperature",
+            "key": "notify_temp_high_warn_c",
+            "reference": _fmt_reference_value(refs.get("temp_high"), " C", 0),
+            "measured": _fmt_reference_value(max(temps), " C", 1) if temps else "Waiting for data",
+            "user_key": "notify_temp_high_warn_c",
+            "user_value": opt("notify_temp_high_warn_c", 55),
+            "step": "1",
+            "checkbox_key": None,
+            "checkbox_label": "Warnings enabled",
+            "checkbox_value": bool(opt("notify_warnings", True)),
+        },
+        {
+            "label": "Low temperature",
+            "key": "notify_temp_low_warn_c",
+            "reference": _fmt_reference_value(refs.get("temp_low"), " C", 0),
+            "measured": _fmt_reference_value(min(temps), " C", 1) if temps else "Waiting for data",
+            "user_key": "notify_temp_low_warn_c",
+            "user_value": opt("notify_temp_low_warn_c", 0),
+            "step": "1",
+            "checkbox_key": None,
+            "checkbox_label": "Uses warnings enabled",
+            "checkbox_value": bool(opt("notify_warnings", True)),
+        },
+    ]
+
+    return {
+        "selected": selected,
+        "detected_cell_count": detected_cell_count or "Unknown",
+        "profile_label": refs.get("profile_label", "Unknown"),
+        "reference_source": "battery profile defaults" if refs.get("source") == "profile" else "user custom settings",
+        "rows": rows,
+    }
+
+
 def render_index(action_result="", action_message="", active_tab="dashboard", compare_data=None, restore_preview=None):
     options, error = load_options()
     grouped = build_grouped_config(options)
@@ -2459,6 +2587,7 @@ def render_index(action_result="", action_message="", active_tab="dashboard", co
     # Live tabs render from a warm retained-MQTT cache so tab clicks are not blocked
     # by a fresh broker round trip. The cache is refreshed in the background.
     live = attach_monitoring_health(options, get_page_live_snapshot(options)) if options and active_tab in ("status", "dashboard", "setup", "diagnostics") else None
+    config_live = get_page_live_snapshot(options) if options and active_tab == "config" else None
     setup_checklist = build_setup_checklist(options, live) if options else None
 
     return render_template(
@@ -2477,6 +2606,7 @@ def render_index(action_result="", action_message="", active_tab="dashboard", co
         restore_preview=restore_preview,
         diagnostics=build_diagnostics(options, live) if options and active_tab == "diagnostics" else None,
         log_view=build_log_view(options) if options and active_tab == "logs" else None,
+        battery_reference_table=build_battery_reference_table(options, config_live) if options and active_tab == "config" else None,
         setup_checklist=setup_checklist,
         card_help=CARD_HELP,
         field_help=FIELD_HELP,

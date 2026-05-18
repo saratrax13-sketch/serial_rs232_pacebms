@@ -421,6 +421,45 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"Refresh setup", response.data)
         self.assertIn(b"setup-refresh-marker", response.data)
 
+    def test_config_page_renders_battery_reference_table(self):
+        options = dict(web_config.DEFAULT_OPTION_VALUES)
+        live = {
+            "ok": True,
+            "availability": "online",
+            "monitor_state": "running",
+            "stale": "OFF",
+            "overall_status": "Healthy",
+            "overall_class": "healthy",
+            "layout": "1 pack(s), 16 cells total",
+            "bms_sn": "TEST",
+            "base_topic": "pacebms",
+            "fetched_at": "now",
+            "error": "",
+            "packs": [{
+                "id": "01",
+                "cell_count": 16,
+                "highest_cell": {"number": "08", "voltage": "3.440"},
+                "lowest_cell": {"number": "01", "voltage": "3.390"},
+                "delta": "50",
+                "temperatures": [28.0, 29.0],
+            }],
+        }
+
+        with (
+            patch("web_config.load_options", return_value=(options, "")),
+            patch("web_config.get_page_live_snapshot", return_value=live),
+            patch("web_config.load_events", return_value=[]),
+        ):
+            response = web_config.app.test_client().get("/?tab=config")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Battery Profile &amp; References", response.data)
+        self.assertIn(b"Profile reference", response.data)
+        self.assertIn(b"Measured", response.data)
+        self.assertIn(b"User defined", response.data)
+        self.assertIn(b"FET Notifications", response.data)
+        self.assertIn(b"Scheduled Reports", response.data)
+
     def test_status_page_renders_technician_view(self):
         options = {
             "connection_type": "Serial",
