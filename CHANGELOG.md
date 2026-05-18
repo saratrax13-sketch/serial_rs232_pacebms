@@ -1,3 +1,14 @@
+## 2.6.59 - 2026-05-18
+
+### Fixed
+- Reverted the short page-render MQTT snapshot because it could open live tabs with missing or unknown data.
+- Restored reliable retained MQTT data loading for Dashboard, Tech Status, Setup and Diagnostics page renders.
+
+### Notes
+- This restores the stable live-tab behavior from before 2.6.58.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.58 - 2026-05-18
 
 ### Changed

@@ -25,9 +25,6 @@ MAX_CONFIG_BACKUPS = 10
 MAX_EVENT_LOG_ENTRIES = 50
 DEPRECATED_OPTION_KEYS = {"bms_ip", "bms_port"}
 WEB_STARTED_AT = time.time()
-PAGE_MQTT_SNAPSHOT_TIMEOUT = 0.05
-LIVE_SNAPSHOT_CACHE_TTL = 300
-_live_snapshot_cache = {"ts": 0.0, "data": None}
 
 SECTION_HELP = {
     "Notification Thresholds": "Controls SOC, SOH, stale-data and BMS warning repeat timing. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale and warning repeat values are in seconds. BMS warning repeats are severity-aware: caution repeats for low-risk ongoing warnings, warning repeats for near-limit conditions, and critical repeats for protection/fault or measured values outside configured references.",
@@ -1516,31 +1513,6 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
     return result
 
 
-def fetch_page_mqtt_snapshot(options):
-    """Return a fast live snapshot for page render, falling back to recent cache.
-
-    Full live refreshes still happen through /api/status. Keeping initial page
-    render fast makes tab clicks feel immediate while retained MQTT data catches
-    up after the tab is visible.
-    """
-    global _live_snapshot_cache
-
-    live = fetch_mqtt_snapshot(options, timeout=PAGE_MQTT_SNAPSHOT_TIMEOUT)
-    if live.get("ok") or live.get("packs"):
-        _live_snapshot_cache = {"ts": time.time(), "data": live}
-        return live
-
-    cached = _live_snapshot_cache.get("data")
-    cached_age = time.time() - float(_live_snapshot_cache.get("ts", 0.0) or 0.0)
-    if cached and cached_age <= LIVE_SNAPSHOT_CACHE_TTL:
-        cached_copy = json.loads(json.dumps(cached))
-        cached_copy["error"] = live.get("error") or cached_copy.get("error", "")
-        cached_copy["fetched_at"] = cached_copy.get("fetched_at", "Cached")
-        return cached_copy
-
-    return live
-
-
 def input_type_for_value(key, value):
     if isinstance(value, bool):
         return "checkbox"
@@ -2162,9 +2134,8 @@ def render_index(action_result="", action_message="", active_tab="dashboard", co
     options, error = load_options()
     grouped = build_grouped_config(options)
 
-    # Page renders use a short MQTT read/cache so tab clicks feel immediate.
-    # Full live refreshes still use /api/status after the page is visible.
-    live = attach_monitoring_health(options, fetch_page_mqtt_snapshot(options)) if options and active_tab in ("status", "dashboard", "setup", "diagnostics") else None
+    # Fetch retained MQTT values for live tabs so server-rendered data is populated.
+    live = attach_monitoring_health(options, fetch_mqtt_snapshot(options)) if options and active_tab in ("status", "dashboard", "setup", "diagnostics") else None
     setup_checklist = build_setup_checklist(options, live) if options else None
 
     return render_template(
