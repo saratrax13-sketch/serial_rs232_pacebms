@@ -363,6 +363,48 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"Refresh setup", response.data)
         self.assertIn(b"setup-refresh-marker", response.data)
 
+    def test_live_tabs_use_fast_page_snapshot(self):
+        options = {
+            "connection_type": "Serial",
+            "bms_serial": "/dev/ttyUSB0",
+            "mqtt_host": "192.168.1.10",
+            "mqtt_port": 1883,
+            "notify_enabled": False,
+        }
+        live = {
+            "ok": True,
+            "availability": "online",
+            "monitor_state": "running",
+            "stale": "OFF",
+            "last_analog_read": "Unknown",
+            "last_warn_read": "Unknown",
+            "analog_age_seconds": 1,
+            "warn_age_seconds": 1,
+            "overall_status": "OK",
+            "overall_class": "healthy",
+            "layout": "No packs detected",
+            "bms_sn": "TEST",
+            "base_topic": "pacebms",
+            "fetched_at": "now",
+            "error": "",
+            "pack_count": 0,
+            "total_cells": 0,
+            "warning_count": 0,
+            "severity_summary": {},
+            "packs": [],
+        }
+
+        with (
+            patch("web_config.load_options", return_value=(options, "")),
+            patch("web_config.fetch_mqtt_snapshot", return_value=live) as fetch_snapshot,
+            patch("web_config.load_events", return_value=[]),
+        ):
+            response = web_config.app.test_client().get("/?tab=status")
+
+        self.assertEqual(response.status_code, 200)
+        fetch_snapshot.assert_called()
+        self.assertEqual(fetch_snapshot.call_args.kwargs.get("timeout"), web_config.PAGE_MQTT_SNAPSHOT_TIMEOUT)
+
     def test_status_page_renders_technician_view(self):
         options = {
             "connection_type": "Serial",

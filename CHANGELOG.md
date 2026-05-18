@@ -1,3 +1,34 @@
+## 2.6.58 - 2026-05-18
+
+### Changed
+- Made live tabs render with a short cached MQTT snapshot so tab clicks feel immediate.
+- Kept full live MQTT refresh through `/api/status` after the tab is visible.
+
+### Notes
+- This is a web UI responsiveness update only.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
+## 2.6.57 - 2026-05-18
+
+### Changed
+- Tightened top navigation tab spacing so equal-width buttons sit closer together.
+
+### Notes
+- This is a UI layout polish update only.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
+## 2.6.56 - 2026-05-18
+
+### Changed
+- Adjusted top navigation tabs to be wider, slimmer and vertically centered.
+
+### Notes
+- This is a UI layout polish update only.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.55 - 2026-05-18
 
 ### Changed
