@@ -1,6 +1,7 @@
 ## 2.6.61 - 2026-05-18
 
 ### Fixed
+- Renamed the top navigation label from Admin Config to Config for a cleaner tab bar.
 - Made automatic Dashboard, Tech Status and Diagnostics refreshes quiet so they no longer flash visible "refreshing" text during every timer update.
 - Stopped Setup auto-refresh from reloading the whole page; it now quietly refreshes the retained MQTT cache in the background.
 
