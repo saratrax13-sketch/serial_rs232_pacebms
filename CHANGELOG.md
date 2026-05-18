@@ -1,3 +1,16 @@
+## 2.6.63 - 2026-05-18
+
+### Changed
+- Combined the Diagnostics page intro, support actions and live status/layout summary into one header card.
+- Kept the top navigation on one equal-width row so Tech Status no longer wraps onto two lines.
+- Improved the Logs empty/filter state with captured-line counts and clearer guidance about levels 2 and 3.
+- Added soft tab switching so main tab clicks replace only the active tab content instead of redrawing the full page.
+
+### Notes
+- This is a web UI responsiveness and layout polish update only.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.62 - 2026-05-18
 
 ### Added

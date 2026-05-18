@@ -104,9 +104,11 @@
 
     .tabs {
       display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
+      flex-wrap: nowrap;
+      gap: 8px;
       margin-bottom: 18px;
+      overflow-x: auto;
+      padding-bottom: 2px;
     }
 
     .tab-button {
@@ -118,12 +120,14 @@
       border: 1px solid rgba(148, 163, 184, 0.22);
       background: rgba(15, 23, 42, 0.60);
       font-weight: 900;
-      width: 118px;
+      width: 128px;
+      flex: 0 0 128px;
       text-align: center;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       line-height: 1.05;
+      white-space: nowrap;
     }
 
     .tab-button.active {
@@ -478,6 +482,14 @@
       position: absolute;
       top: 18px;
       right: 18px;
+    }
+
+    .diagnostics-header-summary {
+      display: grid;
+      grid-template-columns: minmax(220px, 0.8fr) minmax(320px, 1.4fr);
+      gap: 16px;
+      margin-top: 16px;
+      padding-right: 52px;
     }
 
     .chart-grid {
@@ -3122,6 +3134,13 @@ This cannot be undone.`);">
       <section class="card wide-card">
         <h2>Logs</h2>
         <p>Configured monitor <code>debug_output</code> is currently <code>{{ log_view.debug_output if log_view else 0 }}</code>. Changing <code>debug_output</code> in Config affects new monitor log detail after the add-on is restarted. The filters below only change what is displayed here.</p>
+        {% if log_view %}
+        <p>
+          Captured lines: <strong>{{ log_view.rows|length }}</strong>.
+          Visible at current level: <strong>{{ log_view.visible_at_default }}</strong>.
+          Level 2 would show <strong>{{ log_view.counts_by_level[2] }}</strong> line(s); level 3 would show <strong>{{ log_view.counts_by_level[3] }}</strong> line(s).
+        </p>
+        {% endif %}
         <div class="helper-note">
           Routine web access lines such as <code>GET /api/status</code> and <code>GET /health</code> are treated as Web UI debug level 3 noise. Keep the view on level 0 or 1 for daily use.
         </div>
@@ -3130,10 +3149,10 @@ This cannot be undone.`);">
           <div class="log-control">
             <label for="log-level-filter">Debug data to display</label>
             <select id="log-level-filter" onchange="filterLogs()">
-              <option value="0">0 - Normal events only</option>
-              <option value="1">1 - Summary troubleshooting</option>
-              <option value="2">2 - Poll detail</option>
-              <option value="3">3 - Protocol / Web UI debug</option>
+              <option value="0" {% if log_view and log_view.debug_output == 0 %}selected{% endif %}>0 - Normal events only</option>
+              <option value="1" {% if log_view and log_view.debug_output == 1 %}selected{% endif %}>1 - Summary troubleshooting</option>
+              <option value="2" {% if log_view and log_view.debug_output == 2 %}selected{% endif %}>2 - Poll detail</option>
+              <option value="3" {% if log_view and log_view.debug_output >= 3 %}selected{% endif %}>3 - Protocol / Web UI debug</option>
             </select>
           </div>
           <div class="log-control">
@@ -3263,10 +3282,9 @@ This cannot be undone.`);">
           <a class="button-link" href="download-support-bundle.zip">Download Support Bundle ZIP</a>
         </div>
         <div id="diagnostics-refresh-message" hidden></div>
-      </section>
 
-      {% if diagnostics %}
-      <section class="card wide-card summary-card compact-summary">
+        {% if diagnostics %}
+        <div class="diagnostics-header-summary">
         <div class="status-hero">
           <div class="status-label">Overall Status</div>
           <div id="diagnostics-overall-status" class="status-value {{ diagnostics.live.overall_class }}">{{ diagnostics.live.overall_status }}</div>
@@ -3287,8 +3305,11 @@ This cannot be undone.`);">
             Last warning: <span id="diagnostics-last-warning">{{ diagnostics.live.last_warn_read }}</span>
           </div>
         </div>
+        </div>
+        {% endif %}
       </section>
 
+      {% if diagnostics %}
       <section class="card wide-card">
         <h2>Battery Configuration</h2>
         <p>Detected pack topology and identity details. Pack serials are shown only where the current BMS read exposes them.</p>
@@ -3472,8 +3493,74 @@ This cannot be undone.`);">
   </main>
 
   <script>
+    let activeTabTimers = [];
+    let softTabLoading = false;
+
     function reloadTab(tabName) {
       window.location.href = "?tab=" + encodeURIComponent(tabName);
+    }
+
+    function clearActiveTabTimers() {
+      activeTabTimers.forEach(function (timerId) {
+        window.clearInterval(timerId);
+      });
+      activeTabTimers = [];
+    }
+
+    function addActiveTabTimer(callback, milliseconds) {
+      activeTabTimers.push(window.setInterval(callback, milliseconds));
+    }
+
+    async function openTabSoft(tabName, pushState = true) {
+      if (softTabLoading) return;
+      softTabLoading = true;
+      const targetUrl = "?tab=" + encodeURIComponent(tabName);
+
+      try {
+        const response = await fetch(targetUrl, { cache: "no-store" });
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        const html = await response.text();
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        const nextPanel = doc.querySelector(".tab-panel.active");
+        const currentPanel = document.querySelector(".tab-panel.active");
+        if (!nextPanel || !currentPanel) {
+          window.location.href = targetUrl;
+          return;
+        }
+
+        currentPanel.replaceWith(nextPanel);
+        document.querySelectorAll(".tab-button").forEach(function (button) {
+          const buttonTab = new URL(button.href, window.location.href).searchParams.get("tab") || "dashboard";
+          button.classList.toggle("active", buttonTab === tabName);
+        });
+
+        if (pushState) {
+          window.history.pushState({ tab: tabName }, "", targetUrl);
+        }
+        initializeConfigForm();
+        initializeReportScheduleFields();
+        initializeActivePanel();
+      } catch (err) {
+        window.location.href = targetUrl;
+      } finally {
+        softTabLoading = false;
+      }
+    }
+
+    function setupSoftTabs() {
+      document.querySelectorAll(".tabs .tab-button").forEach(function (button) {
+        button.addEventListener("click", function (event) {
+          const url = new URL(button.href, window.location.href);
+          const tabName = url.searchParams.get("tab") || "dashboard";
+          event.preventDefault();
+          openTabSoft(tabName, true);
+        });
+      });
+
+      window.addEventListener("popstate", function () {
+        const tabName = new URL(window.location.href).searchParams.get("tab") || "dashboard";
+        openTabSoft(tabName, false);
+      });
     }
 
     function setText(id, value) {
@@ -3573,14 +3660,44 @@ This cannot be undone.`);">
       }
     }
 
-    document.addEventListener("DOMContentLoaded", function () {
-      const statusPanel = document.querySelector('.tab-panel.active #refresh-message');
-      if (!statusPanel) return;
-      refreshStatus(true);
-      window.setInterval(function () {
+    function initializeActivePanel() {
+      clearActiveTabTimers();
+
+      if (document.querySelector('.tab-panel.active #refresh-message')) {
         refreshStatus(true);
-      }, 15000);
-    });
+        addActiveTabTimer(function () {
+          refreshStatus(true);
+        }, 15000);
+        return;
+      }
+
+      if (document.querySelector('.tab-panel.active #dashboard-refresh-message')) {
+        refreshDashboard(true);
+        addActiveTabTimer(function () {
+          refreshDashboard(true);
+        }, 30000);
+        return;
+      }
+
+      if (document.querySelector('.tab-panel.active #setup-refresh-marker')) {
+        addActiveTabTimer(function () {
+          refreshSetupCacheQuietly();
+        }, 15000);
+        return;
+      }
+
+      if (document.querySelector('.tab-panel.active #diagnostics-refresh-message')) {
+        refreshDiagnostics(true);
+        addActiveTabTimer(function () {
+          refreshDiagnostics(true);
+        }, 15000);
+        return;
+      }
+
+      if (document.querySelector('.tab-panel.active #log-table')) {
+        filterLogs();
+      }
+    }
   
     async function copyConfigYaml() {
       const area = document.getElementById("config-yaml");
@@ -3787,7 +3904,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
       event.returnValue = "";
     });
 
-    document.addEventListener("DOMContentLoaded", function () {
+    function initializeConfigForm() {
       const form = document.getElementById("config-save-form");
       let savedConfigMode = "full";
       try {
@@ -3810,7 +3927,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
           configDirty = false;
         });
       }
-    });
+    }
 
 
     const configHelpContent = {
@@ -4118,7 +4235,14 @@ Restart the add-on afterwards for runtime changes to apply.`);
       });
 
       const empty = document.getElementById("log-empty-filtered");
-      if (empty) empty.hidden = visibleCount > 0;
+      if (empty) {
+        empty.hidden = visibleCount > 0;
+        if (!empty.hidden) {
+          empty.textContent = level < 2
+            ? "No log lines match this view. Increase Debug data to display to level 2 for Analog/Warn read summaries, or level 3 for Web UI access lines."
+            : "No log lines match the current filters. Try All categories or clear the search box.";
+        }
+      }
     }
 
     function clearLogView() {
@@ -4133,11 +4257,6 @@ Restart the add-on afterwards for runtime changes to apply.`);
         empty.textContent = "Log view cleared. Refresh Logs to reload captured entries.";
       }
     }
-
-    document.addEventListener("DOMContentLoaded", function () {
-      filterLogs();
-    });
-
 
   
     function setDashboardText(selector, value) {
@@ -4277,16 +4396,6 @@ Restart the add-on afterwards for runtime changes to apply.`);
       }
     }
 
-    document.addEventListener("DOMContentLoaded", function () {
-      const dashboardPanel = document.querySelector('.tab-panel.active #dashboard-refresh-message');
-      if (!dashboardPanel) return;
-      refreshDashboard(true);
-      window.setInterval(function () {
-        refreshDashboard(true);
-      }, 30000);
-    });
-
-
     async function refreshSetupCacheQuietly() {
       try {
         await fetch("api/status", { cache: "no-store" });
@@ -4294,15 +4403,6 @@ Restart the add-on afterwards for runtime changes to apply.`);
         // Setup auto-refresh is intentionally quiet to avoid page flicker.
       }
     }
-
-    document.addEventListener("DOMContentLoaded", function () {
-      const setupPanel = document.querySelector('.tab-panel.active #setup-refresh-marker');
-      if (!setupPanel) return;
-      window.setInterval(function () {
-        refreshSetupCacheQuietly();
-      }, 15000);
-    });
-
 
   
     function setDiagnosticsText(selector, value) {
@@ -4401,16 +4501,6 @@ Restart the add-on afterwards for runtime changes to apply.`);
         if (msg && !quiet) msg.textContent = "Diagnostics refresh failed: " + err.message;
       }
     }
-
-    document.addEventListener("DOMContentLoaded", function () {
-      const diagnosticsPanel = document.querySelector('.tab-panel.active #diagnostics-refresh-message');
-      if (!diagnosticsPanel) return;
-      refreshDiagnostics(true);
-      window.setInterval(function () {
-        refreshDiagnostics(true);
-      }, 15000);
-    });
-
 
   
     const SECTION_HELP_FALLBACK = {{ card_help|tojson }};
@@ -4590,7 +4680,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
 
 
   
-    document.addEventListener("DOMContentLoaded", function () {
+    function initializeReportScheduleFields() {
       ["notify_daily_summary_time", "notify_delta_report_time", "notify_delta_window_start", "notify_delta_window_end"].forEach(function (name) {
         const field = document.querySelector(`[name="${name}"]`);
         if (!field) return;
@@ -4599,6 +4689,13 @@ Restart the add-on afterwards for runtime changes to apply.`);
         field.setAttribute("inputmode", "numeric");
         field.setAttribute("title", "Use 24-hour HH:MM format, for example 19:00, 10:15 or 00:00.");
       });
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      setupSoftTabs();
+      initializeConfigForm();
+      initializeReportScheduleFields();
+      initializeActivePanel();
     });
 
 </script>

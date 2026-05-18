@@ -2335,9 +2335,13 @@ def build_log_view(options):
 
     rows.sort(key=lambda row: row["sort_key"], reverse=True)
     debug_output = safe_int(options.get("debug_output", 0), 0) if options else 0
+    visible_at_default = sum(1 for row in rows if row["level"] <= debug_output)
+    counts_by_level = {level: sum(1 for row in rows if row["level"] <= level) for level in range(4)}
     return {
         "rows": rows[:MAX_LOG_VIEW_LINES],
         "debug_output": debug_output,
+        "visible_at_default": visible_at_default,
+        "counts_by_level": counts_by_level,
         "monitor_log_path": MONITOR_LOG_PATH,
         "web_log_path": WEB_LOG_PATH,
         "categories": ["All", "Monitor", "Warnings", "MQTT", "Telegram", "Web UI", "Protocol"],
