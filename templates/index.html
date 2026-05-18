@@ -1666,6 +1666,10 @@
       margin-bottom: 12px;
     }
 
+    .warning-intel-metrics.expanded {
+      grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+    }
+
     .warning-intel-metric {
       background: rgba(30, 41, 59, 0.70);
       border: 1px solid rgba(148, 163, 184, 0.12);
@@ -1705,6 +1709,46 @@
 
     .warning-intel-list li {
       margin-bottom: 5px;
+    }
+
+    .warning-detail-group {
+      margin-top: 8px;
+    }
+
+    .warning-detail-title {
+      color: #f8fafc;
+      font-weight: 950;
+      margin-bottom: 4px;
+    }
+
+    .warning-detail-empty {
+      margin-top: 6px;
+      color: #dbeafe;
+    }
+
+    .warning-intel-list.detail-list {
+      padding-left: 16px;
+    }
+
+    .warning-detail-label {
+      color: #f8fafc;
+      font-weight: 950;
+    }
+
+    .warning-detail-status {
+      font-weight: 950;
+    }
+
+    .warning-detail-status.healthy {
+      color: var(--green);
+    }
+
+    .warning-detail-status.warning {
+      color: var(--yellow);
+    }
+
+    .warning-detail-status.critical {
+      color: var(--red);
     }
 
   
@@ -2043,7 +2087,10 @@
                 </span>
               </div>
 
-              <div class="warning-intel-metrics">
+              <div class="warning-intel-section">
+                <strong>Quick Metrics</strong>
+              </div>
+              <div class="warning-intel-metrics expanded">
                 <div class="warning-intel-metric">
                   <div class="warning-intel-label">Highest Cell</div>
                   <div class="warning-intel-value">Cell {{ pack.highest_cell.number }} = {{ pack.highest_cell.voltage }} V</div>
@@ -2056,38 +2103,84 @@
                   <div class="warning-intel-label">Cell Delta</div>
                   <div class="warning-intel-value">{{ pack.delta }} mV</div>
                 </div>
+                <div class="warning-intel-metric">
+                  <div class="warning-intel-label">Pack Voltage</div>
+                  <div class="warning-intel-value">{{ pack.voltage }} V</div>
+                </div>
+                <div class="warning-intel-metric">
+                  <div class="warning-intel-label">SOC</div>
+                  <div class="warning-intel-value">{{ pack.soc }}%</div>
+                </div>
+                <div class="warning-intel-metric">
+                  <div class="warning-intel-label">SOH</div>
+                  <div class="warning-intel-value">{{ pack.soh }}%</div>
+                </div>
+                <div class="warning-intel-metric">
+                  <div class="warning-intel-label">Cycles</div>
+                  <div class="warning-intel-value">{{ pack.cycles }}</div>
+                </div>
               </div>
 
               <div class="warning-intel-section">
-                <strong>BMS internal warning:</strong><br>
+                <strong>BMS Warning Details</strong>
                 {% if pack.warnings == 'Normal' %}
-                  No active BMS warning reported for this pack.
+                  <div class="warning-detail-empty">No active BMS warning reported for this pack.</div>
                 {% else %}
-                  {{ pack.warnings }}
+                  {% if pack.warning_intelligence and pack.warning_intelligence.groups %}
+                    {% for group in pack.warning_intelligence.groups %}
+                      <div class="warning-detail-group">
+                        <div class="warning-detail-title">{{ group.title }}:</div>
+                        <ul class="warning-intel-list detail-list">
+                          {% for row in group.rows %}
+                            <li>
+                              <span class="warning-detail-label">{{ row.label }}:</span>
+                              {{ row.value }} | Ref: {{ row.ref }} | Margin: {{ row.margin }} |
+                              <span class="warning-detail-status {{ row.class }}">{{ row.status }}</span>
+                            </li>
+                          {% endfor %}
+                        </ul>
+                      </div>
+                    {% endfor %}
+                  {% else %}
+                    <div class="warning-detail-empty">{{ pack.warnings }}</div>
+                  {% endif %}
                 {% endif %}
               </div>
 
               <div class="warning-intel-section">
-                <strong>Reference context:</strong>
+                <strong>Reference Check</strong>
                 <ul class="warning-intel-list">
+                  {% if pack.warning_intelligence %}
+                  {% for check in pack.warning_intelligence.reference_checks %}
+                    <li>{{ check }}</li>
+                  {% endfor %}
+                  {% else %}
                   {% for check in pack.reference_checks %}
                     <li>{{ check }}</li>
                   {% endfor %}
+                  {% endif %}
                 </ul>
               </div>
 
               <div class="warning-intel-section">
-                <strong>Suggested focus:</strong><br>
-                {% if pack.warnings == 'Normal' %}
-                  Continue normal monitoring. No immediate warning review required.
-                {% elif pack.severity_class == 'critical' %}
-                  Review immediately. This warning is protection/fault related or a measured value is outside the configured reference.
-                {% elif pack.severity_class == 'warning' %}
-                  Monitor closely and compare against battery manufacturer limits. The BMS warning is active and may be near an operating limit.
-                {% elif pack.severity_class == 'caution' %}
-                  Acknowledge the BMS internal warning and keep watching the trend. Current measured values are still inside the configured references.
+                <strong>Interpretation</strong><br>
+                {% if pack.warning_intelligence %}
+                  {{ pack.warning_intelligence.interpretation }}
+                {% elif pack.warnings == 'Normal' %}
+                  No active BMS warning is reported for this pack.
                 {% else %}
-                  Review the warning text, highest/lowest cell values and cell delta. If the BMS warning is active but the configured reference is not exceeded, treat it as a BMS internal threshold warning and verify against battery manufacturer limits.
+                  Review the warning text, highest/lowest cell values and cell delta.
+                {% endif %}
+              </div>
+
+              <div class="warning-intel-section">
+                <strong>Suggested Action</strong><br>
+                {% if pack.warning_intelligence %}
+                  {{ pack.warning_intelligence.suggested_action }}
+                {% elif pack.warnings == 'Normal' %}
+                  Continue normal monitoring.
+                {% else %}
+                  Verify the BMS warning against the configured references and manufacturer limits.
                 {% endif %}
               </div>
             </article>

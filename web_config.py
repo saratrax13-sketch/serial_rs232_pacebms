@@ -1031,6 +1031,125 @@ def classify_warning_severity(warnings: str, availability: str = "online", stale
     return "caution", "Caution"
 
 
+def _margin_text(value, ref, direction):
+    if value is None or ref is None:
+        return "Unknown", "Unknown"
+    if direction == "above":
+        margin = ref - value
+        if margin > 0.0005:
+            return f"{margin:.3f} V below ref", "Not exceeded"
+        if margin < -0.0005:
+            return f"{abs(margin):.3f} V above ref", "Exceeded"
+        return "0.000 V below ref", "At reference"
+    margin = value - ref
+    if margin > 0.0005:
+        return f"{margin:.3f} V above ref", "Not exceeded"
+    if margin < -0.0005:
+        return f"{abs(margin):.3f} V below ref", "Exceeded"
+    return "0.000 V above ref", "At reference"
+
+
+def _extract_warning_cell_numbers(warnings, phrase):
+    numbers = []
+    for part in re.split(r"[\n|,;]+", str(warnings or "")):
+        if phrase not in part.lower():
+            continue
+        match = re.search(r"\bcell\s*0*(\d+)\b", part, re.IGNORECASE)
+        if match:
+            numbers.append(int(match.group(1)))
+    return sorted(set(numbers))
+
+
+def build_warning_intelligence(pack, warnings, cell_values, pack_v, cell_high_ref, cell_low_ref, pack_high_ref, pack_low_ref):
+    warning_text = str(warnings or "Normal")
+    lower_warning = warning_text.lower()
+    cell_map = {num: value for num, value in cell_values}
+
+    def cell_row(cell_num, direction, ref):
+        value = cell_map.get(cell_num)
+        margin, status = _margin_text(value, ref, direction)
+        return {
+            "label": f"Cell {cell_num:02d}",
+            "value": f"{value:.3f} V" if value is not None else "Unknown",
+            "ref": f"{ref:.2f} V" if ref is not None else "Unknown",
+            "margin": margin,
+            "status": status,
+            "class": "critical" if status == "Exceeded" else ("warning" if status == "At reference" else "healthy"),
+        }
+
+    def pack_row(direction, ref):
+        margin, status = _margin_text(pack_v, ref, direction)
+        return {
+            "label": "Pack",
+            "value": f"{pack_v:.3f} V" if pack_v is not None else "Unknown",
+            "ref": f"{ref:.2f} V" if ref is not None else "Unknown",
+            "margin": margin,
+            "status": status,
+            "class": "critical" if status == "Exceeded" else ("warning" if status == "At reference" else "healthy"),
+        }
+
+    high_cells = _extract_warning_cell_numbers(warning_text, "above upper limit")
+    low_cells = _extract_warning_cell_numbers(warning_text, "below lower limit")
+
+    if not high_cells and "above cell volt" in lower_warning and pack.get("highest_cell", {}).get("number") != "Unknown":
+        high_cells = [int(pack["highest_cell"]["number"])]
+    if not low_cells and ("lower cell volt" in lower_warning or "below lower limit" in lower_warning) and pack.get("lowest_cell", {}).get("number") != "Unknown":
+        low_cells = [int(pack["lowest_cell"]["number"])]
+
+    groups = []
+    if high_cells or "above cell volt" in lower_warning:
+        groups.append({
+            "title": "Above upper limit",
+            "rows": [cell_row(cell_num, "above", cell_high_ref) for cell_num in high_cells],
+        })
+    if low_cells or "lower cell volt" in lower_warning:
+        groups.append({
+            "title": "Below lower limit",
+            "rows": [cell_row(cell_num, "below", cell_low_ref) for cell_num in low_cells],
+        })
+    if "above total volt" in lower_warning or "total voltage above upper limit" in lower_warning:
+        groups.append({
+            "title": "Pack voltage",
+            "rows": [pack_row("above", pack_high_ref)],
+        })
+    if "lower total volt" in lower_warning or "total voltage below lower limit" in lower_warning:
+        groups.append({
+            "title": "Low pack voltage",
+            "rows": [pack_row("below", pack_low_ref)],
+        })
+
+    exceeded = any(row["status"] == "Exceeded" for group in groups for row in group["rows"])
+    has_warning = warning_text != "Normal"
+
+    reference_checks = [
+        f"Cell high reference: {cell_high_ref:.2f} V",
+        f"Pack high reference: {pack_high_ref:.2f} V" if pack_high_ref is not None else "Pack high reference: Unknown",
+    ]
+    if has_warning and not exceeded:
+        reference_checks.append("BMS warning is active below configured reference.")
+    elif exceeded:
+        reference_checks.append("One or more measured values exceed the configured reference.")
+    else:
+        reference_checks.append("No active BMS warning.")
+
+    if not has_warning:
+        interpretation = "No active BMS warning is reported for this pack."
+        suggested_action = "Continue normal monitoring."
+    elif exceeded:
+        interpretation = "BMS warning is active and at least one current measured value exceeds the configured reference."
+        suggested_action = "Review immediately and compare against the battery manufacturer limits."
+    else:
+        interpretation = "BMS warning is active even though the configured reference has not been exceeded. This usually means the BMS internal threshold is lower than the dashboard reference, or the warning was triggered briefly before the latest retained reading."
+        suggested_action = "Watch top-of-charge and verify the BMS internal high-cell and pack-voltage thresholds against the configured references."
+
+    return {
+        "groups": groups,
+        "reference_checks": reference_checks,
+        "interpretation": interpretation,
+        "suggested_action": suggested_action,
+    }
+
+
 def fetch_mqtt_snapshot(options, timeout=0.45):
     """Read retained MQTT values for a live status overview.
 
@@ -1298,7 +1417,7 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
         serial_display = pack_serial if is_master and pack_serial != "Unknown" else bms_serial if is_master else "Not reported separately"
         serial_note = "Reported by BMS" if is_master and serial_display != "Unknown" else "Current BMS read does not expose a separate serial for this pack"
 
-        packs.append({
+        pack_data = {
             "id": pack_id,
             "role": "Master" if is_master else "Slave",
             "serial": serial_display,
@@ -1330,7 +1449,18 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
             "charge_fet": messages.get(f"{pfx}/charge_fet", "Unknown"),
             "discharge_fet": messages.get(f"{pfx}/discharge_fet", "Unknown"),
             "fully": messages.get(f"{pfx}/fully", "Unknown"),
-        })
+        }
+        pack_data["warning_intelligence"] = build_warning_intelligence(
+            pack_data,
+            warnings,
+            sorted(cell_values, key=lambda item: item[0]),
+            pack_v,
+            cell_high_ref,
+            cell_low_ref,
+            pack_high_ref,
+            pack_low_ref,
+        )
+        packs.append(pack_data)
 
     result["packs"] = packs
     result["pack_count"] = len(packs)

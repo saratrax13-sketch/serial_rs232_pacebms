@@ -408,6 +408,32 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"Pack SOC Comparison", response.data)
         self.assertIn(b"Highest vs Lowest Cell", response.data)
 
+    def test_warning_intelligence_calculates_reference_margins(self):
+        pack = {
+            "highest_cell": {"number": "08", "voltage": "4.200"},
+            "lowest_cell": {"number": "01", "voltage": "4.163"},
+        }
+        details = web_config.build_warning_intelligence(
+            pack,
+            "cell 2 Above upper limit | cell 8 Above upper limit | Above cell volt warn | Above total volt warn",
+            [(1, 4.163), (2, 4.176), (8, 4.200)],
+            54.377,
+            4.20,
+            3.00,
+            54.60,
+            39.00,
+        )
+
+        self.assertEqual(details["groups"][0]["title"], "Above upper limit")
+        self.assertEqual(details["groups"][0]["rows"][0]["label"], "Cell 02")
+        self.assertEqual(details["groups"][0]["rows"][0]["margin"], "0.024 V below ref")
+        self.assertEqual(details["groups"][0]["rows"][0]["status"], "Not exceeded")
+        self.assertEqual(details["groups"][0]["rows"][1]["status"], "At reference")
+        self.assertEqual(details["groups"][1]["title"], "Pack voltage")
+        self.assertEqual(details["groups"][1]["rows"][0]["margin"], "0.223 V below ref")
+        self.assertIn("BMS warning is active below configured reference.", details["reference_checks"])
+        self.assertIn("BMS warning is active even though", details["interpretation"])
+
     def test_monitoring_health_uses_heartbeat_and_live_mqtt(self):
         options = {
             "notify_stale_data_seconds": 120,

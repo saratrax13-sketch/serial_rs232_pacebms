@@ -1,3 +1,16 @@
+## 2.6.50 - 2026-05-18
+
+### Added
+- Expanded Tech Status Warning Intelligence with quick metrics for highest cell, lowest cell, delta, pack voltage, SOC, SOH and cycles.
+- Added warning detail rows that compare warning cells and pack voltage against configured references.
+- Added reference margin labels such as below reference, at reference and exceeded.
+- Added plain-language interpretation and suggested action text for each pack warning card.
+
+### Notes
+- This is a read-only UI explanation improvement.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.49 - 2026-05-18
 
 ### Changed

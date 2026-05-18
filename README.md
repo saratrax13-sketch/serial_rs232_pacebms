@@ -26,7 +26,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.49"
+version: "2.6.50"
 ```
 
 ---
@@ -186,7 +186,7 @@ The web UI includes:
 - Configuration overview
 - Basic Required / Full Monitoring / Advanced configuration views
 - Battery Confidence dashboard with SOC, combined SOH, power flow, runtime/charge-time estimate, capacity, health, warning summary and compact refresh
-- Tech Status with warning intelligence, grouped per-pack identity, energy, capacity, electrical, cell balance, reference, FET state and comparison charts
+- Tech Status with warning intelligence, quick metrics, reference margins, grouped per-pack identity, energy, capacity, electrical, cell balance, reference, FET state and comparison charts
 - Detected packs
 - Pack SOC / SOH
 - Pack cycles
@@ -292,7 +292,7 @@ If Telegram still contains placeholder values such as `YOUR_TELEGRAM_BOT_TOKEN` 
 
 The **Tech Status** tab focuses on technician review after the add-on is running:
 
-- **Warning Intelligence** explains active BMS warnings against current cell, pack and reference values.
+- **Warning Intelligence** explains active BMS warnings against current cell, pack and reference values, including per-cell and pack-voltage reference margins.
 - **Pack cards** show per-pack identity, SOC, SOH, cycles, capacity, electrical state, FET state and reference checks.
 - **Comparison charts** help spot differences between packs for SOC, SOH, voltage, cell delta and highest/lowest cell values.
 
