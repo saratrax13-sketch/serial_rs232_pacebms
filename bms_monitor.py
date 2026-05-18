@@ -68,6 +68,7 @@ import atexit
 import signal
 import sys
 import logging
+from logging.handlers import RotatingFileHandler
 import constants
 from bms_notify import NotifyState, telegram_send
 from dataclasses import dataclass, field
@@ -80,6 +81,20 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s"
 )
 log = logging.getLogger("bmspace")
+MONITOR_LOG_PATH = "/data/pacebms-monitor.log"
+
+
+def configure_monitor_file_logging():
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] [monitor] %(message)s")
+    root_logger = logging.getLogger()
+    if any(getattr(handler, "baseFilename", None) == MONITOR_LOG_PATH for handler in root_logger.handlers):
+        return
+    try:
+        handler = RotatingFileHandler(MONITOR_LOG_PATH, maxBytes=1_000_000, backupCount=3)
+        handler.setFormatter(formatter)
+        root_logger.addHandler(handler)
+    except Exception:
+        pass
 
 # ─── Web UI event history ────────────────────────────────────────────────
 EVENT_LOG_PATH = "/data/events.json"
@@ -1463,8 +1478,9 @@ def setup_mqtt(config: dict, bms_sn: str) -> mqtt.Client:
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    log.info("Starting up...")
     config = load_config()
+    configure_monitor_file_logging()
+    log.info("Starting up...")
     write_monitor_health(config, "starting", "Monitor process started")
 
     # ── Wire debug_output → Python log level ─────────────────────────────────

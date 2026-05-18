@@ -1,6 +1,7 @@
 import csv
 import io
 import json
+import logging
 import re
 import os
 from pathlib import Path
@@ -11,6 +12,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime
+from logging.handlers import RotatingFileHandler
 from flask import Flask, Response, jsonify, render_template, request, send_file, redirect
 
 import paho.mqtt.client as mqtt
@@ -22,8 +24,11 @@ OPTIONS_PATH = "/data/options.json"
 EVENT_LOG_PATH = "/data/events.json"
 MONITOR_HEALTH_PATH = "/data/monitor_health.json"
 CONFIG_BACKUP_DIR = "/data/config_backups"
+MONITOR_LOG_PATH = "/data/pacebms-monitor.log"
+WEB_LOG_PATH = "/data/pacebms-web.log"
 MAX_CONFIG_BACKUPS = 10
 MAX_EVENT_LOG_ENTRIES = 50
+MAX_LOG_VIEW_LINES = 400
 DEPRECATED_OPTION_KEYS = {"bms_ip", "bms_port"}
 WEB_STARTED_AT = time.time()
 LIVE_SNAPSHOT_REFRESH_SECONDS = 5
@@ -2237,6 +2242,108 @@ def redirect_to_tab(tab="status", result="", message=""):
     return redirect("./?" + "&".join(params), code=303)
 
 
+def safe_int(value, default=0):
+    try:
+        return int(value)
+    except Exception:
+        return default
+
+
+def configure_web_logging(options=None):
+    options = options or {}
+    debug_level = safe_int(options.get("debug_output", 0), 0)
+    formatter = logging.Formatter("%(asctime)s [%(levelname)s] [web] %(message)s")
+    root_logger = logging.getLogger()
+
+    if not any(getattr(handler, "baseFilename", None) == WEB_LOG_PATH for handler in root_logger.handlers):
+        try:
+            handler = RotatingFileHandler(WEB_LOG_PATH, maxBytes=1_000_000, backupCount=3)
+            handler.setFormatter(formatter)
+            root_logger.addHandler(handler)
+        except Exception:
+            pass
+
+    logging.getLogger("werkzeug").setLevel(logging.INFO if debug_level >= 3 else logging.WARNING)
+
+
+def read_log_tail(path, limit=MAX_LOG_VIEW_LINES):
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as handle:
+            lines = handle.readlines()
+    except FileNotFoundError:
+        return []
+    except Exception:
+        return []
+    return [line.rstrip("\n") for line in lines[-limit:] if line.strip()]
+
+
+def classify_log_line(line, source):
+    text = str(line or "")
+    lowered = text.lower()
+    category = "Monitor" if source == "monitor" else "Web UI"
+    view_level = 1
+
+    if "get /api/status" in lowered or "get /health" in lowered or "werkzeug" in lowered:
+        return 3, "Web UI"
+    if "raw" in lowered or "frame" in lowered or "checksum" in lowered or "unknown(0x" in lowered:
+        view_level = 3
+        category = "Protocol"
+    elif "analog read ok" in lowered or "warn read ok" in lowered:
+        view_level = 2
+        category = "Monitor"
+    elif "telegram" in lowered:
+        view_level = 0 if any(word in lowered for word in ("failed", "skipping", "not configured")) else 1
+        category = "Telegram"
+    elif "mqtt" in lowered:
+        view_level = 0 if any(word in lowered for word in ("failed", "disconnected", "error")) else 1
+        category = "MQTT"
+    elif any(word in lowered for word in ("warning", "protect", "critical", "fault", "stale", "disconnect", "recovered")):
+        view_level = 0
+        category = "Warnings"
+    elif "[error]" in lowered or "exception" in lowered or "traceback" in lowered:
+        view_level = 0
+
+    return view_level, category
+
+
+def parse_log_time(line):
+    match = re.search(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:,\d{3})?", str(line or ""))
+    return match.group(0) if match else ""
+
+
+def clean_log_message(line):
+    text = str(line or "").strip()
+    text = re.sub(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:,\d{3})?\s+", "", text)
+    return text
+
+
+def build_log_view(options):
+    rows = []
+    for source, path in (("monitor", MONITOR_LOG_PATH), ("web", WEB_LOG_PATH)):
+        for index, line in enumerate(read_log_tail(path)):
+            level, category = classify_log_line(line, source)
+            time_text = parse_log_time(line)
+            rows.append({
+                "source": "Monitor" if source == "monitor" else "Web UI",
+                "time": time_text,
+                "level": level,
+                "level_label": f"Debug {level}",
+                "category": category,
+                "message": clean_log_message(line),
+                "sort_key": f"{time_text}-{source}-{index:04d}",
+            })
+
+    rows.sort(key=lambda row: row["sort_key"], reverse=True)
+    debug_output = safe_int(options.get("debug_output", 0), 0) if options else 0
+    return {
+        "rows": rows[:MAX_LOG_VIEW_LINES],
+        "debug_output": debug_output,
+        "monitor_log_path": MONITOR_LOG_PATH,
+        "web_log_path": WEB_LOG_PATH,
+        "categories": ["All", "Monitor", "Warnings", "MQTT", "Telegram", "Web UI", "Protocol"],
+    }
+
+
 def render_index(action_result="", action_message="", active_tab="dashboard", compare_data=None, restore_preview=None):
     options, error = load_options()
     grouped = build_grouped_config(options)
@@ -2261,6 +2368,7 @@ def render_index(action_result="", action_message="", active_tab="dashboard", co
         compare_data=compare_data,
         restore_preview=restore_preview,
         diagnostics=build_diagnostics(options, live) if options and active_tab == "diagnostics" else None,
+        log_view=build_log_view(options) if options and active_tab == "logs" else None,
         setup_checklist=setup_checklist,
         card_help=CARD_HELP,
         field_help=FIELD_HELP,
@@ -2411,6 +2519,31 @@ def route_export_events_csv():
         buffer.getvalue(),
         mimetype="text/csv",
         headers={"Content-Disposition": "attachment; filename=pacebms-events.csv"},
+    )
+
+
+@app.route("/download-logs.txt", methods=["GET"])
+def route_download_logs_txt():
+    options, error = load_options()
+    if error:
+        return Response(error, mimetype="text/plain", status=500)
+
+    log_view = build_log_view(options)
+    lines = [
+        "PaceBMS support logs",
+        f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        f"Configured debug_output: {log_view['debug_output']}",
+        "",
+    ]
+    for row in reversed(log_view["rows"]):
+        lines.append(
+            f"{row['time']} [{row['source']}] [{row['category']}] [debug {row['level']}] {row['message']}".strip()
+        )
+
+    return Response(
+        "\n".join(lines) + "\n",
+        mimetype="text/plain",
+        headers={"Content-Disposition": "attachment; filename=pacebms-logs.txt"},
     )
 
 
@@ -2950,5 +3083,7 @@ def health():
 
 
 if __name__ == "__main__":
+    startup_options, _startup_error = load_options()
+    configure_web_logging(startup_options)
     ensure_live_snapshot_cache_worker()
     app.run(host="0.0.0.0", port=8099)

@@ -525,6 +525,44 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn("BMS warning is active below configured reference.", details["reference_checks"])
         self.assertIn("BMS warning is active even though", details["interpretation"])
 
+    def test_log_classifier_keeps_web_access_noise_at_debug_level_3(self):
+        level, category = web_config.classify_log_line(
+            '172.30.32.2 - - [18/May/2026 18:47:33] "GET /api/status HTTP/1.1" 200 -',
+            "web",
+        )
+
+        self.assertEqual(level, 3)
+        self.assertEqual(category, "Web UI")
+
+    def test_log_view_builds_filtered_support_rows(self):
+        options = {"debug_output": 2}
+        monitor_lines = [
+            "2026-05-18 18:46:15,123 [INFO] Analog read OK: packs=2",
+            "2026-05-18 18:46:20,981 [INFO] Warn read OK: pack_1: warnings=no warnings",
+            "2026-05-18 18:47:18,595 [WARNING] Telegram not configured",
+        ]
+        web_lines = [
+            '172.30.32.2 - - [18/May/2026 18:47:33] "GET /api/status HTTP/1.1" 200 -',
+        ]
+
+        def fake_tail(path, limit=web_config.MAX_LOG_VIEW_LINES):
+            if path == web_config.MONITOR_LOG_PATH:
+                return monitor_lines
+            if path == web_config.WEB_LOG_PATH:
+                return web_lines
+            return []
+
+        with patch("web_config.read_log_tail", side_effect=fake_tail):
+            log_view = web_config.build_log_view(options)
+
+        self.assertEqual(log_view["debug_output"], 2)
+        analog_row = next(row for row in log_view["rows"] if "Analog read OK" in row["message"])
+        web_row = next(row for row in log_view["rows"] if "GET /api/status" in row["message"])
+        self.assertEqual(analog_row["level"], 2)
+        self.assertEqual(analog_row["category"], "Monitor")
+        self.assertEqual(web_row["level"], 3)
+        self.assertEqual(web_row["category"], "Web UI")
+
     def test_monitoring_health_uses_heartbeat_and_live_mqtt(self):
         options = {
             "notify_stale_data_seconds": 120,

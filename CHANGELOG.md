@@ -1,7 +1,27 @@
+## 2.6.62 - 2026-05-18
+
+### Added
+- Added a read-only Logs tab with display-level filtering for debug data levels 0, 1, 2 and 3.
+- Added log category filtering for Monitor, Warnings, MQTT, Telegram, Web UI and Protocol entries.
+- Added support log file capture for monitor and web UI output under `/data`.
+- Added a Download Logs action for support troubleshooting.
+
+### Changed
+- Suppressed routine Flask web access logs from normal output unless `debug_output` is set to 3 or higher.
+- Classified routine `/api/status` and `/health` access lines as Web UI debug level 3 noise in the Logs tab.
+
+### Notes
+- Logs are read-only support data. The Logs tab does not write to or control the BMS.
+- Changing the Logs tab filter does not require an add-on restart.
+- Changing `debug_output` in Config still requires an add-on restart before the monitor emits the new level of detail.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.61 - 2026-05-18
 
 ### Fixed
 - Renamed the top navigation label from Admin Config to Config for a cleaner tab bar.
+- Removed the Setup tab shortcut button that opened Config.
+- Added the live Overall Status and Detected Battery Layout header to Diagnostics.
 - Made automatic Dashboard, Tech Status and Diagnostics refreshes quiet so they no longer flash visible "refreshing" text during every timer update.
 - Stopped Setup auto-refresh from reloading the whole page; it now quietly refreshes the retained MQTT cache in the background.
 

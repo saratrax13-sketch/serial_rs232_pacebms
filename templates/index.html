@@ -1373,6 +1373,99 @@
     .event-level.warn { color: var(--yellow); }
     .event-level.danger { color: var(--red); }
 
+    .log-controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      margin: 14px 0;
+      align-items: end;
+    }
+
+    .log-control label {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+    }
+
+    .log-control select,
+    .log-control input {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.24);
+      background: rgba(15, 23, 42, 0.78);
+      color: #e5e7eb;
+      padding: 9px 10px;
+      font-weight: 800;
+    }
+
+    .log-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 8px;
+      margin-top: 12px;
+    }
+
+    .log-table th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      text-align: left;
+      padding: 0 10px 2px;
+    }
+
+    .log-table td {
+      background: rgba(15, 23, 42, 0.66);
+      border-top: 1px solid rgba(148, 163, 184, 0.16);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+      padding: 10px;
+      vertical-align: top;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .log-table td:first-child {
+      border-left: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: 12px 0 0 12px;
+      white-space: nowrap;
+      color: var(--muted);
+    }
+
+    .log-table td:last-child {
+      border-right: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: 0 12px 12px 0;
+    }
+
+    .log-pill {
+      display: inline-flex;
+      border-radius: 999px;
+      padding: 4px 8px;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: #bae6fd;
+      background: rgba(14, 165, 233, 0.10);
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .log-message {
+      color: #e5e7eb;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      word-break: break-word;
+    }
+
+    .log-empty {
+      color: var(--muted);
+      padding: 18px;
+      border-radius: 14px;
+      background: rgba(15, 23, 42, 0.66);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
     .config-input {
       width: 100%;
       border-radius: 10px;
@@ -2117,6 +2210,7 @@
       <a class="tab-button {% if active_tab == 'config' %}active{% endif %}" href="?tab=config">Config</a>
       <a class="tab-button {% if active_tab == 'events' %}active{% endif %}" href="?tab=events">Events</a>
       <a class="tab-button {% if active_tab == 'backups' %}active{% endif %}" href="?tab=backups">Backups</a>
+      <a class="tab-button {% if active_tab == 'logs' %}active{% endif %}" href="?tab=logs">Logs</a>
     </nav>
 
     {% if error %}
@@ -2720,7 +2814,6 @@
           <form method="post" action="test-full-monitoring">
             <button type="submit">Test Full Monitoring</button>
           </form>
-          <a class="button-link" href="?tab=config">Open Config</a>
         </div>
       </section>
     </section>
@@ -3021,6 +3114,82 @@ This cannot be undone.`);">
 
     </section>
 
+    <section class="tab-panel {% if active_tab == 'logs' %}active{% endif %}">
+      <div class="view-note">
+        <strong>Read-only log view</strong>
+        <span>Use this page to filter captured monitor and web UI logs for support. Viewing logs does not change BMS settings and does not send BMS commands.</span>
+      </div>
+      <section class="card wide-card">
+        <h2>Logs</h2>
+        <p>Configured monitor <code>debug_output</code> is currently <code>{{ log_view.debug_output if log_view else 0 }}</code>. Changing <code>debug_output</code> in Config affects new monitor log detail after the add-on is restarted. The filters below only change what is displayed here.</p>
+        <div class="helper-note">
+          Routine web access lines such as <code>GET /api/status</code> and <code>GET /health</code> are treated as Web UI debug level 3 noise. Keep the view on level 0 or 1 for daily use.
+        </div>
+
+        <div class="log-controls">
+          <div class="log-control">
+            <label for="log-level-filter">Debug data to display</label>
+            <select id="log-level-filter" onchange="filterLogs()">
+              <option value="0">0 - Normal events only</option>
+              <option value="1">1 - Summary troubleshooting</option>
+              <option value="2">2 - Poll detail</option>
+              <option value="3">3 - Protocol / Web UI debug</option>
+            </select>
+          </div>
+          <div class="log-control">
+            <label for="log-category-filter">Category</label>
+            <select id="log-category-filter" onchange="filterLogs()">
+              {% if log_view %}
+              {% for category in log_view.categories %}
+              <option value="{{ category }}">{{ category }}</option>
+              {% endfor %}
+              {% else %}
+              <option value="All">All</option>
+              {% endif %}
+            </select>
+          </div>
+          <div class="log-control">
+            <label for="log-search">Search</label>
+            <input id="log-search" type="search" placeholder="Pack 01, Telegram, MQTT..." oninput="filterLogs()">
+          </div>
+        </div>
+
+        <div class="actions">
+          <button type="button" onclick="reloadTab('logs')">Refresh Logs</button>
+          <button type="button" onclick="clearLogView()">Clear View</button>
+          <a class="button-link" href="download-logs.txt">Download Logs</a>
+        </div>
+
+        {% if log_view and log_view.rows %}
+        <table class="log-table" id="log-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Source</th>
+              <th>Category</th>
+              <th>Level</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in log_view.rows %}
+            <tr data-log-level="{{ row.level }}" data-log-category="{{ row.category }}" data-log-search="{{ row.message|lower }} {{ row.category|lower }} {{ row.source|lower }}">
+              <td>{{ row.time or "Unknown" }}</td>
+              <td><span class="log-pill">{{ row.source }}</span></td>
+              <td><span class="log-pill">{{ row.category }}</span></td>
+              <td>{{ row.level_label }}</td>
+              <td class="log-message">{{ row.message }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div id="log-empty-filtered" class="log-empty" hidden>No log lines match the current filters.</div>
+        {% else %}
+        <div class="log-empty">No captured log file entries are available yet. Restart the add-on once after this update so monitor and web logs start writing to the support log files.</div>
+        {% endif %}
+      </section>
+    </section>
+
     <section class="tab-panel {% if active_tab == 'events' %}active{% endif %}">
       <div class="view-note">
         <strong>Event history</strong>
@@ -3097,6 +3266,29 @@ This cannot be undone.`);">
       </section>
 
       {% if diagnostics %}
+      <section class="card wide-card summary-card compact-summary">
+        <div class="status-hero">
+          <div class="status-label">Overall Status</div>
+          <div id="diagnostics-overall-status" class="status-value {{ diagnostics.live.overall_class }}">{{ diagnostics.live.overall_status }}</div>
+          <div class="summary-meta">
+            Availability: <span id="diagnostics-availability">{{ diagnostics.live.availability }}</span><br>
+            Monitor: <span id="diagnostics-monitor-state">{{ diagnostics.live.monitor_state }}</span><br>
+            Stale: <span id="diagnostics-stale">{{ diagnostics.live.stale }}</span>
+          </div>
+        </div>
+
+        <div class="status-hero">
+          <div class="status-label">Detected Battery Layout</div>
+          <div id="diagnostics-layout" class="layout-text">{{ diagnostics.live.layout }}</div>
+          <div class="summary-meta">
+            BMS Serial: <span id="diagnostics-bms-serial">{{ diagnostics.live.bms_sn }}</span><br>
+            BMS Version: <span id="diagnostics-bms-version">{{ diagnostics.live.bms_version }}</span><br>
+            Last analog: <span id="diagnostics-last-analog">{{ diagnostics.live.last_analog_read }}</span><br>
+            Last warning: <span id="diagnostics-last-warning">{{ diagnostics.live.last_warn_read }}</span>
+          </div>
+        </div>
+      </section>
+
       <section class="card wide-card">
         <h2>Battery Configuration</h2>
         <p>Detected pack topology and identity details. Pack serials are shown only where the current BMS read exposes them.</p>
@@ -3907,6 +4099,45 @@ Restart the add-on afterwards for runtime changes to apply.`);
       });
     }
 
+    function filterLogs() {
+      const table = document.getElementById("log-table");
+      if (!table) return;
+
+      const level = Number(document.getElementById("log-level-filter")?.value || 0);
+      const category = document.getElementById("log-category-filter")?.value || "All";
+      const search = String(document.getElementById("log-search")?.value || "").trim().toLowerCase();
+      let visibleCount = 0;
+
+      table.querySelectorAll("tbody tr").forEach(function (row) {
+        const rowLevel = Number(row.dataset.logLevel || 0);
+        const rowCategory = row.dataset.logCategory || "";
+        const haystack = row.dataset.logSearch || "";
+        const show = rowLevel <= level && (category === "All" || rowCategory === category) && (!search || haystack.includes(search));
+        row.style.display = show ? "" : "none";
+        if (show) visibleCount += 1;
+      });
+
+      const empty = document.getElementById("log-empty-filtered");
+      if (empty) empty.hidden = visibleCount > 0;
+    }
+
+    function clearLogView() {
+      const table = document.getElementById("log-table");
+      if (!table) return;
+      table.querySelectorAll("tbody tr").forEach(function (row) {
+        row.style.display = "none";
+      });
+      const empty = document.getElementById("log-empty-filtered");
+      if (empty) {
+        empty.hidden = false;
+        empty.textContent = "Log view cleared. Refresh Logs to reload captured entries.";
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      filterLogs();
+    });
+
 
   
     function setDashboardText(selector, value) {
@@ -4126,6 +4357,11 @@ Restart the add-on afterwards for runtime changes to apply.`);
         const monitorOk = availability === "online" && monitorState === "running";
 
         setDiagnosticsText("#diagnostics-overall-status", data.overall_status);
+        const diagnosticsOverall = document.getElementById("diagnostics-overall-status");
+        if (diagnosticsOverall) diagnosticsOverall.className = "status-value " + (data.overall_class || "unknown");
+        setDiagnosticsText("#diagnostics-availability", data.availability);
+        setDiagnosticsText("#diagnostics-monitor-state", data.monitor_state);
+        setDiagnosticsText("#diagnostics-stale", data.stale);
         setDiagnosticsText("#diagnostics-bms-serial", cleanDiagnosticsSerial(data.bms_sn));
         setDiagnosticsText("#diagnostics-bms-version", cleanDiagnosticsVersion(data.bms_version, data.bms_sn));
         setDiagnosticsText("#diagnostics-layout", data.layout);
