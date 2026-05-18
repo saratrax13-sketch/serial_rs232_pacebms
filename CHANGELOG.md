@@ -1,3 +1,7 @@
+## 2.6.66 - 2026-05-18
+### Changed
+- Changed version number to upgrade addon in HA
+
 ## 2.6.65 - 2026-05-18
 
 ### Changed
@@ -6,6 +10,9 @@
 - Added Logs sample time-span context with oldest and newest captured line timestamps.
 - Added Logs viewer help explaining Refresh Logs, the latest 400-line sample and display-only filtering.
 - Removed Open Config and Restart Add-on actions from the Logs tab.
+- Preserved the Logs viewer information panel open/closed state during soft refresh.
+- Changed the Logs default View Detail to Detailed so captured Analog/Warn read summaries are visible immediately.
+- Renamed the quietest Logs view to Alerts / events only so it is clear that it can be empty during normal operation.
 
 ### Notes
 - Soft refresh replaces only the active tab content and keeps the page shell in place.

@@ -556,6 +556,8 @@ class HealthEndpointTests(unittest.TestCase):
             log_view = web_config.build_log_view(options)
 
         self.assertEqual(log_view["debug_output"], 2)
+        self.assertEqual(log_view["default_view_level"], 2)
+        self.assertEqual(log_view["visible_at_default"], 3)
         analog_row = next(row for row in log_view["rows"] if "Analog read OK" in row["message"])
         web_row = next(row for row in log_view["rows"] if "GET /api/status" in row["message"])
         self.assertEqual(analog_row["level"], 2)

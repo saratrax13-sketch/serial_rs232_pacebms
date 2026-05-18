@@ -2335,12 +2335,14 @@ def build_log_view(options):
 
     rows.sort(key=lambda row: row["sort_key"], reverse=True)
     debug_output = safe_int(options.get("debug_output", 0), 0) if options else 0
-    visible_at_default = sum(1 for row in rows if row["level"] <= debug_output)
+    default_view_level = 2
+    visible_at_default = sum(1 for row in rows if row["level"] <= default_view_level)
     counts_by_level = {level: sum(1 for row in rows if row["level"] <= level) for level in range(4)}
     row_times = [row["time"] for row in rows if row["time"]]
     return {
         "rows": rows[:MAX_LOG_VIEW_LINES],
         "debug_output": debug_output,
+        "default_view_level": default_view_level,
         "visible_at_default": visible_at_default,
         "counts_by_level": counts_by_level,
         "oldest_time": row_times[-1] if row_times else "Unknown",

@@ -3196,7 +3196,7 @@ This cannot be undone.`);">
         {% endif %}
 
         <div class="log-section-title">Log Viewer</div>
-        <details class="compact-help" style="margin-top: 10px;">
+        <details id="log-viewer-info" class="compact-help" style="margin-top: 10px;">
           <summary>Log viewer information</summary>
           <div class="helper-note">
             <strong>Captured lines</strong> are the latest {{ log_view.rows|length if log_view else 0 }} lines read from <code>/data/pacebms-monitor.log</code> and <code>/data/pacebms-web.log</code>. The viewer keeps a latest {{ 400 }} line sample so the page stays fast.
@@ -3212,10 +3212,10 @@ This cannot be undone.`);">
           <div class="log-control">
             <label for="log-level-filter">View detail</label>
             <select id="log-level-filter" onchange="filterLogs()">
-              <option value="0" {% if log_view and log_view.debug_output == 0 %}selected{% endif %}>Normal</option>
-              <option value="1" {% if log_view and log_view.debug_output == 1 %}selected{% endif %}>Summary</option>
-              <option value="2" {% if log_view and log_view.debug_output == 2 %}selected{% endif %}>Detailed</option>
-              <option value="3" {% if log_view and log_view.debug_output >= 3 %}selected{% endif %}>Debug / Web access</option>
+              <option value="0">Alerts / events only</option>
+              <option value="1">Summary</option>
+              <option value="2" {% if log_view and log_view.default_view_level == 2 %}selected{% endif %}>Detailed</option>
+              <option value="3">Debug / Web access</option>
             </select>
           </div>
           <div class="log-control">
@@ -3585,6 +3585,7 @@ This cannot be undone.`);">
         level: document.getElementById("log-level-filter")?.value || "",
         category: document.getElementById("log-category-filter")?.value || "",
         search: document.getElementById("log-search")?.value || "",
+        infoOpen: Boolean(document.getElementById("log-viewer-info")?.open),
       };
     }
 
@@ -3596,6 +3597,8 @@ This cannot be undone.`);">
       if (level && state.level) level.value = state.level;
       if (category && state.category) category.value = state.category;
       if (search) search.value = state.search || "";
+      const info = document.getElementById("log-viewer-info");
+      if (info) info.open = Boolean(state.infoOpen);
     }
 
     async function openTabSoft(tabName, pushState = true) {
@@ -4340,7 +4343,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
         empty.hidden = visibleCount > 0;
         if (!empty.hidden) {
           empty.textContent = level < 2
-            ? "No log lines match this view. Change View Detail to Detailed for Analog/Warn read summaries, or Debug / Web access for web access lines."
+            ? "No alert/event lines match this view. Change View Detail to Detailed for Analog/Warn read summaries, or Debug / Web access for web access lines."
             : "No log lines match the current filters. Try All categories or clear the search box.";
         }
       }
