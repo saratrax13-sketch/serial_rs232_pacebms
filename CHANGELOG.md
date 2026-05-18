@@ -1,3 +1,16 @@
+## 2.6.43 - 2026-05-18
+
+### Added
+- Added estimated runtime remaining to the User Dashboard while the battery is discharging.
+- Added safe runtime states for charging, idle/no-load and missing data.
+- Added Dashboard auto-refresh every 30 seconds while the Dashboard tab is open.
+
+### Notes
+- Runtime is calculated from retained MQTT values using remaining kWh divided by current discharge kW.
+- Runtime is an estimate based on current load and will change as load changes.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.42 - 2026-05-18
 
 ### Changed

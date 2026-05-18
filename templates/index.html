@@ -2259,12 +2259,12 @@
       </div>
       <section class="card wide-card">
         <h2>User Dashboard</h2>
-        <p>Simple current battery view built from the latest retained MQTT values. These are not historical charts.</p>
+        <p>Simple current battery view built from the latest retained MQTT values. These are refreshed automatically while this tab is open.</p>
         <div class="actions">
           <a class="button-link" href="?tab=status">Open Tech Status</a>
           <button type="button" onclick="refreshDashboard()">Refresh Dashboard</button>
         </div>
-        <div id="dashboard-refresh-message" class="dashboard-refresh-message">Dashboard loaded from current retained MQTT values.</div>
+        <div id="dashboard-refresh-message" class="dashboard-refresh-message">Dashboard loaded from current retained MQTT values. Auto-refresh runs every 30 seconds while this tab is open.</div>
       </section>
 
       {% if live and live.packs %}
@@ -2286,6 +2286,11 @@
             <div class="user-dashboard-label">Battery Power</div>
             <div id="user-total-power" class="user-dashboard-value">{{ live.user_summary.total_power_kw }}</div>
             <div class="user-dashboard-detail">Positive is charging, negative is discharging.</div>
+          </div>
+          <div class="user-dashboard-tile">
+            <div class="user-dashboard-label">Runtime Estimate</div>
+            <div id="user-runtime" class="user-dashboard-value">{{ live.user_summary.runtime_remaining }}</div>
+            <div id="user-runtime-detail" class="user-dashboard-detail">{{ live.user_summary.runtime_detail }}</div>
           </div>
           <div class="user-dashboard-tile">
             <div class="user-dashboard-label">Voltage / Current</div>
@@ -3796,6 +3801,8 @@ Restart the add-on afterwards for runtime changes to apply.`);
           if (operatingState) operatingState.className = "user-dashboard-value " + (data.user_summary.class || "warning");
           setDashboardText("#user-power-flow", data.user_summary.power_flow);
           setDashboardText("#user-total-power", data.user_summary.total_power_kw);
+          setDashboardText("#user-runtime", data.user_summary.runtime_remaining);
+          setDashboardText("#user-runtime-detail", data.user_summary.runtime_detail);
           setDashboardText("#user-voltage-current", data.user_summary.pack_voltage);
           setDashboardText("#user-current", data.user_summary.battery_current);
           setDashboardText("#user-remaining-capacity", data.user_summary.remaining_capacity_ah);
@@ -3868,6 +3875,14 @@ Restart the add-on afterwards for runtime changes to apply.`);
         if (msg) msg.textContent = "Dashboard refresh failed: " + err.message;
       }
     }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      const dashboardPanel = document.querySelector('.tab-panel.active #dashboard-refresh-message');
+      if (!dashboardPanel) return;
+      window.setInterval(function () {
+        refreshDashboard();
+      }, 30000);
+    });
 
 
   

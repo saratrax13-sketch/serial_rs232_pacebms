@@ -618,6 +618,20 @@ def seconds_label(value):
     return f"{days}d {hours}h" if hours else f"{days}d"
 
 
+def runtime_label_from_hours(hours):
+    hours_f = _to_float(hours)
+    if hours_f is None or hours_f < 0:
+        return "Unknown"
+    total_minutes = int(round(hours_f * 60))
+    days, remainder = divmod(total_minutes, 1440)
+    hrs, mins = divmod(remainder, 60)
+    if days:
+        return f"{days}d {hrs}h" if hrs else f"{days}d"
+    if hrs:
+        return f"{hrs}h {mins}m" if mins else f"{hrs}h"
+    return f"{mins}m"
+
+
 def _fmt_number(value, decimals=1, suffix=""):
     number = _to_float(value)
     if number is None:
@@ -643,6 +657,8 @@ def _calculate_user_summary(options, live):
             "full_capacity_ah": "Unknown",
             "design_capacity_ah": "Unknown",
             "remaining_energy_kwh": "Unknown",
+            "runtime_remaining": "Unknown",
+            "runtime_detail": "Waiting for retained energy and power values.",
             "health": "Unknown",
             "temperature": "Unknown",
             "temperature_status": "Unknown",
@@ -752,6 +768,18 @@ def _calculate_user_summary(options, live):
     avg_voltage = sum(voltage_values) / len(voltage_values) if voltage_values else None
     health = min(soh_values) if soh_values else None
     summary = f"{status}. {len(packs)} pack(s), {live.get('total_cells', 0)} cells detected."
+    runtime_remaining = "Unknown"
+    runtime_detail = "Runtime needs current discharge power and remaining energy."
+    if total_power_kw < -idle_threshold_kw and remaining_kwh > 0:
+        discharge_kw = abs(total_power_kw)
+        runtime_remaining = runtime_label_from_hours(remaining_kwh / discharge_kw)
+        runtime_detail = "Estimate based on current discharge power."
+    elif total_power_kw > idle_threshold_kw:
+        runtime_remaining = "Charging"
+        runtime_detail = "Runtime estimate appears when battery is discharging."
+    elif abs(total_power_kw) <= idle_threshold_kw:
+        runtime_remaining = "Idle"
+        runtime_detail = "No meaningful discharge load detected."
 
     return {
         "status": status,
@@ -766,6 +794,8 @@ def _calculate_user_summary(options, live):
         "full_capacity_ah": _fmt_number(full_ah if full_ah else None, 0, " Ah"),
         "design_capacity_ah": _fmt_number(design_ah if design_ah else None, 0, " Ah"),
         "remaining_energy_kwh": _fmt_number(remaining_kwh if remaining_kwh else None, 2, " kWh"),
+        "runtime_remaining": runtime_remaining,
+        "runtime_detail": runtime_detail,
         "health": _fmt_number(health, 1, "%"),
         "temperature": _fmt_number(highest_temp, 1, " C"),
         "temperature_status": temp_status,

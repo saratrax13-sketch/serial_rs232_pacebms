@@ -17,6 +17,7 @@ The add-on includes:
 - Combined user dashboard summary
 - Battery power flow
 - Remaining Ah and estimated remaining kWh
+- Estimated runtime remaining while discharging
 - Read-only BMS communication
 
 ---
@@ -24,7 +25,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.42"
+version: "2.6.43"
 ```
 
 ---

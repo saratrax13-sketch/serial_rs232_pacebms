@@ -481,8 +481,43 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertEqual(summary["remaining_capacity_ah"], "300 Ah")
         self.assertEqual(summary["full_capacity_ah"], "400 Ah")
         self.assertEqual(summary["remaining_energy_kwh"], "15.60 kWh")
+        self.assertEqual(summary["runtime_remaining"], "13h 38m")
         self.assertEqual(summary["health"], "90.0%")
         self.assertEqual(summary["temperature_status"], "Normal")
+
+    def test_user_summary_runtime_states(self):
+        options = {
+            "notify_temp_high_warn_c": 55,
+            "notify_temp_low_warn_c": 0,
+        }
+        base_live = {
+            "ok": True,
+            "availability": "online",
+            "monitor_state": "running",
+            "stale": "OFF",
+            "warning_count": 0,
+            "total_cells": 16,
+            "packs": [{
+                "voltage": "50.0",
+                "soc": "80",
+                "soh": "95",
+                "remaining_capacity_ah": "100",
+                "full_capacity_ah": "120",
+                "design_capacity_ah": "120",
+                "temperatures": [25],
+                "fully": "OFF",
+            }],
+        }
+
+        charging = dict(base_live)
+        charging["packs"] = [dict(base_live["packs"][0], current="10")]
+        charging_summary = web_config._calculate_user_summary(options, charging)
+        self.assertEqual(charging_summary["runtime_remaining"], "Charging")
+
+        idle = dict(base_live)
+        idle["packs"] = [dict(base_live["packs"][0], current="0")]
+        idle_summary = web_config._calculate_user_summary(options, idle)
+        self.assertEqual(idle_summary["runtime_remaining"], "Idle")
 
     def test_dashboard_page_renders_monitoring_snapshot(self):
         options = {
@@ -564,6 +599,7 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"pack-quick-strip", response.data)
         self.assertIn(b"User Dashboard", response.data)
         self.assertIn(b"Battery Power", response.data)
+        self.assertIn(b"Runtime Estimate", response.data)
         self.assertIn(b"Remaining Capacity", response.data)
 
     def test_root_defaults_to_user_dashboard(self):
