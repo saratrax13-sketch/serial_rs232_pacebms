@@ -17,6 +17,7 @@ from flask import Flask, Response, jsonify, render_template, request, send_file,
 
 import paho.mqtt.client as mqtt
 from bms_notify import telegram_value_configured
+from battery_profiles import BATTERY_PROFILE_CHOICES, effective_warning_references, normalize_profile
 
 app = Flask(__name__)
 
@@ -26,6 +27,8 @@ MONITOR_HEALTH_PATH = "/data/monitor_health.json"
 CONFIG_BACKUP_DIR = "/data/config_backups"
 MONITOR_LOG_PATH = "/data/pacebms-monitor.log"
 WEB_LOG_PATH = "/data/pacebms-web.log"
+WARNING_NOTIFY_STATE_PATH = "/data/warning_notify_state.json"
+WARNING_NOTIFY_CLEAR_FLAG_PATH = "/data/clear_warning_notify_state.flag"
 MAX_CONFIG_BACKUPS = 10
 MAX_EVENT_LOG_ENTRIES = 50
 MAX_LOG_VIEW_LINES = 400
@@ -43,6 +46,7 @@ _LIVE_SNAPSHOT_CACHE = {
 _LIVE_SNAPSHOT_WORKER_STARTED = False
 
 SECTION_HELP = {
+    "Battery Profile & References": "Selects the read-only battery profile used for warning explanations. Auto detect uses detected cell count: 13S defaults suit Hubble AM2-style packs, and 16S defaults suit Eenovance MANA LFP-style packs. Custom references use your configured cell high/low values. These references affect UI and Telegram interpretation only; they never write to the BMS.",
     "Notification Thresholds": "Controls SOC, SOH, stale-data and BMS warning repeat timing. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale and warning repeat values are in seconds. BMS warning repeats are severity-aware: caution repeats for low-risk ongoing warnings, warning repeats for near-limit conditions, and critical repeats for protection/fault or measured values outside configured references.",
     "Report Schedules": "Controls scheduled notification times for the daily summary and cell delta report. Use 24-hour HH:MM format, for example 19:00, 10:15 or 00:00. The delta window start/end values define the time range used for the delta report.",
 }
@@ -53,6 +57,7 @@ CONFIG_SECTION_BADGES = {
     "Advanced": "Required",
     "Telegram": "Optional",
     "Notifications": "Optional",
+    "Battery Profile & References": "Optional",
     "Notification Thresholds": "Optional",
     "Warning Detail": "Optional",
     "Report Schedules": "Optional",
@@ -64,6 +69,7 @@ CONFIG_SECTION_TIERS = {
     "Advanced": "required",
     "Telegram": "monitoring",
     "Notifications": "monitoring",
+    "Battery Profile & References": "monitoring",
     "Notification Thresholds": "monitoring",
     "Warning Detail": "monitoring",
     "Report Schedules": "monitoring",
@@ -128,13 +134,16 @@ GROUPS = {
         "notify_warning_repeat_warning_seconds",
         "notify_warning_repeat_critical_seconds",
     ],
-    "Warning Detail": [
-        "notify_warning_detail_enabled",
+    "Battery Profile & References": [
+        "battery_profile",
         "notify_cell_high_warn_voltage",
         "notify_cell_low_warn_voltage",
         "notify_cell_delta_warn_mv",
         "notify_temp_high_warn_c",
         "notify_temp_low_warn_c",
+    ],
+    "Warning Detail": [
+        "notify_warning_detail_enabled",
         "notify_include_all_cells_above_threshold",
         "notify_include_all_cells_below_threshold",
         "notify_include_highest_and_lowest_cell",
@@ -143,6 +152,7 @@ GROUPS = {
     ],
     "Report Schedules": [
         "notify_daily_summary_time",
+        "daily_energy_current_deadband_a",
         "notify_delta_report_time",
         "notify_delta_window_start",
         "notify_delta_window_end",
@@ -153,6 +163,72 @@ SENSITIVE_KEYS = {
     "telegram_bot_token",
     "telegram_chat_id",
     "mqtt_password",
+}
+
+DEFAULT_OPTION_VALUES = {
+    "connection_type": "Serial",
+    "bms_serial": "/dev/serial/by-id/usb-Prolific_Technology_Inc._USB-Serial_Controller_D-if00-port0",
+    "bms_baudrate": 9600,
+    "scan_interval": 5,
+    "mqtt_host": "192.168.10.16",
+    "mqtt_port": 1883,
+    "mqtt_user": "YOUR_MQTT_USER",
+    "mqtt_password": "YOUR_MQTT_PASSWORD",
+    "mqtt_base_topic": "pacebms",
+    "mqtt_ha_discovery": True,
+    "mqtt_ha_discovery_topic": "homeassistant",
+    "mqtt_retain_state": True,
+    "state_force_republish_seconds": 300,
+    "warn_force_republish_seconds": 300,
+    "debug_output": 0,
+    "zero_pad_number_cells": 2,
+    "zero_pad_number_packs": 2,
+    "telegram_bot_token": "YOUR_TELEGRAM_BOT_TOKEN",
+    "telegram_chat_id": "YOUR_TELEGRAM_CHAT_ID",
+    "notify_enabled": True,
+    "notify_startup": True,
+    "notify_disconnect": True,
+    "notify_stale_data": True,
+    "notify_stale_recovery": True,
+    "notify_soc_low": True,
+    "notify_soc_high": True,
+    "notify_soc_high_on_startup": False,
+    "notify_soh": True,
+    "notify_soh_on_startup": False,
+    "notify_warnings": True,
+    "notify_warning_detail_enabled": True,
+    "notify_fet": True,
+    "notify_daily_summary": True,
+    "notify_delta_report": True,
+    "notify_soc_low_thresholds": "75,50,25,10",
+    "notify_soc_high_threshold": 98,
+    "notify_soc_high_reset": 95,
+    "notify_soh_threshold": 95,
+    "notify_retry_count": 1,
+    "notify_stale_data_seconds": 120,
+    "notify_stale_data_repeat_seconds": 1800,
+    "notify_warning_repeat_seconds": 1800,
+    "notify_warning_repeat_caution_seconds": 21600,
+    "notify_warning_repeat_warning_seconds": 3600,
+    "notify_warning_repeat_critical_seconds": 900,
+    "battery_profile": "auto",
+    "notify_cell_high_warn_voltage": 4.20,
+    "notify_cell_low_warn_voltage": 3.00,
+    "notify_cell_delta_warn_mv": 100,
+    "notify_temp_high_warn_c": 55,
+    "notify_temp_low_warn_c": 0,
+    "notify_include_all_cells_above_threshold": True,
+    "notify_include_all_cells_below_threshold": True,
+    "notify_include_highest_and_lowest_cell": True,
+    "notify_include_pack_voltage": True,
+    "notify_include_soc_soh": True,
+    "notify_ignore_charge_fet_off_when_full": True,
+    "notify_alert_discharge_fet_off": True,
+    "notify_daily_summary_time": "19:00",
+    "daily_energy_current_deadband_a": 0.2,
+    "notify_delta_report_time": "10:15",
+    "notify_delta_window_start": "00:00",
+    "notify_delta_window_end": "10:00",
 }
 
 
@@ -1076,7 +1152,7 @@ def _extract_warning_cell_numbers(warnings, phrase):
     return sorted(set(numbers))
 
 
-def build_warning_intelligence(pack, warnings, cell_values, pack_v, cell_high_ref, cell_low_ref, pack_high_ref, pack_low_ref):
+def build_warning_intelligence(pack, warnings, cell_values, pack_v, cell_high_ref, cell_low_ref, pack_high_ref, pack_low_ref, profile_label="", reference_source="", notify_enabled=True):
     warning_text = str(warnings or "Normal")
     lower_warning = warning_text.lower()
     cell_map = {num: value for num, value in cell_values}
@@ -1091,6 +1167,8 @@ def build_warning_intelligence(pack, warnings, cell_values, pack_v, cell_high_re
             "margin": margin,
             "status": status,
             "class": "critical" if status == "Exceeded" else ("warning" if status == "At reference" else "healthy"),
+            "notify": "On" if notify_enabled else "Off",
+            "notify_class": "healthy" if notify_enabled else "warning",
         }
 
     def pack_row(direction, ref):
@@ -1102,6 +1180,8 @@ def build_warning_intelligence(pack, warnings, cell_values, pack_v, cell_high_re
             "margin": margin,
             "status": status,
             "class": "critical" if status == "Exceeded" else ("warning" if status == "At reference" else "healthy"),
+            "notify": "On" if notify_enabled else "Off",
+            "notify_class": "healthy" if notify_enabled else "warning",
         }
 
     high_cells = _extract_warning_cell_numbers(warning_text, "above upper limit")
@@ -1141,6 +1221,10 @@ def build_warning_intelligence(pack, warnings, cell_values, pack_v, cell_high_re
         f"Cell high reference: {cell_high_ref:.2f} V",
         f"Pack high reference: {pack_high_ref:.2f} V" if pack_high_ref is not None else "Pack high reference: Unknown",
     ]
+    if profile_label:
+        reference_checks.append(f"Battery profile: {profile_label}")
+    if reference_source:
+        reference_checks.append(f"Reference source: {reference_source}")
     if has_warning and not exceeded:
         reference_checks.append("BMS warning is active below configured reference.")
     elif exceeded:
@@ -1337,8 +1421,9 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
         full_capacity_ah = messages.get(f"{pfx}/i_full_cap", "Unknown")
         design_capacity_ah = messages.get(f"{pfx}/i_design_cap", "Unknown")
 
-        cell_high_ref = _to_float(options.get("notify_cell_high_warn_voltage", 4.20), 4.20)
-        cell_low_ref = _to_float(options.get("notify_cell_low_warn_voltage", 3.00), 3.00)
+        refs = effective_warning_references(options, cell_count)
+        cell_high_ref = refs["cell_high"]
+        cell_low_ref = refs["cell_low"]
 
         highest_cell = {"number": "Unknown", "voltage": "Unknown"}
         lowest_cell = {"number": "Unknown", "voltage": "Unknown"}
@@ -1375,8 +1460,8 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
         pack_power_kw = None
         if pack_v is not None and pack_current is not None:
             pack_power_kw = (pack_v * pack_current) / 1000.0
-        pack_high_ref = cell_high_ref * cell_count if cell_count else None
-        pack_low_ref = cell_low_ref * cell_count if cell_count else None
+        pack_high_ref = refs["pack_high"]
+        pack_low_ref = refs["pack_low"]
 
         high_cell_exceeded = bool(highest_cell_v is not None and highest_cell_v > cell_high_ref)
         low_cell_exceeded = bool(lowest_cell_v is not None and lowest_cell_v < cell_low_ref)
@@ -1461,6 +1546,8 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
             "cell_low_ref": f"{cell_low_ref:.2f}",
             "pack_high_ref": f"{pack_high_ref:.2f}" if pack_high_ref is not None else "Unknown",
             "pack_low_ref": f"{pack_low_ref:.2f}" if pack_low_ref is not None else "Unknown",
+            "battery_profile": refs["profile_label"],
+            "reference_source": "battery profile defaults" if refs.get("source") == "profile" else "user custom settings",
             "reference_checks": reference_checks,
             "charge_fet": messages.get(f"{pfx}/charge_fet", "Unknown"),
             "discharge_fet": messages.get(f"{pfx}/discharge_fet", "Unknown"),
@@ -1475,6 +1562,9 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
             cell_low_ref,
             pack_high_ref,
             pack_low_ref,
+            refs["profile_label"],
+            "battery profile defaults" if refs.get("source") == "profile" else "user custom settings",
+            bool(options.get("notify_enabled", True) and options.get("notify_warnings", True)),
         )
         packs.append(pack_data)
 
@@ -1626,6 +1716,8 @@ def get_page_live_snapshot(options):
 
 
 def input_type_for_value(key, value):
+    if key == "battery_profile":
+        return "select"
     if isinstance(value, bool):
         return "checkbox"
     if isinstance(value, int) and not isinstance(value, bool):
@@ -1937,6 +2029,7 @@ FIELD_HELP = {
     "notify_warning_repeat_caution_seconds": "Repeat interval for ongoing caution-level BMS warnings. Recommended: 21600 seconds (6 hours).",
     "notify_warning_repeat_warning_seconds": "Repeat interval for ongoing warning-level BMS warnings. Recommended: 3600 seconds (1 hour).",
     "notify_warning_repeat_critical_seconds": "Repeat interval for ongoing critical BMS warnings. Recommended: 900 seconds (15 minutes).",
+    "battery_profile": "Read-only reference profile used for warning explanations. Auto detect selects 13S or 16S defaults from detected cell count. Custom uses your configured reference voltages.",
     "notify_soc_low_thresholds": "Comma-separated SOC low alert thresholds. Use numbers only, no percent signs. Example: 75,50,25,15.",
     "notify_soc_high_threshold": "Single SOC high alert threshold. Example: 98 means alert when SOC is at or above 98%.",
     "notify_soc_high_reset": "High SOC reset point. Example: 95 means the high SOC alert can trigger again after SOC drops below 95%.",
@@ -1947,6 +2040,7 @@ FIELD_HELP = {
     "notify_ignore_charge_fet_off_when_full": "When enabled, Charge FET OFF can be ignored if the pack is full. This helps avoid unnecessary alerts when the BMS disables charging at full SOC.",
     "notify_alert_discharge_fet_off": "When enabled, send an alert if the Discharge FET is OFF.",
     "notify_daily_summary_time": "Daily summary notification time. Use HH:MM 24-hour format. Example: 19:00.",
+    "daily_energy_current_deadband_a": "Current below this value is ignored for daily charged/discharged kWh. Example: 0.2 ignores tiny zero-current noise.",
     "notify_delta_report_time": "Cell delta report notification time. Use HH:MM 24-hour format. Example: 10:15.",
     "notify_delta_window_start": "Start of the delta report calculation window. Use HH:MM 24-hour format. Example: 00:00.",
     "notify_delta_window_end": "End of the delta report calculation window. Use HH:MM 24-hour format. Example: 10:00.",
@@ -1957,11 +2051,12 @@ def build_grouped_config(options):
     for group_name, keys in GROUPS.items():
         grouped[group_name] = []
         for key in keys:
-            raw_value = options.get(key, "")
+            raw_value = options.get(key, DEFAULT_OPTION_VALUES.get(key, ""))
             grouped[group_name].append({
                 "key": key,
                 "raw_value": raw_value,
                 "input_type": input_type_for_value(key, raw_value),
+                "choices": BATTERY_PROFILE_CHOICES if key == "battery_profile" else {},
                 "is_bool": isinstance(raw_value, bool),
                 "is_sensitive": key in SENSITIVE_KEYS,
                 "value": safe_value(key, raw_value),
@@ -2025,9 +2120,7 @@ def generate_config_yaml(options):
     for group_name, keys in GROUPS.items():
         lines.append(f"# ── {group_name} ─────────────────────────────────────────────")
         for key in keys:
-            if key not in options:
-                continue
-            value = sanitize_config_value(key, options.get(key))
+            value = sanitize_config_value(key, options.get(key, DEFAULT_OPTION_VALUES.get(key, "")))
             lines.append(f"{key}: {yaml_scalar(value)}")
         lines.append("")
 
@@ -2036,6 +2129,9 @@ def generate_config_yaml(options):
 
 def parse_form_value(key, raw_value, current_value):
     """Parse web form values back to the expected option type."""
+    if key == "battery_profile":
+        return normalize_profile(raw_value)
+
     if isinstance(current_value, bool):
         return raw_value == "on"
 
@@ -2066,10 +2162,7 @@ def build_options_from_form(form, current_options):
 
     for group_name, keys in GROUPS.items():
         for key in keys:
-            if key not in current_options:
-                continue
-
-            current_value = current_options.get(key)
+            current_value = current_options.get(key, DEFAULT_OPTION_VALUES.get(key, ""))
 
             if isinstance(current_value, bool):
                 raw_value = "on" if key in form else "off"
@@ -2285,6 +2378,12 @@ def classify_log_line(line, source):
 
     if "get /api/status" in lowered or "get /health" in lowered or "werkzeug" in lowered:
         return 3, "Web UI"
+    if "[debug]" in lowered:
+        if "duplicate suppressed" in lowered:
+            return 2, "Warnings"
+        if "raw" in lowered or "frame" in lowered or "checksum" in lowered or "unknown(0x" in lowered:
+            return 3, "Protocol"
+        return 2, category
     if "raw" in lowered or "frame" in lowered or "checksum" in lowered or "unknown(0x" in lowered:
         view_level = 3
         category = "Protocol"
@@ -2556,6 +2655,26 @@ def route_download_logs_txt():
     )
 
 
+@app.route("/clear-warning-suppression", methods=["POST"])
+def route_clear_warning_suppression():
+    """Request clearing Telegram warning cooldown/suppression state.
+
+    This only affects add-on notification state. It does not send BMS commands
+    and it does not change BMS thresholds or FET states.
+    """
+    try:
+        Path(WARNING_NOTIFY_CLEAR_FLAG_PATH).write_text(datetime.now().isoformat(), encoding="utf-8")
+        if os.path.exists(WARNING_NOTIFY_STATE_PATH):
+            os.remove(WARNING_NOTIFY_STATE_PATH)
+        message = "Warning notification suppression state cleared. The next active warning can notify again."
+        append_event("warning_suppression", "Warning suppression cleared", message, "ok")
+        return redirect_to_tab("config", "ok", message)
+    except Exception as exc:
+        message = f"Could not clear warning suppression state: {exc}"
+        append_event("warning_suppression", "Warning suppression clear failed", message, "warn")
+        return redirect_to_tab("config", "warn", message)
+
+
 
 
 
@@ -2586,6 +2705,7 @@ FLOAT_FIELDS = {
     "notify_soc_high_threshold": (0.0, 100.0),
     "notify_soc_high_reset": (0.0, 100.0),
     "notify_soh_threshold": (0.0, 100.0),
+    "daily_energy_current_deadband_a": (0.0, 10.0),
 }
 
 TIME_FIELDS = {
@@ -2726,6 +2846,9 @@ def validate_config_options(options):
 
     if options.get("connection_type") not in ("Serial", "serial"):
         errors.append("connection_type must be Serial. IP mode is not enabled in this add-on build.")
+
+    if "battery_profile" in options and normalize_profile(options.get("battery_profile")) != str(options.get("battery_profile", "")).strip().lower():
+        errors.append("battery_profile must be one of: auto, p13s_hubble_am2, p16s_eenovance_mana, custom.")
 
     # Logical threshold check
     try:

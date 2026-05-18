@@ -2372,7 +2372,8 @@
                             <li>
                               <span class="warning-detail-label">{{ row.label }}:</span>
                               {{ row.value }} | Ref: {{ row.ref }} | Margin: {{ row.margin }} |
-                              <span class="warning-detail-status {{ row.class }}">{{ row.status }}</span>
+                              <span class="warning-detail-status {{ row.class }}">{{ row.status }}</span> |
+                              Notify: <span class="warning-detail-status {{ row.notify_class }}">{{ row.notify }}</span>
                             </li>
                           {% endfor %}
                         </ul>
@@ -2899,7 +2900,15 @@
             <div class="config-action-group">
               <div class="config-action-label">Export</div>
               <div class="config-action-buttons">
-                <a class="button-link secondary-button" href="download-sanitized-yaml">Download Sanitized YAML</a>
+                <a class="button-link secondary-button" href="export-config.yaml">Download Sanitized YAML</a>
+              </div>
+            </div>
+            <div class="config-action-group">
+              <div class="config-action-label">Notifications</div>
+              <div class="config-action-buttons">
+                <form class="inline-action-form" method="post" action="clear-warning-suppression" onsubmit="return confirm('Clear Telegram warning suppression/cooldown state? This does not change BMS settings.');">
+                  <button class="secondary-button" type="submit">Clear Warning Suppression</button>
+                </form>
               </div>
             </div>
             <div class="config-action-group danger">
@@ -2967,6 +2976,12 @@
                 <div class="value">
                   {% if item.input_type == 'checkbox' %}
                     <input id="cfg_{{ item.key }}" class="config-checkbox config-field" type="checkbox" name="{{ item.key }}" data-group="{{ group_name }}" data-original="{% if item.raw_value %}true{% else %}false{% endif %}" {% if item.raw_value %}checked{% endif %}>
+                  {% elif item.input_type == 'select' %}
+                    <select id="cfg_{{ item.key }}" class="config-input config-field" name="{{ item.key }}" data-group="{{ group_name }}" data-original="{{ item.raw_value }}">
+                      {% for choice_value, choice_label in item.choices.items() %}
+                        <option value="{{ choice_value }}" {% if item.raw_value == choice_value %}selected{% endif %}>{{ choice_label }}</option>
+                      {% endfor %}
+                    </select>
                   {% elif item.is_sensitive %}
                     <input id="cfg_{{ item.key }}" class="config-input config-field" type="password" name="{{ item.key }}" data-group="{{ group_name }}" data-original="" placeholder="Leave blank to keep existing value">
                   {% elif item.input_type == 'number' %}
@@ -4139,6 +4154,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
 
           <h3>Voltage reference values</h3>
           <ul>
+            <li><code>battery_profile</code> — selects the read-only reference profile. <code>auto</code> uses detected cell count, <code>p13s_hubble_am2</code> uses 13S references, <code>p16s_eenovance_mana</code> uses 16S LFP references, and <code>custom</code> uses your configured values.</li>
             <li><code>notify_cell_high_warn_voltage</code> — the high-cell voltage reference used for explanations. Example: <code>4.20</code> V. If the BMS reports a high-cell warning, the add-on compares the highest cell against this value.</li>
             <li><code>notify_cell_low_warn_voltage</code> — the low-cell voltage reference used for explanations. Example: <code>3.00</code> V. If the BMS reports a low-cell warning, the add-on compares the lowest cell against this value.</li>
             <li><code>notify_cell_delta_warn_mv</code> — the cell voltage difference reference in millivolts. Example: <code>100</code> mV. This helps identify if the highest and lowest cells are too far apart.</li>
@@ -4183,6 +4199,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
           <h3>Daily summary</h3>
           <ul>
             <li><code>notify_daily_summary_time</code> — the time the daily summary notification is sent. Example: <code>19:00</code>.</li>
+            <li><code>daily_energy_current_deadband_a</code> — current below this value is ignored for daily charged/discharged kWh, so tiny zero-current noise does not create fake energy movement.</li>
           </ul>
 
           <h3>Cell delta report</h3>
@@ -4660,6 +4677,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
         notify_soc_high_threshold: [0, 100],
         notify_soc_high_reset: [0, 100],
         notify_soh_threshold: [0, 100],
+        daily_energy_current_deadband_a: [0, 10],
       };
 
       const requiredText = [

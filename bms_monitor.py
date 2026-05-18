@@ -71,6 +71,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 import constants
 from bms_notify import NotifyState, telegram_send
+from battery_profiles import effective_warning_references
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -100,6 +101,7 @@ def configure_monitor_file_logging():
 EVENT_LOG_PATH = "/data/events.json"
 MONITOR_HEALTH_PATH = "/data/monitor_health.json"
 WARNING_NOTIFY_STATE_PATH = "/data/warning_notify_state.json"
+WARNING_NOTIFY_CLEAR_FLAG_PATH = "/data/clear_warning_notify_state.flag"
 MAX_EVENT_LOG_ENTRIES = 50
 
 # ─── Telegram direct notify (used before MQTT is available) ─────────────────
@@ -1063,13 +1065,11 @@ def classify_warning_severity(warnings: str, pack_detail, config: dict) -> tuple
         raise_to("critical", "BMS current protection is active")
 
     try:
-        cell_high = float(config.get('notify_cell_high_warn_voltage', 4.20))
-        cell_low = float(config.get('notify_cell_low_warn_voltage', 3.00))
         delta_thr = float(config.get('notify_cell_delta_warn_mv', 100))
         temp_high = float(config.get('notify_temp_high_warn_c', 55))
         temp_low = float(config.get('notify_temp_low_warn_c', 0))
     except Exception:
-        cell_high, cell_low, delta_thr, temp_high, temp_low = 4.20, 3.00, 100.0, 55.0, 0.0
+        delta_thr, temp_high, temp_low = 100.0, 55.0, 0.0
 
     if pack_detail is not None:
         cells_v = [float(v) / 1000.0 for v in (getattr(pack_detail, 'v_cells', []) or []) if v is not None and float(v) > 0]
@@ -1077,6 +1077,9 @@ def classify_warning_severity(warnings: str, pack_detail, config: dict) -> tuple
         pack_v = float(getattr(pack_detail, 'v_pack', 0.0) or 0.0)
         cell_count = int(getattr(pack_detail, 'cells', len(cells_v)) or len(cells_v))
         delta_mv = float(getattr(pack_detail, 'cell_max_diff', 0.0) or 0.0)
+        refs = effective_warning_references(config, cell_count)
+        cell_high = refs["cell_high"]
+        cell_low = refs["cell_low"]
 
         if cells_v:
             highest = max(cells_v)
@@ -1092,8 +1095,8 @@ def classify_warning_severity(warnings: str, pack_detail, config: dict) -> tuple
                 raise_to("warning", f"Lowest cell {lowest:.3f} V is near {cell_low:.2f} V reference")
 
         if cell_count:
-            pack_high = cell_high * cell_count
-            pack_low = cell_low * cell_count
+            pack_high = refs["pack_high"]
+            pack_low = refs["pack_low"]
             if pack_v >= pack_high:
                 raise_to("critical", f"Pack voltage {pack_v:.3f} V is at/above {pack_high:.2f} V reference")
             elif pack_v >= pack_high - 0.50 and ("above total" in low or "total voltage" in low):
@@ -1150,6 +1153,22 @@ def save_warning_notify_state(state: dict):
         os.replace(tmp_path, WARNING_NOTIFY_STATE_PATH)
     except Exception as exc:
         log.debug("Could not save warning notification state: %s", exc)
+
+
+def consume_warning_notify_clear_request() -> bool:
+    """Clear notification cooldown state when the web UI requests it."""
+    if not os.path.exists(WARNING_NOTIFY_CLEAR_FLAG_PATH):
+        return False
+    try:
+        os.remove(WARNING_NOTIFY_CLEAR_FLAG_PATH)
+    except Exception:
+        pass
+    try:
+        if os.path.exists(WARNING_NOTIFY_STATE_PATH):
+            os.remove(WARNING_NOTIFY_STATE_PATH)
+    except Exception as exc:
+        log.debug("Could not remove warning notification state: %s", exc)
+    return True
 
 
 def warning_severity_rank(severity: str) -> int:
@@ -1948,9 +1967,18 @@ def main():
                 if force_warn:
                     last_warn_force = now
                 # ── Warning and FET notifications ─────────────────────────────
+                if consume_warning_notify_clear_request():
+                    warning_notify_state = {}
+                    save_warning_notify_state(warning_notify_state)
+                    if hasattr(notify, "last_warnings"):
+                        notify.last_warnings = {}
+                    log.info("Warning notification suppression state cleared by web UI request")
+
                 pack_by_number = {pack.pack_number: pack for pack in (analog_data.pack_data if analog_data else [])}
                 for pack_warn in result:
                     p = pack_warn.pack_number
+                    if hasattr(notify, "on_daily_warning_observed"):
+                        notify.on_daily_warning_observed(p, pack_warn.warnings)
                     pack_detail = pack_by_number.get(p)
                     warning_family = normalize_warning_family(pack_warn.warnings)
                     severity, severity_reasons = classify_warning_severity(pack_warn.warnings, pack_detail, config)
@@ -2035,14 +2063,15 @@ def main():
                                 "reasons": previous_warning_state.get("reasons", severity_reasons),
                             }
                             save_warning_notify_state(warning_notify_state)
-                            log.debug(
-                                "BMS %s warning duplicate suppressed for Pack %02d: %s (%.0fs since last send, cooldown %.0fs)",
-                                severity,
-                                p,
-                                warning_family,
-                                elapsed,
-                                repeat_seconds,
-                            )
+                            if int(config.get("debug_output", 0) or 0) >= 2:
+                                log.debug(
+                                    "BMS %s warning duplicate suppressed for Pack %02d: %s (%.0fs since last send, cooldown %.0fs)",
+                                    severity,
+                                    p,
+                                    warning_family,
+                                    elapsed,
+                                    repeat_seconds,
+                                )
 
                     notify.on_fet_update(p,
                         'ON' if pack_warn.charge_fet    else 'OFF',

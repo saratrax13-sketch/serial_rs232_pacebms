@@ -26,7 +26,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.65"
+version: "2.6.67"
 ```
 
 ---
@@ -61,12 +61,37 @@ This project should work with batteries that expose the **Pace BMS RS232 / UART 
 
 Tested examples:
 
-| Battery / BMS | Connection | Notes |
-|---|---:|---|
-| Hubble AM2 / Pace P13S | RS232 | Tested with 13-cell packs |
-| Pace-compatible lithium packs | RS232 / UART | Expected to work if the protocol matches |
+| BMS / firmware string | Battery | Connection | Notes |
+|---|---|---:|---|
+| `P13S120A-12290-1.50` | Hubble Lithium AM2 5.5kWh 51V Battery | RS232 | 13 cells in series |
+| `P13S120A-12290-2.50` | Hubble Lithium AM2 5.5kWh 51V Battery | RS232 | 13 cells in series |
+| `P16S200A-C21084-3.10` | Eenovance Mana LFP Wall Mount 10.65kWh 51.2V | RS232 | 16 cells in series |
 
 The protocol is used by multiple battery brands and models. Battery behaviour, warning thresholds, and reported status bits may vary between manufacturers.
+
+### How to read the model numbers
+
+`P13S120A-12290-1.50`
+
+| Part | Meaning |
+|---|---|
+| `P` | Pace BMS / Pace firmware family |
+| `13S` | 13 cells in series, for example Hubble Lithium AM2 5.5kWh 51V Battery |
+| `120A` | 120A current class |
+| `12290` | Hardware / customer / firmware branch identifier |
+| `1.50` | Firmware version / firmware revision |
+
+`P16S200A-C21084-3.10`
+
+| Part | Meaning |
+|---|---|
+| `P` | Pace BMS / Pace firmware family |
+| `16S` | 16 cells in series, for example Eenovance Mana LFP Wall Mount 10.65kWh 51.2V |
+| `200A` | 200A current class |
+| `C21084` | Hardware / customer / firmware branch identifier |
+| `3.10` | Firmware version / revision |
+
+The Battery Profile setting uses these cell-count families only for read-only UI and Telegram reference checks. It does not write thresholds to the BMS.
 
 ---
 
@@ -337,7 +362,8 @@ Optional groups:
 - **Telegram**: bot token, chat ID, startup/disconnect/stale notification toggles.
 - **Notifications**: SOC, SOH, warning, FET, daily summary and delta report toggles.
 - **Notification Thresholds**: SOC/SOH/stale thresholds and severity-aware warning repeat intervals.
-- **Warning Detail**: read-only reference values used to explain BMS warnings in Telegram messages.
+- **Battery Profile & References**: read-only profile defaults and custom reference values used to explain BMS warnings.
+- **Warning Detail**: controls which measured values appear in warning explanations.
 - **Report Schedules**: daily summary and cell-delta report times.
 
 With Full Monitoring configured:
@@ -385,6 +411,7 @@ notify_soh_on_startup: false
 notify_warnings: true
 notify_warning_detail_enabled: true
 
+battery_profile: "auto"
 notify_cell_high_warn_voltage: 4.20
 notify_cell_low_warn_voltage: 3.00
 notify_cell_delta_warn_mv: 100
@@ -507,21 +534,25 @@ New warning families and severity escalation send immediately. Ongoing repeats u
 Example:
 
 ```yaml
+battery_profile: "auto"
 notify_cell_high_warn_voltage: 4.20
 notify_cell_low_warn_voltage: 3.00
 notify_cell_delta_warn_mv: 100
 ```
 
-For a 13-cell pack, pack high reference is calculated as:
+Use `battery_profile: "auto"` to apply known read-only reference defaults from the detected cell count:
+
+| Detected profile | Cell high reference | Pack high reference | Notes |
+|---|---:|---:|---|
+| P13S / Hubble AM2 51V | 4.20 V | 54.60 V | 13 x 4.20 V |
+| P16S / Eenovance MANA LFP 51.2V | 3.51 V | 56.16 V | Based on 44.8-56.16 V operating range |
+
+If `battery_profile` is set to `custom`, the add-on uses your configured cell high/low values. For example, a 13-cell pack with a 4.20 V high-cell reference gives `4.20 V x 13 cells = 54.60 V`.
+
+The web UI and Telegram Warning Detail show measured values beside the active reference and notification state:
 
 ```text
-4.20 V × 13 cells = 54.60 V
-```
-
-For a 16-cell pack:
-
-```text
-4.20 V × 16 cells = 67.20 V
+Cell 08: 4.160 V | Ref: 4.20 V | Margin: 0.040 V below ref | Not exceeded | Notify: On
 ```
 
 These are display and notification reference values only. They do not configure the BMS.

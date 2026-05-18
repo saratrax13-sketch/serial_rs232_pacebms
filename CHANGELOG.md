@@ -1,3 +1,24 @@
+## 2.6.67 - 2026-05-18
+
+### Added
+- Added read-only Battery Profile references for Auto, P13S / Hubble AM2 and P16S / Eenovance MANA LFP warning interpretation.
+- Added `battery_profile` and `daily_energy_current_deadband_a` configuration options.
+- Added a Config action to clear Telegram warning suppression/cooldown state without writing anything to the BMS.
+- Added tested battery/model-number documentation for Hubble AM2 P13S and Eenovance MANA P16S packs.
+
+### Changed
+- Warning Intelligence and Telegram warning detail now show measured values beside configured/profile references and notification state.
+- Daily summary energy tracking now follows the dashboard power-flow convention: positive current charges, negative current discharges.
+- Daily summaries now avoid useless `0.000 kWh` lines and report no measurable energy movement when appropriate.
+- Daily summaries now include SOC movement and warnings observed during the day.
+- Duplicate-suppressed BMS warning logs are silent during normal operation and only appear at deeper debug output.
+- Fixed the Config tab sanitized YAML download link.
+
+### Notes
+- Battery profile references are display/notification references only. They do not configure or write to the BMS.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.66 - 2026-05-18
 ### Changed
 - Changed version number to upgrade addon in HA

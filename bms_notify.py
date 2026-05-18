@@ -23,6 +23,8 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass, field
 from typing import Optional
 
+from battery_profiles import effective_warning_references
+
 log = logging.getLogger("bmspace")
 
 TELEGRAM_PLACEHOLDER_VALUES = {
@@ -99,6 +101,9 @@ class NotifyState:
         self.kwh_discharged       = {}   # {pack_num: float}
         self.last_energy_update    = {}   # {pack_num: epoch seconds}
         self.energy_reset_day     = datetime.now().date()  # date of last midnight reset
+        self.soc_start            = {}   # {pack_num: first SOC of day}
+        self.soc_latest           = {}   # {pack_num: latest SOC of day}
+        self.daily_warning_families = {} # {pack_num: set of warning lines observed today}
 
         # Worst cell deviation tracking — per pack (for 19:00 report)
         self.worst_cell_dev       = {}   # {pack_num: {'cell': n, 'dev': float, 'time': str}}
@@ -118,6 +123,12 @@ class NotifyState:
 
     def _notify_enabled(self, key: str) -> bool:
         return self.config.get('notify_enabled', True) and self.config.get(key, True)
+
+    def _warning_references(self, pack=None, cell_count=None) -> dict:
+        if cell_count is None and pack is not None:
+            raw_cells = getattr(pack, 'v_cells', []) or []
+            cell_count = int(getattr(pack, 'cells', len(raw_cells)) or len(raw_cells))
+        return effective_warning_references(self.config, cell_count)
 
     def _parse_time(self, key: str, default: str) -> tuple:
         t = self.config.get(key, default)
@@ -178,6 +189,9 @@ class NotifyState:
             self.kwh_charged           = {}
             self.kwh_discharged        = {}
             self.last_energy_update    = {}
+            self.soc_start             = {}
+            self.soc_latest            = {}
+            self.daily_warning_families = {}
             self.worst_cell_dev        = {}
             # Reset low-SOC threshold notifications daily so a battery that remains
             # low can alert again the next day.
@@ -272,6 +286,12 @@ class NotifyState:
     # ── SOC alerts ────────────────────────────────────────────────────────────
 
     def on_soc_update(self, pack_num: int, soc: float):
+        try:
+            self.soc_start.setdefault(pack_num, float(soc))
+            self.soc_latest[pack_num] = float(soc)
+        except Exception:
+            pass
+
         if not self._notify_enabled('notify_soc_low') and not self._notify_enabled('notify_soc_high'):
             return
 
@@ -381,7 +401,8 @@ class NotifyState:
         margin, status = self._reference_margin(value, reference, direction)
         value_text = f"{value:.3f} V" if value is not None else "Unknown"
         ref_text = f"{reference:.2f} V" if reference is not None else "Unknown"
-        return f"- {label}: {value_text} | Ref: {ref_text} | Margin: {margin} | {status}", status
+        notify_text = "On" if self._notify_enabled('notify_warnings') else "Off"
+        return f"- {label}: {value_text} | Ref: {ref_text} | Margin: {margin} | {status} | Notify: {notify_text}", status
 
     def _build_warning_detail(self, pack_num: int, cleaned: str, pack=None) -> str:
         """Build a concise Telegram warning message using latest analog data.
@@ -395,8 +416,6 @@ class NotifyState:
             return cleaned
 
         try:
-            cell_high = float(self.config.get('notify_cell_high_warn_voltage', 4.20))
-            cell_low  = float(self.config.get('notify_cell_low_warn_voltage', 3.00))
             temp_high = float(self.config.get('notify_temp_high_warn_c', 55))
             temp_low  = float(self.config.get('notify_temp_low_warn_c', 0))
 
@@ -408,6 +427,9 @@ class NotifyState:
             soh = float(getattr(pack, 'soh', 0.0) or 0.0)
             cell_count = int(getattr(pack, 'cells', len(cells_v)) or len(cells_v))
             delta_mv = float(getattr(pack, 'cell_max_diff', 0.0) or 0.0)
+            refs = self._warning_references(pack, cell_count)
+            cell_high = refs["cell_high"]
+            cell_low = refs["cell_low"]
 
             friendly = self._friendly_warning_lines(cleaned)
             lines = ["BMS internal warning active:"]
@@ -483,7 +505,9 @@ class NotifyState:
                 "",
                 "Reference Check",
                 f"- Cell high reference: {cell_high:.2f} V",
-                f"- Pack high reference: {(cell_high * cell_count):.2f} V" if cell_count else "- Pack high reference: Unknown",
+                f"- Pack high reference: {refs['pack_high']:.2f} V" if refs.get("pack_high") is not None else "- Pack high reference: Unknown",
+                f"- Battery profile: {refs['profile_label']}",
+                f"- Reference source: {'battery profile defaults' if refs.get('source') == 'profile' else 'user custom settings'}",
             ])
             if exceeded:
                 lines.append("- One or more measured values exceed the configured reference.")
@@ -548,6 +572,7 @@ class NotifyState:
             return
 
         cleaned = self._clean_warning_text(warnings)
+        self.on_daily_warning_observed(pack_num, cleaned)
         prev = self.last_warnings.get(pack_num, 'Normal')
 
         if cleaned != prev and cleaned != 'Normal':
@@ -646,17 +671,27 @@ class NotifyState:
         if scan_interval:
             elapsed_seconds = min(elapsed_seconds, max(float(scan_interval) * 3, float(scan_interval)))
 
-        power_w   = voltage * current                         # W (negative = charging)
+        power_w   = voltage * current                         # W (positive = charging)
         kwh_delta = abs(power_w) * (elapsed_seconds / 3600) / 1000  # kWh this interval
+        current_deadband = float(self.config.get("daily_energy_current_deadband_a", 0.2) or 0.2)
 
         if pack_num not in self.kwh_charged:
             self.kwh_charged[pack_num]    = 0.0
             self.kwh_discharged[pack_num] = 0.0
 
-        if current < 0:
+        if current > current_deadband:
             self.kwh_charged[pack_num]    += kwh_delta
-        elif current > 0:
+        elif current < -current_deadband:
             self.kwh_discharged[pack_num] += kwh_delta
+
+    def on_daily_warning_observed(self, pack_num: int, warnings: str):
+        cleaned = self._clean_warning_text(warnings)
+        if cleaned == "Normal":
+            return
+        bucket = self.daily_warning_families.setdefault(pack_num, set())
+        for line in self._friendly_warning_lines(cleaned):
+            if line and line != "Normal":
+                bucket.add(line)
 
     # ── Cell deviation tracking ───────────────────────────────────────────────
 
@@ -728,11 +763,19 @@ class NotifyState:
             chg  = self.kwh_charged.get(p, 0.0)
             dchg = self.kwh_discharged.get(p, 0.0)
             wc   = self.worst_cell_dev.get(p, {})
+            start_soc = self.soc_start.get(p)
+            latest_soc = self.soc_latest.get(p)
+            warnings_today = sorted(self.daily_warning_families.get(p, set()))
             lines.append(
                 f"\nPack {p:02d}:\n"
-                f"  Charged:    {chg:.3f} kWh\n"
-                f"  Discharged: {dchg:.3f} kWh\n"
             )
+            if chg < 0.001 and dchg < 0.001:
+                lines.append("  Energy movement: no measurable charge/discharge recorded today")
+            else:
+                lines.append(f"  Charged:    {chg:.3f} kWh")
+                lines.append(f"  Discharged: {dchg:.3f} kWh")
+            if start_soc is not None and latest_soc is not None:
+                lines.append(f"  SOC: {start_soc:.1f}% -> {latest_soc:.1f}% ({latest_soc - start_soc:+.1f}%)")
             if wc:
                 lines.append(
                     f"  Worst cell: Cell {wc['cell']:02d} "
@@ -741,6 +784,7 @@ class NotifyState:
                 )
             else:
                 lines.append("  Worst cell: No data")
+            lines.append("  Warnings today: " + (" | ".join(warnings_today[:6]) if warnings_today else "None"))
         telegram_send(self.config, '\n'.join(lines))
 
     def _send_delta_report(self, pack_count: int):

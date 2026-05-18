@@ -291,12 +291,39 @@ class TelegramConfigTests(unittest.TestCase):
 
         self.assertIn("Quick Metrics", message)
         self.assertIn("BMS Warning Details", message)
-        self.assertIn("- Cell 02: 4.176 V | Ref: 4.20 V | Margin: 0.024 V below ref | Not exceeded", message)
-        self.assertIn("- Cell 08: 4.200 V | Ref: 4.20 V | Margin: 0.000 V below ref | At reference", message)
-        self.assertIn("- Pack: 54.377 V | Ref: 54.60 V | Margin: 0.223 V below ref | Not exceeded", message)
+        self.assertIn("- Cell 02: 4.176 V | Ref: 4.20 V | Margin: 0.024 V below ref | Not exceeded | Notify: On", message)
+        self.assertIn("- Cell 08: 4.200 V | Ref: 4.20 V | Margin: 0.000 V below ref | At reference | Notify: On", message)
+        self.assertIn("- Pack: 54.377 V | Ref: 54.60 V | Margin: 0.223 V below ref | Not exceeded | Notify: On", message)
+        self.assertIn("Battery profile: P13S / Hubble AM2 51V", message)
         self.assertIn("Reference Check", message)
         self.assertIn("Interpretation", message)
         self.assertIn("Suggested Action", message)
+
+    def test_p16_profile_uses_lfp_reference_defaults(self):
+        notify = bms_notify.NotifyState({
+            "notify_warning_detail_enabled": True,
+            "battery_profile": "auto",
+            "notify_warnings": True,
+        })
+        pack = types.SimpleNamespace(
+            v_cells=[3440] * 16,
+            t_cells=[],
+            v_pack=55.000,
+            soc=98.0,
+            soh=100.0,
+            cells=16,
+            cell_max_diff=12,
+            cycles=100,
+        )
+
+        message = notify._build_warning_detail(
+            1,
+            "Warning State 1: Above total volt warn",
+            pack,
+        )
+
+        self.assertIn("Battery profile: P16S / Eenovance MANA LFP 51.2V", message)
+        self.assertIn("- Pack: 55.000 V | Ref: 56.16 V", message)
 
 
 class EnergyTrackingTests(unittest.TestCase):
@@ -308,8 +335,33 @@ class EnergyTrackingTests(unittest.TestCase):
             state.on_energy_update(1, voltage=50.0, current=10.0, scan_interval=5)
 
         expected = 500.0 * (10.0 / 3600.0) / 1000.0
-        self.assertAlmostEqual(state.kwh_discharged[1], expected)
+        self.assertAlmostEqual(state.kwh_charged[1], expected)
+        self.assertEqual(state.kwh_discharged[1], 0.0)
+
+    def test_energy_ignores_deadband_current(self):
+        state = bms_notify.NotifyState({"daily_energy_current_deadband_a": 0.2})
+
+        with patch("bms_notify.time.time", side_effect=[1000.0, 1010.0]):
+            state.on_energy_update(1, voltage=50.0, current=0.1, scan_interval=5)
+            state.on_energy_update(1, voltage=50.0, current=0.1, scan_interval=5)
+
         self.assertEqual(state.kwh_charged[1], 0.0)
+        self.assertEqual(state.kwh_discharged[1], 0.0)
+
+    def test_daily_summary_reports_no_measurable_energy(self):
+        state = bms_notify.NotifyState({})
+        state.on_soc_update(1, 80.0)
+        state.on_soc_update(1, 81.0)
+        state.on_daily_warning_observed(1, "Warning State 1: Above cell volt warn")
+        state.worst_cell_dev[1] = {"cell": 1, "dev": 8.2, "time": "16:01", "volt": 4.135, "avg": 4.127}
+
+        with patch("bms_notify.telegram_send") as send:
+            state._send_daily_summary(1)
+
+        message = send.call_args.args[1]
+        self.assertIn("Energy movement: no measurable charge/discharge recorded today", message)
+        self.assertIn("SOC: 80.0% -> 81.0% (+1.0%)", message)
+        self.assertIn("Warnings today: Above cell voltage", message)
 
 
 class HealthEndpointTests(unittest.TestCase):
@@ -533,6 +585,15 @@ class HealthEndpointTests(unittest.TestCase):
 
         self.assertEqual(level, 3)
         self.assertEqual(category, "Web UI")
+
+    def test_log_classifier_keeps_duplicate_suppression_out_of_alerts(self):
+        level, category = web_config.classify_log_line(
+            "2026-05-18 20:21:47,273 [DEBUG] [monitor] BMS caution warning duplicate suppressed for Pack 01",
+            "monitor",
+        )
+
+        self.assertEqual(level, 2)
+        self.assertEqual(category, "Warnings")
 
     def test_log_view_builds_filtered_support_rows(self):
         options = {"debug_output": 2}

@@ -1,6 +1,6 @@
 name: "Pace BMS RS232 Monitor"
 description: "Read-only Pace BMS RS232 to MQTT bridge with Home Assistant discovery and Telegram notifications"
-version: "2.6.66"
+version: "2.6.67"
 slug: "pace_bms_rs232"
 url: "https://github.com/saratrax13-sketch/serial_rs232_pacebms"
 init: false
@@ -81,6 +81,7 @@ options:
   notify_warning_repeat_critical_seconds: 900
 
   # Full Monitoring - read-only warning reference values
+  battery_profile: "auto"
   notify_cell_high_warn_voltage: 4.20
   notify_cell_low_warn_voltage: 3.00
   notify_cell_delta_warn_mv: 100
@@ -100,6 +101,7 @@ options:
 
   # Full Monitoring - scheduled reports
   notify_daily_summary_time: "19:00"
+  daily_energy_current_deadband_a: 0.2
   notify_delta_report_time: "10:15"
   notify_delta_window_start: "00:00"
   notify_delta_window_end: "10:00"
@@ -156,6 +158,7 @@ schema:
   notify_warning_repeat_warning_seconds: int
   notify_warning_repeat_critical_seconds: int
 
+  battery_profile: list(auto|p13s_hubble_am2|p16s_eenovance_mana|custom)
   notify_cell_high_warn_voltage: float
   notify_cell_low_warn_voltage: float
   notify_cell_delta_warn_mv: int
@@ -172,6 +175,7 @@ schema:
   notify_alert_discharge_fet_off: bool
 
   notify_daily_summary_time: str
+  daily_energy_current_deadband_a: float
   notify_delta_report_time: str
   notify_delta_window_start: str
   notify_delta_window_end: str
