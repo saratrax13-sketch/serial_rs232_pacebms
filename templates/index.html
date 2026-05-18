@@ -3184,13 +3184,30 @@ This cannot be undone.`);">
             <div class="log-metric-label">Visible now</div>
             <div class="log-metric-value">{{ log_view.visible_at_default }}</div>
           </div>
+          <div class="log-metric">
+            <div class="log-metric-label">Oldest line</div>
+            <div class="log-metric-value">{{ log_view.oldest_time }}</div>
+          </div>
+          <div class="log-metric">
+            <div class="log-metric-label">Newest line</div>
+            <div class="log-metric-value">{{ log_view.newest_time }}</div>
+          </div>
         </div>
         {% endif %}
-        <div class="helper-note">
-          View Detail only changes what you see on this page. To capture more detailed monitor logs, change <code>debug_output</code> in Config and restart the add-on.
-        </div>
 
         <div class="log-section-title">Log Viewer</div>
+        <details class="compact-help" style="margin-top: 10px;">
+          <summary>Log viewer information</summary>
+          <div class="helper-note">
+            <strong>Captured lines</strong> are the latest {{ log_view.rows|length if log_view else 0 }} lines read from <code>/data/pacebms-monitor.log</code> and <code>/data/pacebms-web.log</code>. The viewer keeps a latest {{ 400 }} line sample so the page stays fast.
+            <br><br>
+            <strong>Refresh Logs</strong> reads the latest sample again and keeps the page in the Logs tab. Logs now also auto-refresh quietly while this tab is open.
+            <br><br>
+            <strong>View Detail</strong>, <strong>Category</strong> and <strong>Search</strong> only filter what is displayed. They do not change what the monitor records. To capture deeper monitor detail, change <code>debug_output</code> in Config and restart the add-on.
+            <br><br>
+            The oldest and newest line timestamps show the time span covered by the current sample.
+          </div>
+        </details>
         <div class="log-controls">
           <div class="log-control">
             <label for="log-level-filter">View detail</label>
@@ -3223,19 +3240,6 @@ This cannot be undone.`);">
           <button type="button" onclick="reloadTab('logs')">Refresh Logs</button>
           <button type="button" onclick="clearLogView()">Clear View</button>
           <a class="button-link" href="download-logs.txt">Download Logs</a>
-        </div>
-
-        <div class="log-section-title">Debug Capture Setting</div>
-        <div class="helper-note">
-          Current monitor capture setting is <code>debug_output {{ log_view.debug_output if log_view else 0 }}</code>.
-          Use <code>0</code> for daily operation, <code>2</code> for poll troubleshooting, and <code>3</code> only for protocol/raw-frame troubleshooting.
-          A restart is required after changing <code>debug_output</code>.
-        </div>
-        <div class="actions">
-          <a class="button-link" href="?tab=config">Open Config</a>
-          <form method="post" action="restart-addon" onsubmit="return confirm('Restart this add-on now? The web UI may disconnect briefly.');">
-            <button class="danger-button" type="submit">Restart Add-on</button>
-          </form>
         </div>
 
         {% if log_view and log_view.rows %}
@@ -3556,7 +3560,7 @@ This cannot be undone.`);">
     let softTabLoading = false;
 
     function reloadTab(tabName) {
-      window.location.href = "?tab=" + encodeURIComponent(tabName);
+      openTabSoft(tabName, false);
     }
 
     function clearActiveTabTimers() {
@@ -3570,10 +3574,42 @@ This cannot be undone.`);">
       activeTabTimers.push(window.setInterval(callback, milliseconds));
     }
 
+    function getActiveTabName() {
+      const activeButton = document.querySelector(".tabs .tab-button.active");
+      if (!activeButton) return new URL(window.location.href).searchParams.get("tab") || "dashboard";
+      return new URL(activeButton.href, window.location.href).searchParams.get("tab") || "dashboard";
+    }
+
+    function getLogFilterState() {
+      return {
+        level: document.getElementById("log-level-filter")?.value || "",
+        category: document.getElementById("log-category-filter")?.value || "",
+        search: document.getElementById("log-search")?.value || "",
+      };
+    }
+
+    function restoreLogFilterState(state) {
+      if (!state) return;
+      const level = document.getElementById("log-level-filter");
+      const category = document.getElementById("log-category-filter");
+      const search = document.getElementById("log-search");
+      if (level && state.level) level.value = state.level;
+      if (category && state.category) category.value = state.category;
+      if (search) search.value = state.search || "";
+    }
+
     async function openTabSoft(tabName, pushState = true) {
       if (softTabLoading) return;
+      if (tabName !== "config" && configDirty) {
+        const leave = confirm("You have unsaved Config changes. Leave this tab without saving?");
+        if (!leave) return;
+        configDirty = false;
+      }
+
       softTabLoading = true;
       const targetUrl = "?tab=" + encodeURIComponent(tabName);
+      const previousScrollY = window.scrollY;
+      const logFilterState = tabName === "logs" ? getLogFilterState() : null;
 
       try {
         const response = await fetch(targetUrl, { cache: "no-store" });
@@ -3598,7 +3634,9 @@ This cannot be undone.`);">
         }
         initializeConfigForm();
         initializeReportScheduleFields();
+        restoreLogFilterState(logFilterState);
         initializeActivePanel();
+        window.scrollTo({ top: previousScrollY, left: 0, behavior: "auto" });
       } catch (err) {
         window.location.href = targetUrl;
       } finally {
@@ -3620,6 +3658,10 @@ This cannot be undone.`);">
         const tabName = new URL(window.location.href).searchParams.get("tab") || "dashboard";
         openTabSoft(tabName, false);
       });
+    }
+
+    function refreshActiveTabSoft() {
+      openTabSoft(getActiveTabName(), false);
     }
 
     function setText(id, value) {
@@ -3723,38 +3765,38 @@ This cannot be undone.`);">
       clearActiveTabTimers();
 
       if (document.querySelector('.tab-panel.active #refresh-message')) {
-        refreshStatus(true);
         addActiveTabTimer(function () {
-          refreshStatus(true);
+          refreshActiveTabSoft();
         }, 15000);
         return;
       }
 
       if (document.querySelector('.tab-panel.active #dashboard-refresh-message')) {
-        refreshDashboard(true);
         addActiveTabTimer(function () {
-          refreshDashboard(true);
-        }, 30000);
+          refreshActiveTabSoft();
+        }, 15000);
         return;
       }
 
       if (document.querySelector('.tab-panel.active #setup-refresh-marker')) {
         addActiveTabTimer(function () {
-          refreshSetupCacheQuietly();
+          refreshActiveTabSoft();
         }, 15000);
         return;
       }
 
       if (document.querySelector('.tab-panel.active #diagnostics-refresh-message')) {
-        refreshDiagnostics(true);
         addActiveTabTimer(function () {
-          refreshDiagnostics(true);
+          refreshActiveTabSoft();
         }, 15000);
         return;
       }
 
-      if (document.querySelector('.tab-panel.active #log-table')) {
+      if (document.querySelector('.tab-panel.active #log-level-filter')) {
         filterLogs();
+        addActiveTabTimer(function () {
+          refreshActiveTabSoft();
+        }, 15000);
       }
     }
   

@@ -562,6 +562,8 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertEqual(analog_row["category"], "Monitor")
         self.assertEqual(web_row["level"], 3)
         self.assertEqual(web_row["category"], "Web UI")
+        self.assertEqual(log_view["oldest_time"], "2026-05-18 18:46:15,123")
+        self.assertEqual(log_view["newest_time"], "2026-05-18 18:47:18,595")
 
     def test_monitoring_health_uses_heartbeat_and_live_mqtt(self):
         options = {

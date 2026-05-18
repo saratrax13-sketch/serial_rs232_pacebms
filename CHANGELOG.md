@@ -1,3 +1,18 @@
+## 2.6.65 - 2026-05-18
+
+### Changed
+- Replaced partial live-field auto-refresh with quiet full active-tab refresh for Dashboard, Tech Status, Setup, Diagnostics and Logs.
+- Set Dashboard soft refresh to 15 seconds.
+- Added Logs sample time-span context with oldest and newest captured line timestamps.
+- Added Logs viewer help explaining Refresh Logs, the latest 400-line sample and display-only filtering.
+- Removed Open Config and Restart Add-on actions from the Logs tab.
+
+### Notes
+- Soft refresh replaces only the active tab content and keeps the page shell in place.
+- Logs filters are preserved during automatic Logs refresh.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+
 ## 2.6.64 - 2026-05-18
 
 ### Changed

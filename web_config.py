@@ -2337,11 +2337,14 @@ def build_log_view(options):
     debug_output = safe_int(options.get("debug_output", 0), 0) if options else 0
     visible_at_default = sum(1 for row in rows if row["level"] <= debug_output)
     counts_by_level = {level: sum(1 for row in rows if row["level"] <= level) for level in range(4)}
+    row_times = [row["time"] for row in rows if row["time"]]
     return {
         "rows": rows[:MAX_LOG_VIEW_LINES],
         "debug_output": debug_output,
         "visible_at_default": visible_at_default,
         "counts_by_level": counts_by_level,
+        "oldest_time": row_times[-1] if row_times else "Unknown",
+        "newest_time": row_times[0] if row_times else "Unknown",
         "monitor_log_path": MONITOR_LOG_PATH,
         "web_log_path": WEB_LOG_PATH,
         "categories": ["All", "Monitor", "Warnings", "MQTT", "Telegram", "Web UI", "Protocol"],
