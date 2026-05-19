@@ -2127,6 +2127,7 @@ It does not send BMS control commands.
 
 
 CARD_HELP = {
+    "Advanced": "Advanced runtime settings. Keep pack and cell number padding stable after Home Assistant MQTT Discovery has created entities. Changing padding changes MQTT state topics, discovery topics and unique IDs, which can leave old retained discovery entities in Home Assistant until they are cleaned up.",
     "Battery Profile & References": "Shows measured battery values beside profile/default references and user-configured references. The BMS warning Telegram policy and row alert switches control Telegram noise only; active BMS warnings remain visible in the UI. The editable values are Home Assistant add-on options only and never write to the BMS.",
     "FET Notifications": "Controls charge/discharge FET notification behavior. These settings only decide when to alert; they do not control FETs.",
     "Notification Thresholds": "Controls SOC, SOH, stale-data and BMS warning repeat timing. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale and warning repeat values are in seconds. BMS warning repeats are severity-aware: caution repeats for low-risk ongoing warnings, warning repeats for near-limit conditions, and critical repeats for protection/fault or measured values outside configured references.",
@@ -2180,8 +2181,8 @@ FIELD_LABELS = {
     "state_force_republish_seconds": "State republish interval",
     "warn_force_republish_seconds": "Warning republish interval",
     "debug_output": "Log detail level",
-    "zero_pad_number_cells": "Cell number padding",
-    "zero_pad_number_packs": "Pack number padding",
+    "zero_pad_number_cells": "Cell number padding (entity-sensitive)",
+    "zero_pad_number_packs": "Pack number padding (entity-sensitive)",
     "notify_enabled": "Enable Telegram notifications",
     "telegram_bot_token": "Telegram bot token",
     "telegram_chat_id": "Telegram chat ID",

@@ -27,7 +27,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.98"
+version: "2.6.99"
 ```
 
 ---
@@ -507,7 +507,7 @@ warn_force_republish_seconds: 300
 
 debug_output: 0
 zero_pad_number_cells: 2
-zero_pad_number_packs: 1
+zero_pad_number_packs: 2
 ```
 
 ---
@@ -643,18 +643,18 @@ pacebms
 Example for pack 1:
 
 ```text
-pacebms/pack_1/v_cells/cell_01
-pacebms/pack_1/v_cells/cell_02
-pacebms/pack_1/temps/temp_1
-pacebms/pack_1/v_pack
-pacebms/pack_1/i_pack
-pacebms/pack_1/soc
-pacebms/pack_1/soh
-pacebms/pack_1/cells_max_diff_calc
-pacebms/pack_1/warnings
-pacebms/pack_1/fully
-pacebms/pack_1/charge_fet
-pacebms/pack_1/discharge_fet
+pacebms/pack_01/v_cells/cell_01
+pacebms/pack_01/v_cells/cell_02
+pacebms/pack_01/temps/temp_1
+pacebms/pack_01/v_pack
+pacebms/pack_01/i_pack
+pacebms/pack_01/soc
+pacebms/pack_01/soh
+pacebms/pack_01/cells_max_diff_calc
+pacebms/pack_01/warnings
+pacebms/pack_01/fully
+pacebms/pack_01/charge_fet
+pacebms/pack_01/discharge_fet
 ```
 
 ### Aggregate Topics
@@ -700,6 +700,19 @@ Discovery is published:
 - Periodically according to discovery republish logic
 
 The number of cell sensors depends on what the BMS reports.
+
+### Discovery stability
+
+Home Assistant entities are linked to MQTT discovery topics and `unique_id` values. Keep these settings stable after Home Assistant has discovered the add-on:
+
+- `mqtt_base_topic`
+- `mqtt_ha_discovery_topic`
+- `zero_pad_number_packs`
+- `zero_pad_number_cells`
+
+Changing these values after discovery can create duplicate or stale Home Assistant entities because the old retained discovery topics may remain in MQTT. The current defaults publish pack topics as `pack_01`, `pack_02` and cell topics as `cell_01`, `cell_02`.
+
+If you intentionally change padding, base topic or discovery topic, remove the old retained MQTT discovery topics or clean up the old entities in Home Assistant before relying on the new entity set.
 
 ---
 

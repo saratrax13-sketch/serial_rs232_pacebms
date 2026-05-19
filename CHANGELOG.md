@@ -1,3 +1,14 @@
+## 2.6.99 - 2026-05-19
+
+### Changed
+- Documented MQTT/Home Assistant Discovery stability rules for base topic, discovery topic and pack/cell padding.
+- Aligned README MQTT examples with the current default `pack_01` / `cell_01` topic format.
+- Added Config help warnings that changing pack/cell padding after Home Assistant discovery can create duplicate or stale entities.
+
+### Notes
+- Documentation and Config help only; no MQTT topics, Home Assistant discovery identifiers or monitor polling behavior changed.
+- No BMS write/control commands were added.
+
 ## 2.6.98 - 2026-05-19
 
 ### Fixed

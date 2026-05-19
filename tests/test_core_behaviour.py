@@ -1357,10 +1357,236 @@ class HealthEndpointTests(unittest.TestCase):
             patch("web_config.load_events", return_value=[]),
         ):
             client = web_config.app.test_client()
-            for tab in ("dashboard", "status", "diagnostics", "setup", "config", "logs"):
+            for tab in ("dashboard", "status", "diagnostics", "setup", "config", "events", "backups", "logs"):
                 with self.subTest(tab=tab):
                     response = client.get(f"/?tab={tab}")
                     self.assertEqual(response.status_code, 200)
+
+    def test_all_main_tab_buttons_point_to_renderable_tabs(self):
+        options = dict(web_config.DEFAULT_OPTION_VALUES)
+        live = {
+            "ok": True,
+            "availability": "online",
+            "monitor_state": "running",
+            "stale": "OFF",
+            "stale_reason": "Fresh",
+            "last_analog_read": "2026-05-19 12:00:00",
+            "last_warn_read": "2026-05-19 12:00:01",
+            "analog_age_seconds": 1,
+            "warn_age_seconds": 1,
+            "overall_status": "Healthy",
+            "overall_class": "healthy",
+            "layout": "2 pack(s), 26 cells total",
+            "bms_sn": "TEST",
+            "base_topic": "pacebms",
+            "fetched_at": "now",
+            "error": "",
+            "severity_summary": {},
+            "pack_count": 2,
+            "total_cells": 26,
+            "warning_count": 0,
+            "packs": [
+                {
+                    "id": "01",
+                    "cell_count": 13,
+                    "role": "Master",
+                    "serial": "PACK01",
+                    "soc": "98.1",
+                    "soh": "90.3",
+                    "cycles": "990",
+                    "remaining_capacity_ah": "88",
+                    "full_capacity_ah": "90",
+                    "design_capacity_ah": "100",
+                    "voltage": "53.8",
+                    "current": "0.0",
+                    "delta": "35",
+                    "temperatures": [27.0],
+                    "warnings": "Normal",
+                    "severity_class": "healthy",
+                    "severity_label": "Normal",
+                    "highest_cell": {"number": "08", "voltage": "4.158"},
+                    "lowest_cell": {"number": "01", "voltage": "4.123"},
+                },
+                {
+                    "id": "02",
+                    "cell_count": 13,
+                    "role": "Slave",
+                    "serial": "N/A",
+                    "soc": "99.9",
+                    "soh": "88.5",
+                    "cycles": "510",
+                    "remaining_capacity_ah": "90",
+                    "full_capacity_ah": "90",
+                    "design_capacity_ah": "100",
+                    "voltage": "53.6",
+                    "current": "0.0",
+                    "delta": "43",
+                    "temperatures": [27.0],
+                    "warnings": "Normal",
+                    "severity_class": "healthy",
+                    "severity_label": "Normal",
+                    "highest_cell": {"number": "01", "voltage": "4.135"},
+                    "lowest_cell": {"number": "13", "voltage": "4.092"},
+                },
+            ],
+        }
+
+        with (
+            patch("web_config.load_options", return_value=(options, "")),
+            patch("web_config.get_page_live_snapshot", return_value=live),
+            patch("web_config.load_events", return_value=[]),
+            patch("web_config.list_config_backups", return_value=[]),
+        ):
+            client = web_config.app.test_client()
+            response = client.get("/")
+            html = response.get_data(as_text=True)
+            expected_tabs = ["dashboard", "status", "diagnostics", "setup", "config", "events", "backups", "logs"]
+
+            for tab in expected_tabs:
+                self.assertIn(f'href="?tab={tab}"', html)
+
+            for tab in expected_tabs:
+                with self.subTest(tab=tab):
+                    tab_response = client.get(f"/?tab={tab}")
+                    self.assertEqual(tab_response.status_code, 200)
+                    self.assertIn('class="tab-panel active"', tab_response.get_data(as_text=True))
+
+    def test_api_status_payload_supports_full_soft_refresh_data(self):
+        options = dict(web_config.DEFAULT_OPTION_VALUES)
+        live = {
+            "ok": True,
+            "availability": "online",
+            "monitor_state": "running",
+            "stale": "OFF",
+            "stale_reason": "Fresh",
+            "last_analog_read": "2026-05-19 12:00:00",
+            "last_warn_read": "2026-05-19 12:00:01",
+            "analog_age_seconds": 1,
+            "warn_age_seconds": 1,
+            "overall_status": "Healthy",
+            "overall_class": "healthy",
+            "layout": "1 pack(s), 13 cells total",
+            "bms_sn": "TEST",
+            "base_topic": "pacebms",
+            "fetched_at": "now",
+            "error": "",
+            "severity_summary": {},
+            "pack_count": 1,
+            "total_cells": 13,
+            "warning_count": 0,
+            "packs": [{
+                "id": "01",
+                "cell_count": 13,
+                "role": "Master",
+                "serial": "PACK01",
+                "soc": "98.1",
+                "soh": "90.3",
+                "cycles": "990",
+                "remaining_capacity_ah": "88",
+                "full_capacity_ah": "90",
+                "design_capacity_ah": "100",
+                "voltage": "53.8",
+                "current": "0.0",
+                "delta": "35",
+                "temperatures": [27.0],
+                "warnings": "Normal",
+                "severity_class": "healthy",
+                "severity_label": "Normal",
+                "highest_cell": {"number": "08", "voltage": "4.158"},
+                "lowest_cell": {"number": "01", "voltage": "4.123"},
+            }],
+        }
+
+        with (
+            patch("web_config.load_options", return_value=(options, "")),
+            patch("web_config.refresh_live_snapshot_cache_once", return_value=live),
+            patch("web_config.load_monitor_health", return_value={
+                "updated_at": 1000,
+                "state": "running",
+                "health_timeout_seconds": 60,
+            }),
+            patch("web_config.time.time", return_value=1001),
+        ):
+            response = web_config.app.test_client().get("/api/status")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["overall_status"], "Healthy")
+        self.assertEqual(payload["packs"][0]["id"], "01")
+        self.assertEqual(payload["packs"][0]["soc"], "98.1")
+        self.assertEqual(payload["packs"][0]["highest_cell"]["voltage"], "4.158")
+        self.assertIn("monitoring_health", payload)
+        self.assertIn("user_summary", payload)
+        self.assertEqual(payload["user_summary"]["last_updated"], "now")
+
+    def test_discovery_topics_and_unique_ids_are_unique_for_default_padding(self):
+        class FakeMqttClient:
+            def __init__(self):
+                self.published = []
+
+            def publish(self, topic, payload, qos=0, retain=False):
+                self.published.append((topic, payload, qos, retain))
+
+        options = dict(web_config.DEFAULT_OPTION_VALUES)
+        options.update({
+            "mqtt_base_topic": "pacebms",
+            "mqtt_ha_discovery": True,
+            "mqtt_ha_discovery_topic": "homeassistant",
+            "zero_pad_number_packs": 2,
+            "zero_pad_number_cells": 2,
+        })
+        analog_data = bms_monitor.AnalogData(
+            packs=2,
+            pack_data=[
+                bms_monitor.PackData(pack_number=1, cells=13, temps=2, v_cells=[3300] * 13, t_cells=[25, 26]),
+                bms_monitor.PackData(pack_number=2, cells=13, temps=2, v_cells=[3301] * 13, t_cells=[25, 26]),
+            ],
+        )
+        client = FakeMqttClient()
+
+        bms_monitor.publish_ha_discovery(client, options, "HL2107001569", "P13S120A-12290-2.50", analog_data)
+
+        topics = [topic for topic, _payload, _qos, _retain in client.published]
+        payloads = [json.loads(payload) for _topic, payload, _qos, _retain in client.published]
+        unique_ids = [payload["unique_id"] for payload in payloads]
+
+        self.assertEqual(len(topics), len(set(topics)))
+        self.assertEqual(len(unique_ids), len(set(unique_ids)))
+        self.assertIn("homeassistant/sensor/BMS-HL2107001569/Pack_01_Cell_01_Voltage/config", topics)
+        self.assertIn("bmspace_HL2107001569_pack_01_v_cell_01", unique_ids)
+        self.assertIn("pacebms/pack_01/v_cells/cell_01", [payload["state_topic"] for payload in payloads])
+        self.assertTrue(all(retain for _topic, _payload, _qos, retain in client.published))
+
+    def test_config_advanced_help_warns_about_entity_sensitive_padding(self):
+        options = dict(web_config.DEFAULT_OPTION_VALUES)
+        live = {
+            "ok": True,
+            "availability": "online",
+            "monitor_state": "running",
+            "stale": "OFF",
+            "overall_status": "Healthy",
+            "overall_class": "healthy",
+            "layout": "1 pack(s), 13 cells total",
+            "bms_sn": "TEST",
+            "base_topic": "pacebms",
+            "fetched_at": "now",
+            "error": "",
+            "packs": [],
+        }
+
+        with (
+            patch("web_config.load_options", return_value=(options, "")),
+            patch("web_config.get_page_live_snapshot", return_value=live),
+            patch("web_config.load_events", return_value=[]),
+        ):
+            response = web_config.app.test_client().get("/?tab=config")
+
+        html = response.get_data(as_text=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Pack number padding (entity-sensitive)", html)
+        self.assertIn("Cell number padding (entity-sensitive)", html)
+        self.assertIn("Changing padding changes MQTT state topics", html)
 
     def test_web_runtime_constants_are_defined_before_app_run(self):
         source = Path("web_config.py").read_text(encoding="utf-8")
