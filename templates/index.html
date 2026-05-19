@@ -6125,7 +6125,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
         suggestedMax: 1,
         decimals: 2,
       });
-      createLiveTrendChart("chart-bank-voltage", "Voltage", "#34d399", " V", {
+      createLiveTrendChart("chart-bank-voltage", "Average pack voltage", "#34d399", " V", {
         suggestedMin: 40,
         suggestedMax: 60,
         decimals: 1,
@@ -6214,6 +6214,8 @@ Restart the add-on afterwards for runtime changes to apply.`);
             backgroundColor: color + "22",
             borderWidth: 2,
             pointRadius: 0,
+            pointHoverRadius: 4,
+            pointHitRadius: 12,
             tension: 0.25,
             fill: true,
           }],
@@ -6222,13 +6224,32 @@ Restart the add-on afterwards for runtime changes to apply.`);
           animation: false,
           responsive: true,
           maintainAspectRatio: false,
+          interaction: {
+            mode: "index",
+            intersect: false,
+          },
           plugins: {
             legend: { display: false },
             tooltip: {
+              enabled: true,
+              intersect: false,
+              displayColors: false,
+              backgroundColor: "rgba(15, 23, 42, 0.96)",
+              borderColor: "rgba(96, 165, 250, 0.45)",
+              borderWidth: 1,
+              padding: 10,
+              titleColor: "#bfdbfe",
+              bodyColor: "#f8fafc",
+              titleFont: { size: 12, weight: "500" },
+              bodyFont: { size: 12, weight: "500" },
               callbacks: {
+                title: function (items) {
+                  return items && items.length ? items[0].label : "";
+                },
                 label: function (context) {
                   const value = Number(context.parsed.y);
-                  return `${label}: ${Number.isFinite(value) ? value.toFixed(2) : "No data"}${unit}`;
+                  const decimals = axisConfig.decimals ?? 1;
+                  return `${label}: ${Number.isFinite(value) ? value.toFixed(decimals) : "No data"}${unit}`;
                 },
               },
             },

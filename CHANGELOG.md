@@ -1,3 +1,15 @@
+## 2.9.5 - 2026-05-19
+
+### Fixed
+- Bumped the Home Assistant add-on version so the Dashboard graph hover hotfix is visible as an update.
+- Improved Dashboard graph hover behavior so moving across a graph shows the nearest timestamp/value instead of requiring the pointer to hit an invisible data point.
+- Clarified the voltage graph tooltip as average pack voltage.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.4 - 2026-05-19
 
 ### Fixed
