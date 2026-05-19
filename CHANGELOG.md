@@ -1,3 +1,23 @@
+## 2.8.0 - 2026-05-19
+
+### Stable Release
+- Marked the project as complete for normal Home Assistant add-on and standalone Docker use.
+- Confirmed read-only Pace BMS monitoring remains the default safety position.
+- Confirmed standalone Docker startup, health checks and disconnected-BMS recovery behavior on an Ubuntu Docker host.
+- Confirmed Home Assistant add-on version metadata, README current version and changelog are aligned for release visibility.
+
+### Included
+- Home Assistant add-on support with MQTT discovery and Telegram notifications.
+- Standalone Docker support with environment-based configuration, persistent data volume, health check and restart policy.
+- Dashboard, technician status, diagnostics, logs, backups and configuration web UI.
+- Profile-based warning references and Telegram noise reduction for BMS warnings.
+- 13S and 16S Pace BMS parsing support validated through tests and real-world user checks.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling intervals were not changed.
+- No BMS write/control commands were added.
+
 ## 2.7.4 - 2026-05-19
 
 ### Fixed
