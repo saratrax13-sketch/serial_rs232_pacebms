@@ -589,6 +589,13 @@
       border: 1px solid rgba(148, 163, 184, 0.18);
       border-radius: 18px;
       padding: 16px;
+      min-height: 178px;
+    }
+
+    .chart-card canvas {
+      display: block;
+      width: 100% !important;
+      height: 126px !important;
     }
 
     .chart-title {
@@ -596,6 +603,13 @@
       font-size: 18px;
       font-weight: 900;
       margin-bottom: 8px;
+    }
+
+    .chart-status {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 8px;
+      min-height: 16px;
     }
 
     .chart-subtitle {
@@ -4042,18 +4056,22 @@
           <article class="chart-card">
             <div class="chart-title">Bank SOC</div>
             <canvas id="chart-bank-soc" height="120" aria-label="Bank SOC history"></canvas>
+            <div class="chart-status" data-chart-status="chart-bank-soc"></div>
           </article>
           <article class="chart-card">
             <div class="chart-title">Battery Power</div>
             <canvas id="chart-bank-power" height="120" aria-label="Battery power history"></canvas>
+            <div class="chart-status" data-chart-status="chart-bank-power"></div>
           </article>
           <article class="chart-card">
             <div class="chart-title">Pack Voltage</div>
             <canvas id="chart-bank-voltage" height="120" aria-label="Pack voltage history"></canvas>
+            <div class="chart-status" data-chart-status="chart-bank-voltage"></div>
           </article>
           <article class="chart-card">
             <div class="chart-title">Cell Delta</div>
             <canvas id="chart-bank-delta" height="120" aria-label="Cell delta history"></canvas>
+            <div class="chart-status" data-chart-status="chart-bank-delta"></div>
           </article>
         </div>
       </section>
@@ -6034,6 +6052,26 @@ Restart the add-on afterwards for runtime changes to apply.`);
     const liveTrendCharts = {};
     let liveTrendLastSnapshotId = null;
 
+    function setLiveTrendStatus(message) {
+      document.querySelectorAll("[data-chart-status]").forEach(function (el) {
+        el.textContent = message || "";
+      });
+    }
+
+    function ensureLiveTrendCharts() {
+      createLiveTrendChart("chart-bank-soc", "SOC", "#60a5fa", "%");
+      createLiveTrendChart("chart-bank-power", "Power", "#fbbf24", " kW");
+      createLiveTrendChart("chart-bank-voltage", "Voltage", "#34d399", " V");
+      createLiveTrendChart("chart-bank-delta", "Cell delta", "#f59e0b", " mV");
+      return Object.keys(liveTrendCharts).length > 0;
+    }
+
+    function liveTrendChartsHaveData() {
+      return Object.values(liveTrendCharts).some(function (chart) {
+        return chart && chart.data && chart.data.labels && chart.data.labels.length > 0;
+      });
+    }
+
     function createLiveTrendChart(canvasId, label, color, unit) {
       const canvas = document.getElementById(canvasId);
       if (!canvas || !window.Chart) return null;
@@ -6087,29 +6125,39 @@ Restart the add-on afterwards for runtime changes to apply.`);
     }
 
     async function refreshLiveTrends() {
-      if (!window.Chart || !document.getElementById("chart-bank-soc")) return;
+      if (!document.getElementById("chart-bank-soc")) return;
+      if (!window.Chart) {
+        setLiveTrendStatus("Chart library did not load.");
+        return;
+      }
+      const chartsReady = ensureLiveTrendCharts();
+      if (!chartsReady) {
+        setLiveTrendStatus("Charts are not ready yet.");
+        return;
+      }
       try {
         const liveResponse = await fetch("api/live", { cache: "no-store" });
         if (liveResponse.ok) {
           const liveData = await liveResponse.json();
-          if (liveData.snapshot_id && liveData.snapshot_id === liveTrendLastSnapshotId) return;
+          if (liveData.snapshot_id && liveData.snapshot_id === liveTrendLastSnapshotId && liveTrendChartsHaveData()) return;
           liveTrendLastSnapshotId = liveData.snapshot_id || null;
         }
         const response = await fetch("api/history?range_seconds=1800", { cache: "no-store" });
         if (!response.ok) throw new Error("HTTP " + response.status);
         const history = await response.json();
         const bankRows = history.bank || [];
+        if (!bankRows.length) {
+          setLiveTrendStatus("Waiting for local history samples.");
+          return;
+        }
         const labels = bankRows.map(row => String(row.ts || "").slice(11, 19));
-        createLiveTrendChart("chart-bank-soc", "SOC", "#60a5fa", "%");
-        createLiveTrendChart("chart-bank-power", "Power", "#fbbf24", " kW");
-        createLiveTrendChart("chart-bank-voltage", "Voltage", "#34d399", " V");
-        createLiveTrendChart("chart-bank-delta", "Cell delta", "#f59e0b", " mV");
+        setLiveTrendStatus("");
         updateLiveTrendChart("chart-bank-soc", labels, bankRows.map(row => row.soc));
         updateLiveTrendChart("chart-bank-power", labels, bankRows.map(row => row.power_kw));
         updateLiveTrendChart("chart-bank-voltage", labels, bankRows.map(row => row.voltage));
         updateLiveTrendChart("chart-bank-delta", labels, bankRows.map(row => row.cell_delta_mv));
       } catch (err) {
-        // Graph refresh must never interrupt live monitoring UI updates.
+        setLiveTrendStatus("Graph refresh failed: " + err.message);
       }
     }
 

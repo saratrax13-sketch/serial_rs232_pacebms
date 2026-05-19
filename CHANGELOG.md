@@ -1,3 +1,14 @@
+## 2.9.1 - 2026-05-19
+
+### Fixed
+- Fixed Dashboard live trend graphs so Chart.js canvases are initialized before snapshot duplicate checks can skip rendering.
+- Added stable graph canvas sizing and visible graph status text for missing history samples or chart refresh errors.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.0 - 2026-05-19
 
 ### Added
