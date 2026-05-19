@@ -1,3 +1,13 @@
+## 2.6.90 - 2026-05-19
+
+### Changed
+- Tightened classic UI spacing across all tabs to reduce unused vertical space while keeping existing data visible.
+- Reduced header, tab, card, tile, table, Config form and helper-note padding for a more compact Home Assistant ingress layout.
+
+### Notes
+- Styling only; no MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
 ## 2.6.89 - 2026-05-19
 
 ### Changed

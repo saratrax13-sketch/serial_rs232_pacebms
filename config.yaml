@@ -1,6 +1,6 @@
 name: "Pace BMS RS232 Monitor"
 description: "Read-only Pace BMS RS232 to MQTT bridge with Home Assistant discovery and Telegram notifications"
-version: "2.6.89"
+version: "2.6.90"
 slug: "pace_bms_rs232"
 url: "https://github.com/saratrax13-sketch/serial_rs232_pacebms"
 init: false

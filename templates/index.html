@@ -2742,6 +2742,319 @@
       min-height: 30px;
     }
 
+    /* Classic UI space-efficiency pass: reduce dead air without hiding data. */
+    body {
+      padding: 14px;
+    }
+
+    .page-header {
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .app-title-wrap {
+      gap: 10px;
+    }
+
+    .app-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+    }
+
+    h1 {
+      font-size: 25px;
+      line-height: 1.12;
+    }
+
+    h2,
+    .compact-config-header h2 {
+      font-size: 17px;
+      margin-bottom: 6px;
+    }
+
+    p {
+      margin-top: 4px;
+      line-height: 1.35;
+    }
+
+    .header-badges {
+      gap: 7px;
+    }
+
+    .badge {
+      padding: 5px 9px;
+      font-size: 12px;
+    }
+
+    .tabs {
+      gap: 6px;
+      margin-bottom: 10px;
+      padding-bottom: 1px;
+    }
+
+    .tab-button {
+      min-height: 29px;
+      padding: 4px 10px;
+      width: 112px;
+      flex-basis: 112px;
+      font-size: 13px;
+    }
+
+    .view-note,
+    .alert {
+      margin-bottom: 10px;
+    }
+
+    .card {
+      padding: 12px;
+    }
+
+    .wide-card,
+    .dashboard-summary,
+    .pack-comparison-grid,
+    .chart-grid,
+    .status-grid,
+    .diagnostics-grid,
+    .log-metric-row,
+    .config-mode-panel {
+      margin-bottom: 9px;
+    }
+
+    .summary-card,
+    .dashboard-summary,
+    .user-dashboard-grid,
+    .pack-comparison-grid,
+    .chart-grid,
+    .diagnostics-grid,
+    .monitoring-health-grid,
+    .setup-checklist-grid,
+    .status-grid,
+    .pack-grid,
+    .metric-grid,
+    .warning-intel-grid,
+    .warning-intel-metrics,
+    .config-grid,
+    .grid {
+      gap: 8px;
+    }
+
+    .status-hero,
+    .user-dashboard-tile,
+    .pack-comparison-card,
+    .pack-card,
+    .diagnostic-card,
+    .status-tile,
+    .monitoring-health-item,
+    .cell-pack-card,
+    .warning-intel-card,
+    .setup-check-item,
+    .chart-card,
+    .log-metric,
+    .config-card,
+    .config-action-group,
+    .config-mode-panel {
+      padding: 10px;
+    }
+
+    .summary-card.compact-summary {
+      padding-right: 52px;
+    }
+
+    .summary-card .summary-refresh,
+    .status-header-card .icon-button {
+      top: 10px;
+      right: 10px;
+    }
+
+    .status-label,
+    .user-dashboard-label,
+    .pack-metric-label,
+    .pack-quick-label,
+    .metric-section-title,
+    .diagnostic-title,
+    .monitoring-health-label,
+    .tile-label,
+    .warning-intel-label,
+    .log-metric-label,
+    .log-control label,
+    .config-action-label,
+    .reference-table th {
+      margin-bottom: 4px;
+    }
+
+    .status-value {
+      font-size: 24px;
+      line-height: 1.15;
+    }
+
+    .diagnostic-status,
+    .user-dashboard-value,
+    .log-metric-value {
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .layout-text,
+    .pack-comparison-title,
+    .pack-title,
+    .cell-pack-title,
+    .warning-intel-title {
+      font-size: 17px;
+      line-height: 1.2;
+    }
+
+    .user-dashboard-tile,
+    .monitoring-health-item {
+      min-height: 68px;
+    }
+
+    .pack-comparison-card .pack-metric {
+      min-height: 72px;
+      padding-top: 10px;
+      padding-bottom: 10px;
+    }
+
+    .pack-detail-row {
+      min-height: 34px;
+    }
+
+    .pack-detail-cell {
+      padding: 6px 0;
+    }
+
+    .pack-detail-label,
+    .pack-detail-value,
+    .user-dashboard-detail,
+    .diagnostic-detail,
+    .monitoring-health-detail,
+    .setup-check-detail,
+    .event-detail,
+    .warning-intel-section,
+    .topology-note,
+    .summary-meta {
+      font-size: 12px;
+      line-height: 1.3;
+    }
+
+    .metric-section {
+      margin-top: 8px;
+    }
+
+    .metric-section-title {
+      margin-bottom: 4px;
+    }
+
+    .metric,
+    .pack-metric,
+    .pack-quick-item,
+    .warning-intel-metric,
+    .cell-summary-tile,
+    .log-table td,
+    .backup-table td,
+    .topology-table td,
+    .event-item,
+    .backup-item {
+      padding: 7px;
+    }
+
+    .row {
+      padding: 6px 0;
+      gap: 8px;
+    }
+
+    .reference-table th,
+    .reference-table td,
+    .cell-table th,
+    .cell-table td,
+    .log-table th,
+    .log-table td,
+    .backup-table th,
+    .backup-table td,
+    .topology-table th,
+    .topology-table td {
+      padding: 6px;
+    }
+
+    .warning-box,
+    .reference-box,
+    .normal-box,
+    .helper-note,
+    .alert,
+    .view-note,
+    .compact-help,
+    .compact-format-help {
+      padding: 8px 10px;
+    }
+
+    .diagnostics-grid {
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    }
+
+    .status-grid,
+    .monitoring-health-grid {
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+
+    .setup-checklist-grid {
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    }
+
+    .chart-grid,
+    .pack-grid,
+    .cell-pack-grid,
+    .warning-intel-grid {
+      grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    }
+
+    .config-grid {
+      gap: 12px;
+    }
+
+    .config-card-header {
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .config-card-header h2 {
+      line-height: 1.25;
+    }
+
+    .compact-config-header {
+      margin-bottom: 10px;
+      padding: 10px;
+    }
+
+    .compact-config-subtitle {
+      margin-bottom: 8px;
+    }
+
+    .compact-config-toolbar {
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .config-mode-panel {
+      padding: 8px;
+    }
+
+    .config-input {
+      padding: 6px 9px;
+      min-height: 30px;
+    }
+
+    .config-section-header {
+      margin: 10px 0 6px;
+    }
+
+    button,
+    .button-link {
+      min-height: 28px;
+      padding-top: 4px;
+      padding-bottom: 4px;
+    }
+
   </style>
 </head>
 <body>
