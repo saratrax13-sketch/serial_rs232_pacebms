@@ -76,6 +76,12 @@ def build_pace_response(info: bytes = b"ABCD") -> bytes:
 
 
 class PaceFrameTests(unittest.TestCase):
+    def test_debug_output_is_normalized_for_monitor_runtime(self):
+        self.assertEqual(bms_monitor.get_debug_output({"debug_output": "3"}), 3)
+        self.assertEqual(bms_monitor.get_debug_output({"debug_output": "-1"}), 0)
+        self.assertEqual(bms_monitor.get_debug_output({"debug_output": "9"}), 3)
+        self.assertEqual(bms_monitor.get_debug_output({"debug_output": "bad"}), 0)
+
     def test_valid_pace_frame_parses_info_payload(self):
         ok, payload = bms_monitor.bms_parse_response(build_pace_response(b"HELLO"))
 

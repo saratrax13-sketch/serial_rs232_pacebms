@@ -1,3 +1,14 @@
+## 2.6.79 - 2026-05-19
+
+### Fixed
+- Hardened monitor startup when Home Assistant stores `debug_output` from the dropdown as text.
+- Normalized monitor debug output to the supported `0..3` range everywhere before numeric comparisons.
+
+### Notes
+- Hotfix for add-on startup after the `debug_output` dropdown change.
+- No MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
 ## 2.6.78 - 2026-05-19
 
 ### Changed

@@ -145,6 +145,15 @@ def load_config() -> dict:
     sys.exit("No config file found")
 
 
+def get_debug_output(config: dict) -> int:
+    """Return the supported debug level as an integer from 0 to 3."""
+    try:
+        value = int(str((config or {}).get('debug_output', 0)).strip())
+    except Exception:
+        return 0
+    return min(3, max(0, value))
+
+
 def write_monitor_health(config: dict, state: str, detail: str = "", **extra):
     """Write monitor heartbeat for the web UI and Supervisor watchdog health check."""
     try:
@@ -353,7 +362,7 @@ def bms_request(
     info = b"",
     lenid_override: Optional[bytes] = None,
 ) -> tuple[bool, any]:
-    debug = config.get('debug_output', 0)
+    debug = get_debug_output(config)
 
     request = b'\x7e' + ver + adr + cid1 + cid2
     lenid   = lenid_override or bytes(format(len(info), '03X'), "ASCII")
@@ -433,11 +442,7 @@ def decode_serial_debug_info(info: bytes) -> dict:
 
 def log_serial_debug_probe(info: bytes, config: dict):
     """Log raw serial response details when debug_output >= 3."""
-    try:
-        debug = int(config.get("debug_output", 0) or 0)
-    except Exception:
-        debug = 0
-
+    debug = get_debug_output(config)
     if debug < 3:
         return
 
@@ -489,11 +494,7 @@ def bms_get_serial(bms, config: dict) -> tuple[bool, Optional[str], Optional[str
         pack_sn = bytes.fromhex(info[40:68].decode("ascii")).decode("ASCII").replace(" ", "")
         log.info("BMS SN: %s | Pack SN: %s", bms_sn, pack_sn)
 
-        try:
-            debug = int(config.get("debug_output", 0) or 0)
-        except Exception:
-            debug = 0
-
+        debug = get_debug_output(config)
         if debug >= 3:
             details = decode_serial_debug_info(info)
             candidates = [item.get("candidate") for item in details.get("serial_candidates", [])]
@@ -562,7 +563,8 @@ def bms_get_analog_data(bms, config: dict, bat_number: int = 255) -> tuple[bool,
         if not is_plausible_pack_count(num_packs):
             return False, f"Analog parse error: unexpected pack count {num_packs}"
 
-        if config.get('debug_output', 0) > 1:
+        debug = get_debug_output(config)
+        if debug > 1:
             log.debug("Analog frame len=%d payload=%s", len(inc), inc)
             log.debug("Analog parser: num_packs=%d first_pack_idx=%d", num_packs, idx)
 
@@ -645,7 +647,7 @@ def bms_get_analog_data(bms, config: dict, bat_number: int = 255) -> tuple[bool,
             if soc < 0 or soc > 150:
                 raise ValueError(f"Implausible SOC {soc}% at pack {pack_no} candidate idx={start_pos}")
 
-            if config.get('debug_output', 0) > 1:
+            if debug > 1:
                 log.debug(
                     "Analog candidate accepted: pack=%d idx=%d next=%d cells=%d temps=%d V=%.3f I=%.2f define=0x%02X SOC=%.2f",
                     pack_no, start_pos, pos, cells, num_temps, v_pack, i_pack, define_number, soc,
@@ -681,7 +683,7 @@ def bms_get_analog_data(bms, config: dict, bat_number: int = 255) -> tuple[bool,
                     pack, next_pos = parse_pack_at(candidate_pos, pack_no, expected_cells)
                     candidates.append((candidate_pos, pack, next_pos))
                 except Exception as exc:
-                    if config.get('debug_output', 0) > 2:
+                    if debug > 2:
                         log.debug("Analog candidate rejected: pack=%d idx=%d reason=%s", pack_no, candidate_pos, exc)
                     continue
 
@@ -694,7 +696,7 @@ def bms_get_analog_data(bms, config: dict, bat_number: int = 255) -> tuple[bool,
 
             candidate_pos, pack, next_pos = candidates[0]
             skipped = candidate_pos - start_pos
-            if skipped and config.get('debug_output', 0) > 0:
+            if skipped and debug > 0:
                 log.debug(
                     "Analog parser: skipped %d hex chars (%d byte/s) before pack %d block at idx=%d",
                     skipped, skipped // 2, pack_no, candidate_pos,
@@ -882,7 +884,8 @@ def bms_get_warn_info(bms, config: dict, packs: int) -> tuple[bool, any]:
         else:
             idx = 0
 
-        if config.get('debug_output', 0) > 1:
+        debug = get_debug_output(config)
+        if debug > 1:
             log.debug("Warn frame byte pairs: %s", " ".join(f"{b:02X}" for b in pairs))
             log.debug("Warn parser start index: %d", idx)
 
@@ -911,7 +914,7 @@ def bms_get_warn_info(bms, config: dict, packs: int) -> tuple[bool, any]:
                     raise ValueError(f"Could not align warning block for pack {p} from idx={idx}: {last_error}")
 
                 pack_warn, next_idx, cells_w, candidate_idx = found
-                if candidate_idx != idx and config.get('debug_output', 0) > 0:
+                if candidate_idx != idx and debug > 0:
                     skipped = candidate_idx - idx
                     skipped_bytes = " ".join(f"{b:02X}" for b in pairs[idx:candidate_idx])
                     log.debug(
@@ -927,7 +930,7 @@ def bms_get_warn_info(bms, config: dict, packs: int) -> tuple[bool, any]:
             if expected_cells is None:
                 expected_cells = cells_w
 
-        if config.get('debug_output', 0) > 1 and idx < len(pairs):
+        if debug > 1 and idx < len(pairs):
             trailer = " ".join(f"{b:02X}" for b in pairs[idx:])
             log.debug("Warn parser: ignored trailing byte(s) after final pack: %s", trailer)
 
@@ -1679,7 +1682,7 @@ def main():
 
     # ── Wire debug_output → Python log level ─────────────────────────────────
     # 0 = INFO (default), 1+ = DEBUG (verbose protocol tracing)
-    debug_level = config.get('debug_output', 0)
+    debug_level = get_debug_output(config)
     if debug_level >= 1:
         logging.getLogger().setLevel(logging.DEBUG)
         log.debug("debug_output=%d → log level set to DEBUG", debug_level)
@@ -2218,7 +2221,7 @@ def main():
                                     telegram_policy_reason,
                                     warning_family,
                                 )
-                            elif int(config.get("debug_output", 0) or 0) >= 2:
+                            elif get_debug_output(config) >= 2:
                                 log.debug(
                                     "BMS %s warning Telegram still suppressed for Pack %02d by policy: %s (%s)",
                                     severity,
@@ -2281,7 +2284,7 @@ def main():
                                 "telegram_policy_reason": previous_warning_state.get("telegram_policy_reason", telegram_policy_reason),
                             }
                             save_warning_notify_state(warning_notify_state)
-                            if int(config.get("debug_output", 0) or 0) >= 2:
+                            if get_debug_output(config) >= 2:
                                 log.debug(
                                     "BMS %s warning duplicate suppressed for Pack %02d: %s (%.0fs since last send, cooldown %.0fs)",
                                     severity,
