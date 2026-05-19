@@ -27,7 +27,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.72"
+version: "2.6.73"
 ```
 
 ---

@@ -1,3 +1,13 @@
+## 2.6.73 - 2026-05-19
+
+### Fixed
+- Prevented the web UI from crashing when retained MQTT pack snapshots are partial or missing chart fields.
+- Pack comparison charts now show safe fallback values instead of raising a server error when SOC, SOH, voltage, delta or cell range values are temporarily unavailable.
+
+### Notes
+- No MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
 ## 2.6.72 - 2026-05-19
 
 ### Added
