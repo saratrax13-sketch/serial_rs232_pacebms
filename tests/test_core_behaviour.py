@@ -1156,8 +1156,12 @@ class HealthEndpointTests(unittest.TestCase):
         grouped_keys = [key for keys in web_config.GROUPS.values() for key in keys]
 
         self.assertEqual(group_names[-1], "Battery Profile & References")
-        self.assertIn("Battery Layout & Fallbacks", group_names)
-        self.assertLess(group_names.index("Battery Layout & Fallbacks"), group_names.index("Battery Profile & References"))
+        self.assertNotIn("Battery Layout & Fallbacks", group_names)
+        self.assertIn("expected_pack_count", web_config.GROUPS["Battery Profile & References"])
+        self.assertLess(
+            web_config.GROUPS["Battery Profile & References"].index("expected_pack_count"),
+            web_config.GROUPS["Battery Profile & References"].index("notify_cell_high_warn_voltage"),
+        )
         self.assertEqual(web_config.GROUPS["Scheduled Reports"][-1], "daily_energy_current_deadband_a")
         self.assertEqual(len(grouped_keys), len(set(grouped_keys)))
         self.assertIn("notify_fet", web_config.GROUPS["FET Notifications"])
@@ -1175,7 +1179,7 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"Low SOC thresholds", response.data)
         self.assertIn(b"notify_soc_low_thresholds", response.data)
         self.assertIn(b"FET state alerts", response.data)
-        self.assertIn(b"Battery Layout &amp; Fallbacks", response.data)
+        self.assertIn(b"Battery Profile & Alert References", response.data)
         self.assertIn(b"Expected pack count", response.data)
 
     def test_capacity_fallback_is_used_only_when_bms_capacity_is_missing(self):

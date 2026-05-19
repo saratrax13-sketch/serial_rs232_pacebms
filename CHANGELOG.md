@@ -1,3 +1,14 @@
+## 2.7.2 - 2026-05-19
+
+### Changed
+- Moved expected pack/cell layout checks and capacity fallback controls into the wide Battery Profile & Alert References card.
+- Removed the separate Battery Layout & Fallbacks card from the Config grid to improve layout balance.
+
+### Notes
+- This is a UI layout change only for existing read-only settings.
+- MQTT topics, Home Assistant discovery identifiers and monitor polling behavior were not changed.
+- No BMS write/control commands were added.
+
 ## 2.7.1 - 2026-05-19
 
 ### Added

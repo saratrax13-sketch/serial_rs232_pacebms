@@ -27,7 +27,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.7.1"
+version: "2.7.2"
 ```
 
 ---
@@ -447,7 +447,7 @@ Required groups:
 - **BMS Connection**: serial adapter path, baud rate, and scan interval.
 - **MQTT**: broker address, credentials, base topic, discovery, and retain settings.
 - **Advanced**: debug level and MQTT topic padding.
-- **Battery Layout & Fallbacks**: optional expected pack/cell counts and read-only capacity fallback used only when BMS capacity is unavailable.
+- **Battery Profile & Alert References**: battery profile selection, optional expected pack/cell checks, read-only capacity fallback and alert reference rows used for UI/Telegram explanation.
 
 With only Basic Required configured:
 
@@ -473,7 +473,7 @@ Optional groups:
 - **Battery Profile & References**: read-only profile defaults and custom reference values used to explain BMS warnings.
 - **Warning Detail**: controls which measured values appear in warning explanations.
 - **Scheduled Reports**: daily summary timing, daily energy deadband and cell-delta report times.
-- **Battery Layout & Fallbacks**: optional layout checks and capacity fallback for estimates. These do not force parsing and do not write to the BMS.
+- **Battery Profile & Alert References**: optional layout checks, capacity fallback for estimates and alert reference rows. These do not force parsing and do not write to the BMS.
 
 With Full Monitoring configured:
 

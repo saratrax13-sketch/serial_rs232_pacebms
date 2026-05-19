@@ -1875,6 +1875,33 @@
       margin: 8px 0 14px;
     }
 
+    .reference-layout-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(260px, 1fr));
+      gap: 8px 18px;
+      margin: 12px 0 8px;
+      padding: 10px 0 12px;
+      border-top: 1px solid rgba(148, 163, 184, 0.14);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+    }
+
+    .reference-layout-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(120px, 0.85fr);
+      gap: 10px;
+      align-items: center;
+    }
+
+    .reference-layout-row .config-input {
+      width: 100%;
+    }
+
+    @media (max-width: 860px) {
+      .reference-layout-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
     .reference-table-wrap {
       overflow-x: visible;
       margin-top: 8px;
@@ -4311,6 +4338,29 @@
                   <span class="reference-pill" id="profile-reference-label">{{ battery_reference_table.profile_label }}</span>
                   <span class="reference-pill" id="profile-reference-source">{{ battery_reference_table.reference_source }}</span>
                 </div>
+                <div class="reference-layout-grid" aria-label="Battery layout checks and capacity fallback">
+                  {% for layout_key in ['expected_cell_count', 'expected_pack_count', 'capacity_fallback_enabled', 'capacity_per_pack_ah'] %}
+                    {% set layout_items = items | selectattr('key', 'equalto', layout_key) | list %}
+                    {% if layout_items %}
+                      {% set layout_item = layout_items[0] %}
+                      <div class="reference-layout-row">
+                        <label class="key" for="cfg_{{ layout_item.key }}">
+                          <span class="key-label">{{ layout_item.label }}</span>
+                          <span class="key-code">{{ layout_item.key }}</span>
+                        </label>
+                        <div class="value">
+                          {% if layout_item.input_type == 'checkbox' %}
+                            <input id="cfg_{{ layout_item.key }}" class="config-checkbox config-field" type="checkbox" name="{{ layout_item.key }}" data-group="{{ group_name }}" data-original="{% if layout_item.raw_value %}true{% else %}false{% endif %}" {% if layout_item.raw_value %}checked{% endif %}>
+                          {% elif layout_item.input_type == 'number' %}
+                            <input id="cfg_{{ layout_item.key }}" class="config-input config-field" type="number" step="any" name="{{ layout_item.key }}" value="{{ layout_item.raw_value }}" data-group="{{ group_name }}" data-original="{{ layout_item.raw_value }}">
+                          {% else %}
+                            <input id="cfg_{{ layout_item.key }}" class="config-input config-field" type="text" name="{{ layout_item.key }}" value="{{ layout_item.raw_value }}" data-group="{{ group_name }}" data-original="{{ layout_item.raw_value }}">
+                          {% endif %}
+                        </div>
+                      </div>
+                    {% endif %}
+                  {% endfor %}
+                </div>
                 <div class="reference-table-wrap">
                   <table class="reference-table" aria-label="Battery profile reference values">
                     <thead>
@@ -5463,6 +5513,13 @@ Restart the add-on afterwards for runtime changes to apply.`);
           </ul>
           <p>The web UI still shows active BMS warnings even when Telegram is filtered.</p>
 
+          <h3>Layout checks and capacity fallback</h3>
+          <ul>
+            <li><code>expected_cell_count</code> and <code>expected_pack_count</code> are optional installer checks. Use <code>0</code> for auto/detected. They only warn when detected layout differs.</li>
+            <li><code>capacity_fallback_enabled</code> and <code>capacity_per_pack_ah</code> are used only for estimates when the BMS does not report valid capacity.</li>
+            <li>Valid BMS-reported capacity always wins over fallback values.</li>
+          </ul>
+
           <h3>Profiles</h3>
           <ul>
             <li><code>auto</code> chooses a profile from the detected cell count.</li>
@@ -6208,6 +6265,8 @@ Restart the add-on afterwards for runtime changes to apply.`);
         debug_output: [0, 3],
         zero_pad_number_cells: [0, 4],
         zero_pad_number_packs: [0, 4],
+        expected_cell_count: [0, 512],
+        expected_pack_count: [0, 32],
         notify_cell_delta_warn_mv: [0, 5000],
         notify_temp_high_warn_c: [-40, 100],
         notify_temp_low_warn_c: [-40, 100],
@@ -6226,6 +6285,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
       const decimalRules = {
         notify_cell_high_warn_voltage: [0, 5],
         notify_cell_low_warn_voltage: [0, 5],
+        capacity_per_pack_ah: [0, 2000],
         daily_energy_current_deadband_a: [0, 10],
       };
 

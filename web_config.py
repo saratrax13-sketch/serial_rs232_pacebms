@@ -49,14 +49,12 @@ SECTION_HELP = {
     "Battery Profile & References": "Selects the read-only battery profile used for warning explanations. Auto detect uses detected cell count: 13S defaults suit Hubble AM2-style packs, and 16S defaults suit Eenovance MANA LFP-style packs. Custom references use your configured cell high/low values. These references affect UI and Telegram interpretation only; they never write to the BMS.",
     "Notification Thresholds": "Controls SOC, SOH, stale-data and BMS warning repeat timing. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale and warning repeat values are in seconds. BMS warning repeats are severity-aware: caution repeats for low-risk ongoing warnings, warning repeats for near-limit conditions, and critical repeats for protection/fault or measured values outside configured references.",
     "Scheduled Reports": "Controls scheduled Telegram report toggles, report times, delta report window and the daily energy current deadband. Use 24-hour HH:MM format, for example 19:00, 10:15 or 00:00.",
-    "Battery Layout & Fallbacks": "Optional read-only setup checks for expected pack/cell count and capacity fallback. These values never force BMS parsing and never overwrite BMS-reported capacity. Capacity fallback is used only for estimates when the BMS does not report valid capacity.",
 }
 
 CONFIG_SECTION_BADGES = {
     "BMS Connection": "Required",
     "MQTT": "Required",
     "Advanced": "Required",
-    "Battery Layout & Fallbacks": "Optional",
     "Telegram": "Optional",
     "Notifications": "Optional",
     "FET Notifications": "Optional",
@@ -70,7 +68,6 @@ CONFIG_SECTION_TIERS = {
     "BMS Connection": "required",
     "MQTT": "required",
     "Advanced": "required",
-    "Battery Layout & Fallbacks": "monitoring",
     "Telegram": "monitoring",
     "Notifications": "monitoring",
     "FET Notifications": "monitoring",
@@ -103,12 +100,6 @@ GROUPS = {
         "debug_output",
         "zero_pad_number_cells",
         "zero_pad_number_packs",
-    ],
-    "Battery Layout & Fallbacks": [
-        "expected_cell_count",
-        "expected_pack_count",
-        "capacity_fallback_enabled",
-        "capacity_per_pack_ah",
     ],
     "Telegram": [
         "notify_enabled",
@@ -162,6 +153,10 @@ GROUPS = {
     "Battery Profile & References": [
         "battery_profile",
         "notify_bms_warning_policy",
+        "expected_cell_count",
+        "expected_pack_count",
+        "capacity_fallback_enabled",
+        "capacity_per_pack_ah",
         "notify_cell_high_warn_voltage",
         "notify_cell_low_warn_voltage",
         "notify_cell_delta_warn_mv",
@@ -2199,8 +2194,7 @@ It does not send BMS control commands.
 
 CARD_HELP = {
     "Advanced": "Advanced runtime settings. Keep pack and cell number padding stable after Home Assistant MQTT Discovery has created entities. Changing padding changes MQTT state topics, discovery topics and unique IDs, which can leave old retained discovery entities in Home Assistant until they are cleaned up.",
-    "Battery Layout & Fallbacks": "Optional read-only layout checks and estimate fallback values. Expected pack/cell counts only warn when detected values differ. Capacity fallback is used only when the BMS does not report usable capacity; it never overwrites valid BMS capacity and never writes to the BMS.",
-    "Battery Profile & References": "Shows measured battery values beside profile/default references and user-configured references. The BMS warning Telegram policy and row alert switches control Telegram noise only; active BMS warnings remain visible in the UI. The editable values are Home Assistant add-on options only and never write to the BMS.",
+    "Battery Profile & References": "Shows measured battery values beside profile/default references and user-configured references. This card also contains read-only expected layout checks and capacity fallback settings used only when BMS capacity is unavailable. The BMS warning Telegram policy and row alert switches control Telegram noise only; active BMS warnings remain visible in the UI. The editable values are Home Assistant add-on options only and never write to the BMS.",
     "FET Notifications": "Controls charge/discharge FET notification behavior. These settings only decide when to alert; they do not control FETs.",
     "Notification Thresholds": "Controls SOC, SOH, stale-data and BMS warning repeat timing. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale and warning repeat values are in seconds. BMS warning repeats are severity-aware: caution repeats for low-risk ongoing warnings, warning repeats for near-limit conditions, and critical repeats for protection/fault or measured values outside configured references.",
     "Warning Detail": "Controls the extra context included in BMS warning explanations, such as highest/lowest cell, pack voltage and SOC/SOH. These settings only affect Telegram/UI message detail and never write to the BMS.",

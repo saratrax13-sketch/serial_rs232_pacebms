@@ -40,23 +40,6 @@ Fields:
 - zero_pad_number_cells
 - zero_pad_number_packs
 
-### Battery Layout & Fallbacks
-
-Optional read-only setup checks and estimate fallback values.
-
-Fields:
-
-- expected_cell_count
-- expected_pack_count
-- capacity_fallback_enabled
-- capacity_per_pack_ah
-
-Use `0` for expected counts when the layout should be fully auto/detected.
-
-These values do not force BMS parsing. They only help the UI show when the detected layout differs from what the installer expected.
-
-Capacity fallback is used only for runtime/charge estimates when the BMS does not report valid capacity. Valid BMS-reported capacity always wins.
-
 ## Optional sections
 
 ### Telegram
@@ -82,6 +65,19 @@ Optional scheduled Telegram report times.
 ### Battery Profile & References
 
 Optional read-only reference values used to explain BMS warnings in the UI and Telegram. These values are saved as add-on options only and are never written to the BMS.
+
+This card also includes optional read-only layout checks and estimate fallback values:
+
+- expected_cell_count
+- expected_pack_count
+- capacity_fallback_enabled
+- capacity_per_pack_ah
+
+Use `0` for expected counts when the layout should be fully auto/detected.
+
+These values do not force BMS parsing. They only help the UI show when the detected layout differs from what the installer expected.
+
+Capacity fallback is used only for runtime/charge estimates when the BMS does not report valid capacity. Valid BMS-reported capacity always wins.
 
 ![Battery profile references](screenshots/Config%20p2.png)
 
