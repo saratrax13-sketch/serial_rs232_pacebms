@@ -2534,7 +2534,7 @@ def redirect_to_tab(tab="status", result="", message=""):
     Use ./? instead of ? so browsers do not stay on action routes such as
     /delete-config-backup. Use HTTP 303 so the browser follows with GET.
     """
-    params = [f"tab={tab}"]
+    params = ["ui=classic", f"tab={tab}"]
     if result:
         params.append(f"result={urllib.parse.quote(str(result))}")
     if message:
@@ -3141,11 +3141,7 @@ def render_index(action_result="", action_message="", active_tab="dashboard", co
     )
 
 
-@app.route("/", methods=["GET"])
-def index():
-    if request.args.get("ui", "").lower() == "option1":
-        return render_option1(request.args.get("tab", "overview"))
-
+def render_classic_index():
     tab = request.args.get("tab", "dashboard")
     result = request.args.get("result", "")
     message = request.args.get("message", "")
@@ -3203,6 +3199,23 @@ def index():
         compare_data=compare_data,
         restore_preview=restore_preview,
     )
+
+
+@app.route("/", methods=["GET"])
+def index():
+    ui_mode = request.args.get("ui", "").lower()
+    tab = request.args.get("tab", "")
+
+    if ui_mode == "option1":
+        return render_option1(tab or "overview")
+    if ui_mode == "classic" or tab:
+        return render_classic_index()
+    return render_option1("overview")
+
+
+@app.route("/classic", methods=["GET"])
+def route_classic():
+    return render_classic_index()
 
 
 @app.route("/option1", methods=["GET"])

@@ -1,3 +1,14 @@
+## 2.6.83 - 2026-05-19
+
+### Changed
+- Made the light Option 1 operations dashboard the default web UI for Home Assistant ingress.
+- Kept the existing classic web UI available at `/classic` and `/?ui=classic`.
+- Preserved classic UI POST redirects by routing old tab names back to the classic UI.
+
+### Notes
+- UI routing only; no MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
 ## 2.6.82 - 2026-05-19
 
 ### Added

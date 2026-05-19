@@ -1242,7 +1242,9 @@ class HealthEndpointTests(unittest.TestCase):
             client = web_config.app.test_client()
             response = client.get("/option1")
             query_response = client.get("/?ui=option1&tab=packs")
-            legacy_response = client.get("/")
+            default_response = client.get("/")
+            legacy_response = client.get("/classic")
+            legacy_query_response = client.get("/?ui=classic&tab=dashboard")
 
         html = response.get_data(as_text=True)
         self.assertEqual(response.status_code, 200)
@@ -1259,8 +1261,12 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn("Watch condition", html)
         self.assertIn("C08", html)
         self.assertIn("54.09 V", html)
+        self.assertEqual(default_response.status_code, 200)
+        self.assertIn(b"Clean Operations Dashboard", default_response.data)
         self.assertEqual(legacy_response.status_code, 200)
         self.assertIn(b"Battery Confidence", legacy_response.data)
+        self.assertEqual(legacy_query_response.status_code, 200)
+        self.assertIn(b"Battery Confidence", legacy_query_response.data)
 
     def test_option1_display_rules_show_missing_and_invalid_values(self):
         self.assertEqual(web_config.option1_display(None), "No data")
@@ -1386,8 +1392,8 @@ class HealthEndpointTests(unittest.TestCase):
             response = web_config.app.test_client().get("/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"User view", response.data)
-        self.assertIn(b"Battery Confidence", response.data)
+        self.assertIn(b"Clean Operations Dashboard", response.data)
+        self.assertIn(b"Overview", response.data)
 
     def test_diagnostics_battery_configuration_includes_cycles(self):
         options = {
