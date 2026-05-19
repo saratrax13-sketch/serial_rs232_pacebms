@@ -1,3 +1,13 @@
+## 2.9.2 - 2026-05-19
+
+### Changed
+- Bumped the Home Assistant add-on version so the graph and live-data-source repair sprint is visible as an update.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.1 - 2026-05-19
 
 ### Fixed
