@@ -3377,6 +3377,20 @@
       margin-top: 2px;
     }
 
+    .backup-helper-note {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 500;
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+
+    .backup-helper-note strong {
+      color: #cbd5e1;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
     .backup-type {
       font-size: 10px;
       font-weight: 600;
@@ -4378,7 +4392,7 @@
           </div>
         </div>
 
-        <div class="helper-note">
+        <div class="helper-note backup-helper-note">
           The latest 10 backups are kept. Restoring a backup changes Home Assistant add-on options only and does not write to the BMS. Restart is required after restore.
         </div>
 
@@ -4392,7 +4406,7 @@
           {% endif %}
         </div>
 
-        <div class="helper-note">
+        <div class="helper-note backup-helper-note">
           <strong>When to use these buttons:</strong><br>
           <strong>Create Backup Now</strong> — use before testing config changes or before updating the add-on.<br>
           <strong>Download All ZIP</strong> — use when you want an offline copy of all saved backups.<br>

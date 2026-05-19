@@ -1,3 +1,12 @@
+## 2.6.95 - 2026-05-19
+
+### Changed
+- Reduced Backups helper-note typography so backup guidance text matches the quieter backup row support text.
+
+### Notes
+- Styling only; no MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
 ## 2.6.94 - 2026-05-19
 
 ### Changed
