@@ -1,3 +1,14 @@
+## 2.6.78 - 2026-05-19
+
+### Changed
+- Cleaned up the Config tab by showing friendly field names while keeping the original option keys visible below each label.
+- Moved the general FET alert toggle into the FET Notifications card so related FET settings are grouped together.
+
+### Notes
+- Config UI layout and labels only; saved Home Assistant add-on option keys are unchanged.
+- No MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
 ## 2.6.77 - 2026-05-19
 
 ### Fixed

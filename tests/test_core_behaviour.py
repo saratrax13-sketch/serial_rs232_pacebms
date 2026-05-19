@@ -889,9 +889,26 @@ class HealthEndpointTests(unittest.TestCase):
 
     def test_config_group_order_keeps_profile_references_last(self):
         group_names = list(web_config.GROUPS.keys())
+        grouped_keys = [key for keys in web_config.GROUPS.values() for key in keys]
 
         self.assertEqual(group_names[-1], "Battery Profile & References")
         self.assertEqual(web_config.GROUPS["Scheduled Reports"][-1], "daily_energy_current_deadband_a")
+        self.assertEqual(len(grouped_keys), len(set(grouped_keys)))
+        self.assertIn("notify_fet", web_config.GROUPS["FET Notifications"])
+        self.assertNotIn("notify_fet", web_config.GROUPS["Notifications"])
+
+    def test_config_page_uses_friendly_field_labels(self):
+        options = dict(web_config.DEFAULT_OPTION_VALUES)
+
+        with patch("web_config.load_options", return_value=(options, "")), \
+            patch("web_config.get_page_live_snapshot", return_value={"packs": []}), \
+            patch("web_config.load_events", return_value=[]):
+            response = web_config.app.test_client().get("/?tab=config")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Low SOC thresholds", response.data)
+        self.assertIn(b"notify_soc_low_thresholds", response.data)
+        self.assertIn(b"FET state alerts", response.data)
 
     def test_logs_page_uses_simple_show_filter(self):
         options = dict(web_config.DEFAULT_OPTION_VALUES)

@@ -1835,6 +1835,23 @@
       word-break: break-word;
     }
 
+    .key-label {
+      display: block;
+      color: #e5f0ff;
+      font-weight: 850;
+      line-height: 1.2;
+    }
+
+    .key-code {
+      display: block;
+      margin-top: 4px;
+      color: #8aa4c5;
+      font-size: 11px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-weight: 650;
+      line-height: 1.25;
+    }
+
     .value {
       color: #f8fafc;
       font-weight: 700;
@@ -3093,7 +3110,10 @@
               {% if group_name == 'Battery Profile & References' %}
                 {% if loop.first %}
                 <div class="reference-profile-bar">
-                  <label class="key" for="cfg_battery_profile">battery_profile</label>
+                  <label class="key" for="cfg_battery_profile">
+                    <span class="key-label">Battery profile</span>
+                    <span class="key-code">battery_profile</span>
+                  </label>
                   <div class="value">
                     <select id="cfg_battery_profile" class="config-input config-field" name="battery_profile" data-group="{{ group_name }}" data-original="{{ battery_reference_table.selected if battery_reference_table else 'auto' }}" onchange="updateBatteryReferencePreview()">
                       {% for choice_value, choice_label in item.choices.items() %}
@@ -3104,7 +3124,10 @@
                 </div>
                 {% if battery_reference_table %}
                 <div class="reference-profile-bar">
-                  <label class="key" for="cfg_notify_bms_warning_policy">notify_bms_warning_policy</label>
+                  <label class="key" for="cfg_notify_bms_warning_policy">
+                    <span class="key-label">BMS warning Telegram policy</span>
+                    <span class="key-code">notify_bms_warning_policy</span>
+                  </label>
                   <div class="value">
                     <select id="cfg_notify_bms_warning_policy" class="config-input config-field" name="notify_bms_warning_policy" data-group="{{ group_name }}" data-original="{{ battery_reference_table.policy }}">
                       {% for choice_value, choice_label in battery_reference_table.policy_choices.items() %}
@@ -3172,7 +3195,10 @@
                 {% endif %}
               {% else %}
               <div class="row">
-                <label class="key" for="cfg_{{ item.key }}">{{ item.key }}</label>
+                <label class="key" for="cfg_{{ item.key }}">
+                  <span class="key-label">{{ item.label }}</span>
+                  <span class="key-code">{{ item.key }}</span>
+                </label>
                 <div class="value">
                   {% if item.input_type == 'checkbox' %}
                     <input id="cfg_{{ item.key }}" class="config-checkbox config-field" type="checkbox" name="{{ item.key }}" data-group="{{ group_name }}" data-original="{% if item.raw_value %}true{% else %}false{% endif %}" {% if item.raw_value %}checked{% endif %}>
