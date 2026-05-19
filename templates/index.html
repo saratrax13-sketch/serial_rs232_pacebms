@@ -2337,6 +2337,334 @@
       display: inline-flex;
     }
 
+    /* Classic UI density polish: keep the existing dark UI, but make it lighter and closer to Config tab typography. */
+    body {
+      padding: 18px;
+    }
+
+    main {
+      max-width: 1320px;
+    }
+
+    .page-header {
+      margin-bottom: 14px;
+    }
+
+    .app-icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 13px;
+      box-shadow: none;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+
+    h2,
+    .compact-config-header h2 {
+      font-size: 18px;
+      font-weight: 500;
+      letter-spacing: 0;
+      margin-bottom: 8px;
+    }
+
+    p {
+      margin-top: 5px;
+      line-height: 1.42;
+    }
+
+    .tabs {
+      gap: 7px;
+      margin-bottom: 14px;
+    }
+
+    .tab-button {
+      min-height: 32px;
+      padding: 5px 12px;
+      font-weight: 600;
+      width: 118px;
+      flex-basis: 118px;
+      letter-spacing: 0;
+    }
+
+    .badge,
+    .pill,
+    .pack-role,
+    .cell-role-badge,
+    .topology-role,
+    .backup-type,
+    .log-pill,
+    .compact-pill,
+    .reference-pill,
+    .section-badge,
+    .setup-progress,
+    .setup-check-status,
+    .warning-intel-status {
+      font-weight: 500;
+      letter-spacing: 0;
+    }
+
+    .card,
+    .status-hero,
+    .pack-card,
+    .pack-comparison-card,
+    .chart-card,
+    .diagnostic-card,
+    .status-tile,
+    .monitoring-health-item,
+    .cell-pack-card,
+    .warning-intel-card,
+    .setup-check-item,
+    .log-metric,
+    .config-action-group,
+    .config-mode-panel {
+      border-radius: 14px;
+      box-shadow: none;
+    }
+
+    .card {
+      padding: 14px;
+    }
+
+    .wide-card,
+    .dashboard-summary,
+    .pack-comparison-grid,
+    .chart-grid,
+    .status-grid,
+    .diagnostics-grid,
+    .log-metric-row {
+      margin-bottom: 12px;
+    }
+
+    .summary-card,
+    .dashboard-summary,
+    .user-dashboard-grid,
+    .pack-comparison-grid,
+    .chart-grid,
+    .diagnostics-grid,
+    .monitoring-health-grid,
+    .setup-checklist-grid,
+    .status-grid,
+    .pack-grid,
+    .metric-grid,
+    .warning-intel-grid,
+    .warning-intel-metrics,
+    .config-grid,
+    .grid {
+      gap: 10px;
+    }
+
+    .summary-card.compact-summary {
+      padding-right: 58px;
+    }
+
+    .summary-card .summary-refresh,
+    .status-header-card .icon-button {
+      top: 14px;
+      right: 14px;
+    }
+
+    .status-hero,
+    .user-dashboard-tile,
+    .pack-comparison-card,
+    .pack-card,
+    .diagnostic-card,
+    .status-tile,
+    .monitoring-health-item,
+    .cell-pack-card,
+    .warning-intel-card,
+    .setup-check-item,
+    .chart-card,
+    .log-metric,
+    .config-card,
+    .config-action-group,
+    .config-mode-panel {
+      padding: 12px;
+    }
+
+    .status-label,
+    .user-dashboard-label,
+    .pack-metric-label,
+    .pack-quick-label,
+    .metric-section-title,
+    .diagnostic-title,
+    .monitoring-health-label,
+    .tile-label,
+    .warning-intel-label,
+    .log-metric-label,
+    .log-control label,
+    .config-action-label,
+    .reference-table th {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+    }
+
+    .status-value {
+      font-size: 26px;
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+
+    .monitoring-health-status {
+      font-size: 23px;
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+
+    .layout-text,
+    .tile-value,
+    .diagnostic-status,
+    .monitoring-health-value,
+    .log-metric-value,
+    .user-dashboard-value,
+    .pack-comparison-title,
+    .pack-title,
+    .cell-pack-title,
+    .warning-intel-title {
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+
+    .diagnostic-status,
+    .user-dashboard-value,
+    .log-metric-value {
+      font-size: 20px;
+    }
+
+    .pack-comparison-title,
+    .pack-title,
+    .cell-pack-title,
+    .warning-intel-title {
+      font-size: 18px;
+    }
+
+    .metric-value,
+    .pack-metric-value,
+    .pack-quick-value,
+    .cell-summary-value,
+    .warning-intel-value,
+    .backup-name,
+    .event-title,
+    .warning-detail-title,
+    .warning-detail-label,
+    .warning-detail-status,
+    .reference-title {
+      font-weight: 600;
+      letter-spacing: 0;
+    }
+
+    .metric-value {
+      font-size: 15px;
+    }
+
+    .pack-metric-value {
+      font-size: 15px;
+    }
+
+    .pack-quick-value,
+    .warning-intel-value {
+      font-size: 13px;
+    }
+
+    .summary-meta,
+    .user-dashboard-detail,
+    .diagnostic-detail,
+    .monitoring-health-detail,
+    .setup-check-detail,
+    .event-detail,
+    .warning-intel-section,
+    .reference-box,
+    .warning-box,
+    .normal-box,
+    .helper-note,
+    .config-form-note,
+    .compact-config-subtitle,
+    .compact-sensitive-note,
+    .topology-note {
+      line-height: 1.35;
+    }
+
+    .summary-meta,
+    .dashboard-refresh-message,
+    .diagnostic-detail,
+    .monitoring-health-detail,
+    .setup-check-detail,
+    .event-detail,
+    .warning-intel-section {
+      font-size: 12px;
+    }
+
+    .user-dashboard-tile {
+      min-height: 78px;
+    }
+
+    .monitoring-health-item {
+      min-height: 86px;
+    }
+
+    .metric-section {
+      margin-top: 10px;
+    }
+
+    .metric-section-title {
+      margin-bottom: 6px;
+    }
+
+    .metric,
+    .pack-metric,
+    .pack-quick-item,
+    .warning-intel-metric,
+    .cell-summary-tile,
+    .log-table td,
+    .backup-table td,
+    .topology-table td,
+    .event-item,
+    .backup-item {
+      padding: 8px;
+    }
+
+    .row {
+      padding: 8px 0;
+      gap: 10px;
+    }
+
+    .reference-table th,
+    .reference-table td,
+    .cell-table th,
+    .cell-table td {
+      padding: 7px 6px;
+    }
+
+    .warning-box,
+    .reference-box,
+    .normal-box,
+    .helper-note,
+    .alert,
+    .view-note,
+    .compact-help,
+    .compact-format-help {
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+
+    .actions,
+    .fet-row,
+    .config-action-buttons,
+    .config-mode-buttons,
+    .backup-actions {
+      gap: 7px;
+    }
+
+    button,
+    .button-link {
+      font-weight: 600;
+      min-height: 30px;
+    }
+
   </style>
 </head>
 <body>

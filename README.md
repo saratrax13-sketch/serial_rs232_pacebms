@@ -20,7 +20,7 @@ The add-on includes:
 - Estimated runtime remaining while discharging
 - Estimated charge time remaining while charging
 - Profile-based BMS warning Telegram filtering
-- Light Option 1 operations dashboard is the default Home Assistant web UI; classic UI remains available with `?ui=classic`
+- Classic Home Assistant web UI is the default; the optional light Option 1 dashboard remains available with `?ui=option1`
 - Read-only BMS communication
 
 ---
@@ -28,7 +28,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.85"
+version: "2.6.87"
 ```
 
 ---

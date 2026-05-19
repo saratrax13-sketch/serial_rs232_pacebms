@@ -1265,7 +1265,7 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertNotIn('href="/option1', html)
         self.assertNotIn('href="/classic', html)
         self.assertEqual(default_response.status_code, 200)
-        self.assertIn(b"Clean Operations Dashboard", default_response.data)
+        self.assertIn(b"Battery Confidence", default_response.data)
         self.assertEqual(legacy_response.status_code, 200)
         self.assertIn(b"Battery Confidence", legacy_response.data)
         self.assertEqual(legacy_query_response.status_code, 200)
@@ -1395,8 +1395,8 @@ class HealthEndpointTests(unittest.TestCase):
             response = web_config.app.test_client().get("/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Clean Operations Dashboard", response.data)
-        self.assertIn(b"Overview", response.data)
+        self.assertIn(b"User view", response.data)
+        self.assertIn(b"Battery Confidence", response.data)
 
     def test_diagnostics_battery_configuration_includes_cycles(self):
         options = {

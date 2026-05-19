@@ -3214,9 +3214,7 @@ def index():
 
     if ui_mode == "option1":
         return render_option1(tab or "overview")
-    if ui_mode == "classic" or tab:
-        return render_classic_index()
-    return render_option1("overview")
+    return render_classic_index()
 
 
 @app.route("/classic", methods=["GET"])

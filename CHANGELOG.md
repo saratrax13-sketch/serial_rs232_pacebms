@@ -1,3 +1,23 @@
+## 2.6.87 - 2026-05-19
+
+### Changed
+- Polished the classic web UI typography to reduce oversized bold text and align the visual weight closer to the Config tab.
+- Tightened card, tile, table and field spacing across the dashboard, tech status, diagnostics, logs, events, backups and setup views.
+
+### Notes
+- Styling only; no MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
+## 2.6.86 - 2026-05-19
+
+### Changed
+- Restored the classic Home Assistant web UI as the default `/` page.
+- Kept the light Option 1 dashboard available as an optional preview with `?ui=option1` or `/option1`.
+
+### Notes
+- UI routing only; no MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
 ## 2.6.85 - 2026-05-19
 
 ### Fixed
