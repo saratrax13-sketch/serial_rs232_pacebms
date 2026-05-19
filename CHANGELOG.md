@@ -6,6 +6,9 @@
 - Removed the Logs category dropdown and View Detail wording.
 - Kept Logs search, latest 400-line sampling, oldest/newest timestamps and 15-second soft refresh.
 - Preserved the selected Logs view, search text and information panel state during automatic refresh.
+- Moved Battery Profile & References to the bottom of the Config cards and widened it to reduce table scrolling.
+- Moved the daily energy current deadband to the bottom of Scheduled Reports so report times stay grouped together.
+- Included warning read and warning-related lines in the Logs Important view.
 
 ### Fixed
 - Added config save/load coverage for upgraded default options, blank sensitive fields and restart-required save messaging.

@@ -711,17 +711,26 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertEqual(log_view["default_view"], "battery")
         self.assertEqual(log_view["visible_at_default"], 3)
         analog_row = next(row for row in log_view["rows"] if "Analog read OK" in row["message"])
+        warn_row = next(row for row in log_view["rows"] if "Warn read OK" in row["message"])
         web_row = next(row for row in log_view["rows"] if "GET /api/status" in row["message"])
         self.assertEqual(analog_row["level"], 2)
         self.assertEqual(analog_row["category"], "Monitor")
         self.assertTrue(analog_row["battery"])
         self.assertFalse(analog_row["important"])
+        self.assertTrue(warn_row["battery"])
+        self.assertTrue(warn_row["important"])
         self.assertEqual(web_row["level"], 3)
         self.assertEqual(web_row["category"], "Web UI")
         self.assertFalse(web_row["battery"])
         self.assertTrue(web_row["everything"])
         self.assertEqual(log_view["oldest_time"], "2026-05-18 18:46:15,123")
         self.assertEqual(log_view["newest_time"], "2026-05-18 18:47:33")
+
+    def test_config_group_order_keeps_profile_references_last(self):
+        group_names = list(web_config.GROUPS.keys())
+
+        self.assertEqual(group_names[-1], "Battery Profile & References")
+        self.assertEqual(web_config.GROUPS["Scheduled Reports"][-1], "daily_energy_current_deadband_a")
 
     def test_logs_page_uses_simple_show_filter(self):
         options = dict(web_config.DEFAULT_OPTION_VALUES)

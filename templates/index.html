@@ -1732,6 +1732,16 @@
       gap: 16px;
     }
 
+    .config-card[data-config-group="Battery Profile & References"] {
+      grid-column: span 2;
+    }
+
+    @media (max-width: 860px) {
+      .config-card[data-config-group="Battery Profile & References"] {
+        grid-column: span 1;
+      }
+    }
+
     .row {
       display: grid;
       grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
@@ -1752,14 +1762,15 @@
     }
 
     .reference-table-wrap {
-      overflow-x: auto;
+      overflow-x: visible;
       margin-top: 8px;
     }
 
     .reference-table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 760px;
+      min-width: 0;
+      table-layout: fixed;
     }
 
     .reference-table th,
@@ -1780,10 +1791,12 @@
     .reference-table td {
       color: #e5e7eb;
       font-size: 13px;
+      overflow-wrap: anywhere;
     }
 
     .reference-table .config-input {
-      min-width: 92px;
+      width: 100%;
+      min-width: 0;
       max-width: 132px;
     }
 

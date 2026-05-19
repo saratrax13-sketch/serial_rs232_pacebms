@@ -136,6 +136,20 @@ GROUPS = {
         "notify_warning_repeat_warning_seconds",
         "notify_warning_repeat_critical_seconds",
     ],
+    "Warning Detail": [
+        "notify_warning_detail_enabled",
+        "notify_include_highest_and_lowest_cell",
+        "notify_include_pack_voltage",
+        "notify_include_soc_soh",
+    ],
+    "Scheduled Reports": [
+        "notify_daily_summary",
+        "notify_daily_summary_time",
+        "notify_delta_report_time",
+        "notify_delta_window_start",
+        "notify_delta_window_end",
+        "daily_energy_current_deadband_a",
+    ],
     "Battery Profile & References": [
         "battery_profile",
         "notify_cell_high_warn_voltage",
@@ -146,20 +160,6 @@ GROUPS = {
         "notify_include_all_cells_above_threshold",
         "notify_include_all_cells_below_threshold",
         "notify_delta_report",
-    ],
-    "Warning Detail": [
-        "notify_warning_detail_enabled",
-        "notify_include_highest_and_lowest_cell",
-        "notify_include_pack_voltage",
-        "notify_include_soc_soh",
-    ],
-    "Scheduled Reports": [
-        "notify_daily_summary",
-        "notify_daily_summary_time",
-        "daily_energy_current_deadband_a",
-        "notify_delta_report_time",
-        "notify_delta_window_start",
-        "notify_delta_window_end",
     ],
 }
 
@@ -2427,6 +2427,9 @@ def log_row_views(line, level, category):
         "monitor started",
         "monitor stopped",
         "shutdown",
+        "warn read ok",
+        "warnings=",
+        "duplicate suppressed",
         "warning notification sent",
         "warning reminder sent",
         "warning cleared",
