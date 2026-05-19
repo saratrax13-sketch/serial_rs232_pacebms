@@ -257,6 +257,13 @@ WARNING_TELEGRAM_POLICY_CHOICES = {
     "user_reference_only": "Alert only when user reference is exceeded",
 }
 
+DEBUG_OUTPUT_CHOICES = {
+    0: "0 - Normal",
+    1: "1 - Summary troubleshooting",
+    2: "2 - Poll troubleshooting",
+    3: "3 - Protocol/raw frame troubleshooting",
+}
+
 
 def load_options():
     if not os.path.exists(OPTIONS_PATH):
@@ -1816,7 +1823,7 @@ def get_page_live_snapshot(options):
 
 
 def input_type_for_value(key, value):
-    if key in ("battery_profile", "notify_bms_warning_policy"):
+    if key in ("battery_profile", "notify_bms_warning_policy", "debug_output"):
         return "select"
     if isinstance(value, bool):
         return "checkbox"
@@ -2166,7 +2173,7 @@ def build_grouped_config(options):
                 "key": key,
                 "raw_value": raw_value,
                 "input_type": input_type_for_value(key, raw_value),
-                "choices": BATTERY_PROFILE_CHOICES if key == "battery_profile" else WARNING_TELEGRAM_POLICY_CHOICES if key == "notify_bms_warning_policy" else {},
+                "choices": BATTERY_PROFILE_CHOICES if key == "battery_profile" else WARNING_TELEGRAM_POLICY_CHOICES if key == "notify_bms_warning_policy" else DEBUG_OUTPUT_CHOICES if key == "debug_output" else {},
                 "is_bool": isinstance(raw_value, bool),
                 "is_sensitive": key in SENSITIVE_KEYS,
                 "value": safe_value(key, raw_value),
@@ -2244,6 +2251,12 @@ def parse_form_value(key, raw_value, current_value):
     if key == "notify_bms_warning_policy":
         policy = str(raw_value or DEFAULT_OPTION_VALUES["notify_bms_warning_policy"]).strip()
         return policy if policy in WARNING_TELEGRAM_POLICY_CHOICES else DEFAULT_OPTION_VALUES["notify_bms_warning_policy"]
+    if key == "debug_output":
+        try:
+            parsed = int(str(raw_value).strip())
+        except Exception:
+            return DEFAULT_OPTION_VALUES["debug_output"]
+        return parsed if parsed in DEBUG_OUTPUT_CHOICES else DEFAULT_OPTION_VALUES["debug_output"]
 
     if isinstance(current_value, bool):
         return raw_value == "on"
@@ -3032,7 +3045,7 @@ INTEGER_FIELDS = {
     "warn_force_republish_seconds": (0, 86400),
     "bms_baudrate": (1200, 921600),
     "scan_interval": (1, 3600),
-    "debug_output": (0, 5),
+    "debug_output": (0, 3),
     "zero_pad_number_cells": (0, 4),
     "zero_pad_number_packs": (0, 4),
     "notify_cell_delta_warn_mv": (0, 5000),

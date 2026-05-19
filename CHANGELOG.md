@@ -1,3 +1,14 @@
+## 2.6.77 - 2026-05-19
+
+### Fixed
+- Changed `debug_output` from a free integer field to a fixed `0`, `1`, `2`, `3` selection in the web Config UI and Home Assistant add-on schema.
+- Tightened web Config validation so `debug_output` values below `0` or above `3` are rejected.
+
+### Notes
+- If a saved add-on option currently contains `debug_output: -1`, select `0 - Normal` and save the Config page.
+- No MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
 ## 2.6.76 - 2026-05-19
 
 ### Changed

@@ -640,6 +640,18 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertEqual(new_options["daily_energy_current_deadband_a"], 0.4)
         self.assertEqual(new_options["scan_interval"], 12)
 
+    def test_debug_output_is_limited_to_supported_choices(self):
+        current_options = dict(web_config.DEFAULT_OPTION_VALUES)
+        current_options["debug_output"] = -1
+        form = self._form_from_options(current_options)
+        form["debug_output"] = "-1"
+
+        new_options = web_config.build_options_from_form(form, current_options)
+
+        self.assertEqual(new_options["debug_output"], 0)
+        self.assertEqual(sorted(web_config.DEBUG_OUTPUT_CHOICES.keys()), [0, 1, 2, 3])
+        self.assertEqual(web_config.INTEGER_FIELDS["debug_output"], (0, 3))
+
     def test_save_config_redirects_with_restart_message_after_successful_save(self):
         options = dict(web_config.DEFAULT_OPTION_VALUES)
         form = self._form_from_options(options)
