@@ -25,7 +25,7 @@
     <aside class="sidebar">
       {% for tab in option1.tabs %}
         {% set tab_id = tab|lower|replace(' ', '-') %}
-        <a class="nav-link {% if active_tab == tab_id %}active{% endif %}" href="/option1?tab={{ tab_id }}">
+        <a class="nav-link {% if active_tab == tab_id %}active{% endif %}" href="?ui=option1&tab={{ tab_id }}">
           <span class="nav-icon">{% if tab == 'Overview' %}□{% elif tab == 'Packs' %}▣{% elif tab == 'Cells' %}⌁{% elif tab == 'Warnings' %}⚠{% elif tab == 'Diagnostics' %}⚙{% elif tab == 'Raw Data' %}▤{% else %}⚙{% endif %}</span>
           <span>{{ tab }}</span>
         </a>
@@ -67,7 +67,7 @@
           <h3 class="section-title">Packs</h3>
           <div class="pack-list">
             {% for pack in option1.packs %}
-            <a class="pack-mini {{ pack.status_class }}" href="/option1?tab=packs">
+            <a class="pack-mini {{ pack.status_class }}" href="?ui=option1&tab=packs">
               <div class="pack-head">
                 <div><div class="pack-title">{{ pack.label }}</div><div class="subtle">{{ pack.role }} - last packet {{ pack.last_packet }}</div></div>
                 <span class="pill {{ pack.status_class }}">{{ pack.status }}</span>
@@ -145,7 +145,7 @@
         <div><h2>Cell Voltages</h2><p>Detected cell voltage map with high/low cell comparison.</p></div>
         <div class="status-pills">
           {% for pack in option1.packs %}
-            <a class="pill {% if option1.selected_pack and pack.id == option1.selected_pack.id %}active{% endif %}" href="/option1?tab=cells&pack={{ pack.id }}">{{ pack.label }}</a>
+            <a class="pill {% if option1.selected_pack and pack.id == option1.selected_pack.id %}active{% endif %}" href="?ui=option1&tab=cells&pack={{ pack.id }}">{{ pack.label }}</a>
           {% endfor %}
         </div>
       </div>
@@ -267,7 +267,7 @@
       <p class="footer-note">This page does not write to the BMS. It only displays Home Assistant add-on settings and retained MQTT data.</p>
       {% endif %}
 
-      <div class="footer-note">Option 1 UI preview. Classic UI remains available at <a href="/classic">/classic</a>. Page generated at {{ generated_at }}. Data fetched at {{ option1.fetched_at }}.</div>
+      <div class="footer-note">Option 1 UI preview. Classic UI remains available at <a href="?ui=classic">?ui=classic</a>. Page generated at {{ generated_at }}. Data fetched at {{ option1.fetched_at }}.</div>
     </main>
   </div>
 </body>

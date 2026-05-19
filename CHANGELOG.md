@@ -1,3 +1,12 @@
+## 2.6.85 - 2026-05-19
+
+### Fixed
+- Changed Option 1 dashboard navigation to ingress-safe relative links so tab and pack clicks no longer leave the Home Assistant add-on path.
+
+### Notes
+- UI navigation only; no MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
 ## 2.6.84 - 2026-05-19
 
 ### Fixed
