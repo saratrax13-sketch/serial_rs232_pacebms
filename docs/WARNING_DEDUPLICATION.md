@@ -6,6 +6,8 @@ The BMS can report the same active warning with slightly different wording on ea
 
 ![Telegram warning example](screenshots/Telegram1.png)
 
+![Tech Status warning intelligence](screenshots/Tech%20Status%20p1.png)
+
 ![Logs warning view](screenshots/Logs.png)
 
 Example:
@@ -74,6 +76,8 @@ schema:
 ## Important note
 
 This does not hide the warning in the app or MQTT. It only reduces repeated Telegram messages for the same active condition.
+
+The Tech Status Warning Intelligence cards still show the BMS warning context, measured values, reference checks, interpretation and suggested action even when Telegram repeats are being suppressed.
 
 No BMS protocol changes were made.
 No BMS write/control commands were added.

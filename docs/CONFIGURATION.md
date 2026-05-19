@@ -2,6 +2,12 @@
 
 The Config tab saves Home Assistant add-on options only. It does not write thresholds, settings or FET commands to the BMS.
 
+The current Config layout groups the settings by task:
+
+- **BMS Connection**, **MQTT** and **Advanced** are the required baseline settings for polling and Home Assistant discovery.
+- **Telegram**, **Notifications**, **FET Notifications** and **Scheduled Reports** control optional direct Telegram messages.
+- **Notification Thresholds**, **Battery Profile & Alert References** and **Warning Detail** control how warnings are explained and when Telegram alerts are allowed.
+
 ![Config required and notification settings](screenshots/Config.png)
 
 ![Config thresholds and battery references](screenshots/Config%20p2.png)
@@ -73,6 +79,8 @@ These are notification/display reference values only.
 They do not write to the BMS.
 
 Battery profile references are shown beside measured values and user-defined alert references. Auto detection uses the detected cell count to choose the closest built-in reference profile; custom references use the values saved in the add-on options.
+
+The Battery Profile & Alert References card shows profile reference, measured value, user-defined value, Telegram alert toggle and message detail option per reference line. These are explanation and notification settings only; they are never written to the BMS.
 
 ## Debugging
 

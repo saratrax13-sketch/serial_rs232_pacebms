@@ -37,6 +37,14 @@ Monitor: running
 Data Stale: OFF
 ```
 
+The Dashboard should then show Battery Confidence values from retained MQTT data:
+
+![Dashboard](screenshots/Dashboard.png)
+
+Use Setup for first-run checks and safe MQTT/Telegram tests:
+
+![Setup checklist](screenshots/Setup.png)
+
 ## Serial Connection Notes
 
 For serial use, select the correct serial device path in the add-on configuration.

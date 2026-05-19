@@ -1,3 +1,14 @@
+## 2.6.100 - 2026-05-19
+
+### Changed
+- Updated README and manual screenshots guidance for the latest Classic UI captures across Dashboard, Tech Status, Setup, Config, Diagnostics, Events, Backups, Logs and Telegram examples.
+- Refreshed First-Time Setup, Configuration, Backup/Restore, Warning Deduplication, Config Reference and Installation docs to match the current tab layout and screenshot set.
+- Bumped the Home Assistant add-on version so the documentation/screenshot refresh is visible as an update.
+
+### Notes
+- Documentation/screenshots and add-on metadata only; no MQTT topics, Home Assistant discovery identifiers or monitor polling behavior changed.
+- No BMS write/control commands were added.
+
 ## 2.6.99 - 2026-05-19
 
 ### Changed

@@ -65,7 +65,8 @@ Open the web UI and check:
 
 - Dashboard tab: user battery confidence values should be visible.
 - Tech Status tab: Overall Status should not be Unknown once MQTT retained values are available.
-- Tech Status tab: Monitoring Health should show whether heartbeat, MQTT monitor state, analog age and warning age are healthy.
+- Tech Status tab: Warning Intelligence should show whether active BMS warnings are normal, watch, warning or critical against the configured references.
+- Tech Status tab: Battery Packs should show per-pack role, SOC, SOH, cycles, capacity, electrical values, cell balance and BMS control state.
 - Setup tab: Setup Checklist should show Basic Required items as ready.
 - Diagnostics tab: use this when you need a support report or deeper troubleshooting.
 
@@ -75,16 +76,23 @@ Open the web UI and check:
 
 ![Tech Status overview](screenshots/Tech%20Status%20p1.png)
 
+![Tech Status battery packs](screenshots/Tech%20Status%20p2.png)
+
+![Tech Status pack comparisons](screenshots/Tech%20Status%20p3.png)
+
 ![Diagnostics overview](screenshots/Diagnostics%20p1.png)
+
+![Diagnostics cell data](screenshots/Diagnostics%20p2.png)
 
 ### Step 6: Capture setup screenshots
 
 For support or release notes, capture these screens:
 
 - Home Assistant add-on Configuration tab, with secrets hidden.
-- Pace BMS Dashboard tab showing the User Dashboard.
-- Pace BMS Tech Status tab showing Overall Status and Monitoring Health.
+- Pace BMS Dashboard tab showing Battery Confidence.
+- Pace BMS Tech Status tab showing Overall Status, Warning Intelligence, Battery Packs and Pack Comparisons.
 - Pace BMS Setup tab showing Setup Checklist.
+- Pace BMS Diagnostics tab showing battery configuration and cell data.
 - Test Full Monitoring result.
 
 See `docs/screenshots/README.md` for screenshot names and privacy guidance.

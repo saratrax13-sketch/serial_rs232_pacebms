@@ -27,7 +27,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.99"
+version: "2.6.100"
 ```
 
 ---
@@ -259,7 +259,7 @@ These values are estimates from retained MQTT values. They will change as load o
 
 ## Web UI Screenshots
 
-The first screen for daily use is the **Dashboard** tab. The screenshots below show the main user, technician, setup, support and alerting views.
+The first screen for daily use is the **Dashboard** tab. The screenshots below show the current Classic UI user, technician, setup, configuration, support and alerting views.
 
 ### Dashboard
 
@@ -269,7 +269,7 @@ Use this for daily battery confidence: operating state, SOC, combined SOH, power
 
 ### Tech Status
 
-Use this for technician review: warning intelligence, per-pack values, reference margins, FET state and comparison charts.
+Use this for technician review: overall monitor state, warning intelligence, per-pack values, reference margins, FET state and comparison charts.
 
 ![Tech Status warning intelligence](docs/screenshots/Tech%20Status%20p1.png)
 
@@ -285,7 +285,7 @@ Use this for first-run checks and safe external service testing. The Full Monito
 
 ### Config
 
-Use Config to edit Home Assistant add-on options. These settings are saved to the add-on only; they are not written to the BMS.
+Use Config to edit Home Assistant add-on options. The tab is grouped into required connection settings, Telegram/notification options, alert references, warning detail and report schedules. These settings are saved to the add-on only; they are not written to the BMS.
 
 ![Config required and notification settings](docs/screenshots/Config.png)
 

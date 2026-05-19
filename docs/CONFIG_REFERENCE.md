@@ -68,6 +68,18 @@ Optional read-only reference values used to explain BMS warnings in the UI and T
 
 ![Battery profile references](screenshots/Config%20p2.png)
 
+The Battery Profile & Alert References table shows:
+
+- profile reference value
+- measured value from the latest retained data
+- user-defined alert value
+- whether Telegram alerting is enabled for that reference
+- which warning detail is included in the message
+
+The report schedule fields are shown in the final Config section:
+
+![Scheduled report settings](screenshots/Config%20p3.png)
+
 ## Format rules
 
 ### Comma-separated thresholds

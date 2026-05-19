@@ -4,6 +4,8 @@ The add-on includes local backup and restore tools for Home Assistant add-on con
 
 ![Backups tab](screenshots/Backups.png)
 
+The Backups tab is only for Home Assistant add-on options. It does not write anything to the BMS and it does not change battery thresholds or FET state.
+
 ## Where backups are stored
 
 Backups are stored inside the add-on data folder:
