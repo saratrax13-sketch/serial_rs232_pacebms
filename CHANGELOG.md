@@ -1,3 +1,24 @@
+## 2.6.81 - 2026-05-19
+
+### Changed
+- Normalized Config tab typography so card headings, friendly labels, field values, inputs, badges and reference-table text use a lighter consistent font weight.
+
+### Notes
+- Web UI styling only; saved Home Assistant add-on option keys are unchanged.
+- No MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
+## 2.6.80 - 2026-05-19
+
+### Changed
+- Hid technical option keys on the Config tab and kept only the friendly user-facing labels.
+- Matched Config field label typography to the smaller Battery Profile & Alert References table label style.
+
+### Notes
+- Web UI layout and labels only; saved Home Assistant add-on option keys are unchanged.
+- No MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
 ## 2.6.79 - 2026-05-19
 
 ### Fixed
