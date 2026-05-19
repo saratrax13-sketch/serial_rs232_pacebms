@@ -626,6 +626,46 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"FET Notifications", response.data)
         self.assertIn(b"Scheduled Reports", response.data)
 
+    def test_config_page_renders_every_config_group_field(self):
+        options = dict(web_config.DEFAULT_OPTION_VALUES)
+        live = {
+            "ok": True,
+            "availability": "online",
+            "monitor_state": "running",
+            "stale": "OFF",
+            "overall_status": "Healthy",
+            "overall_class": "healthy",
+            "layout": "1 pack(s), 13 cells total",
+            "bms_sn": "TEST",
+            "base_topic": "pacebms",
+            "fetched_at": "now",
+            "error": "",
+            "packs": [{
+                "id": "01",
+                "cell_count": 13,
+                "highest_cell": {"number": "08", "voltage": "4.100"},
+                "lowest_cell": {"number": "01", "voltage": "4.000"},
+                "delta": "100",
+                "temperatures": [28.0],
+            }],
+        }
+
+        with (
+            patch("web_config.load_options", return_value=(options, "")),
+            patch("web_config.get_page_live_snapshot", return_value=live),
+            patch("web_config.load_events", return_value=[]),
+        ):
+            response = web_config.app.test_client().get("/?tab=config")
+
+        self.assertEqual(response.status_code, 200)
+        html = response.data.decode("utf-8")
+        missing = []
+        for keys in web_config.GROUPS.values():
+            for key in keys:
+                if f'name="{key}"' not in html:
+                    missing.append(key)
+        self.assertEqual(missing, [])
+
     def test_build_options_from_form_adds_upgraded_defaults_and_preserves_secrets(self):
         current_options = dict(web_config.DEFAULT_OPTION_VALUES)
         current_options["telegram_bot_token"] = "123456:real-token"
@@ -645,6 +685,103 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertEqual(new_options["battery_profile"], web_config.DEFAULT_OPTION_VALUES["battery_profile"])
         self.assertEqual(new_options["daily_energy_current_deadband_a"], 0.4)
         self.assertEqual(new_options["scan_interval"], 12)
+
+    def test_build_options_from_form_accepts_decimal_comma_fields(self):
+        current_options = dict(web_config.DEFAULT_OPTION_VALUES)
+        form = self._form_from_options(current_options)
+        form["daily_energy_current_deadband_a"] = "0,2"
+        form["notify_cell_high_warn_voltage"] = "4,20"
+        form["notify_cell_low_warn_voltage"] = "3,00"
+
+        new_options = web_config.build_options_from_form(form, current_options)
+
+        self.assertEqual(new_options["daily_energy_current_deadband_a"], 0.2)
+        self.assertEqual(new_options["notify_cell_high_warn_voltage"], 4.2)
+        self.assertEqual(new_options["notify_cell_low_warn_voltage"], 3.0)
+
+    def test_percentage_threshold_fields_remain_integer_schema_values(self):
+        current_options = dict(web_config.DEFAULT_OPTION_VALUES)
+        form = self._form_from_options(current_options)
+        form["notify_soc_high_threshold"] = "99"
+        form["notify_soc_high_reset"] = "96"
+        form["notify_soh_threshold"] = "94"
+
+        new_options = web_config.build_options_from_form(form, current_options)
+
+        self.assertEqual(new_options["notify_soc_high_threshold"], 99)
+        self.assertEqual(new_options["notify_soc_high_reset"], 96)
+        self.assertEqual(new_options["notify_soh_threshold"], 94)
+
+    def test_all_config_fields_round_trip_from_form(self):
+        current_options = dict(web_config.DEFAULT_OPTION_VALUES)
+        sample_values = {
+            "connection_type": "Serial",
+            "bms_serial": "/dev/ttyUSB-test",
+            "bms_baudrate": "19200",
+            "scan_interval": "9",
+            "mqtt_host": "192.168.1.20",
+            "mqtt_port": "1884",
+            "mqtt_user": "new-user",
+            "mqtt_password": "new-password",
+            "mqtt_base_topic": "pacebms_test",
+            "mqtt_ha_discovery_topic": "homeassistant_test",
+            "state_force_republish_seconds": "301",
+            "warn_force_republish_seconds": "302",
+            "debug_output": "1",
+            "zero_pad_number_cells": "3",
+            "zero_pad_number_packs": "3",
+            "telegram_bot_token": "123456:new-token",
+            "telegram_chat_id": "123456789",
+            "notify_soc_low_thresholds": "80,60,40,20",
+            "notify_soc_high_threshold": "99",
+            "notify_soc_high_reset": "96",
+            "notify_soh_threshold": "94",
+            "notify_retry_count": "2",
+            "notify_stale_data_seconds": "180",
+            "notify_stale_data_repeat_seconds": "1900",
+            "notify_warning_repeat_seconds": "1900",
+            "notify_warning_repeat_caution_seconds": "22000",
+            "notify_warning_repeat_warning_seconds": "3700",
+            "notify_warning_repeat_critical_seconds": "1000",
+            "notify_daily_summary_time": "18:30",
+            "notify_delta_report_time": "11:15",
+            "notify_delta_window_start": "01:00",
+            "notify_delta_window_end": "11:00",
+            "daily_energy_current_deadband_a": "0,3",
+            "battery_profile": "custom",
+            "notify_bms_warning_policy": "user_reference_only",
+            "notify_cell_high_warn_voltage": "4,10",
+            "notify_cell_low_warn_voltage": "3,10",
+            "notify_cell_delta_warn_mv": "120",
+            "notify_temp_high_warn_c": "50",
+            "notify_temp_low_warn_c": "5",
+        }
+        expected = {
+            "daily_energy_current_deadband_a": 0.3,
+            "notify_cell_high_warn_voltage": 4.1,
+            "notify_cell_low_warn_voltage": 3.1,
+        }
+
+        for key in [item for keys in web_config.GROUPS.values() for item in keys]:
+            with self.subTest(key=key):
+                form = self._form_from_options(current_options)
+                current_value = current_options.get(key, web_config.DEFAULT_OPTION_VALUES.get(key, ""))
+
+                if isinstance(current_value, bool):
+                    if current_value:
+                        form.pop(key, None)
+                        expected_value = False
+                    else:
+                        form[key] = "on"
+                        expected_value = True
+                else:
+                    form[key] = sample_values.get(key, str(current_value))
+                    expected_value = expected.get(key, web_config.parse_form_value(key, form[key], current_value))
+
+                new_options = web_config.build_options_from_form(form, current_options)
+
+                self.assertEqual(new_options[key], expected_value)
+                self.assertEqual(web_config.validate_config_options(new_options), [])
 
     def test_debug_output_is_limited_to_supported_choices(self):
         current_options = dict(web_config.DEFAULT_OPTION_VALUES)

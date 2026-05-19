@@ -303,6 +303,18 @@
       margin-bottom: 8px;
     }
 
+    .section-title-block {
+      margin-bottom: 12px;
+    }
+
+    .section-title-block h2 {
+      margin-bottom: 6px;
+    }
+
+    .section-title-block p {
+      margin-bottom: 0;
+    }
+
     .icon-button {
       width: 38px;
       height: 38px;
@@ -1155,6 +1167,14 @@
       border: 1px solid rgba(148, 163, 184, 0.20);
       border-radius: 16px;
       padding: 12px;
+    }
+
+    .tech-pack-section .pack-grid {
+      margin-bottom: 0;
+    }
+
+    .tech-comparison-section .chart-grid {
+      margin-bottom: 0;
     }
 
     .pack-header {
@@ -3517,8 +3537,10 @@
 
         {% if live.packs %}
         <section class="card wide-card">
-          <h2>Warning Intelligence</h2>
-          <p>Plain-language warning context per pack. This compares the BMS internal warning state with current cell, pack and reference values.</p>
+          <div class="section-title-block">
+            <h2>Warning Intelligence</h2>
+            <p>Plain-language warning context per pack. This compares the BMS internal warning state with current cell, pack and reference values.</p>
+          </div>
 
           <div class="warning-intel-grid">
             {% for pack in live.packs %}
@@ -3635,7 +3657,13 @@
           </div>
         </section>
 
-        <div class="pack-grid">
+        <section class="card wide-card tech-pack-section">
+          <div class="section-title-block">
+            <h2>Battery Packs</h2>
+            <p>Live per-pack values, identity, capacity, electrical state, cell balance, reference limits and BMS control state.</p>
+          </div>
+
+          <div class="pack-grid">
           {% for pack in live.packs %}
           {% set pack_role = pack.role if pack.role else ('Master' if pack.id == '01' or pack.id == '1' else 'Slave') %}
           {% set pack_voltage = pack.voltage|default(0)|float %}
@@ -3769,10 +3797,17 @@
 
           </article>
           {% endfor %}
-        </div>
+          </div>
+        </section>
 
-        <section class="chart-grid">
-          <article class="chart-card">
+        <section class="card wide-card tech-comparison-section">
+          <div class="section-title-block">
+            <h2>Pack Comparisons</h2>
+            <p>Side-by-side pack trends for SOC, SOH, voltage, cell delta and cell extremes.</p>
+          </div>
+
+          <div class="chart-grid">
+            <article class="chart-card">
             <div class="chart-title">Pack SOC Comparison</div>
             <div class="chart-subtitle">State of Charge per detected pack. Scale: 0% to 100%.</div>
             {% for pack in live.packs %}
@@ -3784,9 +3819,9 @@
               <div class="bar-value" data-chart-value="soc-{{ pack_id }}">{% if pack.soc is defined %}{{ pack.soc }}%{% else %}Unknown{% endif %}</div>
             </div>
             {% endfor %}
-          </article>
+            </article>
 
-          <article class="chart-card">
+            <article class="chart-card">
             <div class="chart-title">Pack SOH Comparison</div>
             <div class="chart-subtitle">State of Health per detected pack. Scale: 0% to 100%.</div>
             {% for pack in live.packs %}
@@ -3798,9 +3833,9 @@
               <div class="bar-value" data-chart-value="soh-{{ pack_id }}">{% if pack.soh is defined %}{{ pack.soh }}%{% else %}Unknown{% endif %}</div>
             </div>
             {% endfor %}
-          </article>
+            </article>
 
-          <article class="chart-card">
+            <article class="chart-card">
             <div class="chart-title">Pack Voltage Comparison</div>
             <div class="chart-subtitle">Voltage scaled against the highest detected pack voltage in the current snapshot.</div>
             {% set max_voltage = namespace(value=0) %}
@@ -3819,9 +3854,9 @@
               <div class="bar-value" data-chart-value="voltage-{{ pack_id }}">{% if pack.voltage is defined %}{{ pack.voltage }} V{% else %}Unknown{% endif %}</div>
             </div>
             {% endfor %}
-          </article>
+            </article>
 
-          <article class="chart-card">
+            <article class="chart-card">
             <div class="chart-title">Cell Delta Comparison</div>
             <div class="chart-subtitle">Cell voltage difference per pack. Lower is better. Scale is relative to the highest current delta.</div>
             {% set max_delta = namespace(value=0) %}
@@ -3840,9 +3875,9 @@
               <div class="bar-value" data-chart-value="delta-{{ pack_id }}">{% if pack.delta is defined %}{{ pack.delta }} mV{% else %}Unknown{% endif %}</div>
             </div>
             {% endfor %}
-          </article>
+            </article>
 
-          <article class="chart-card">
+            <article class="chart-card">
             <div class="chart-title">Highest vs Lowest Cell</div>
             <div class="chart-subtitle">Current highest and lowest cell voltages per pack. Blue = lowest, orange = highest.</div>
             {% for pack in live.packs %}
@@ -3876,7 +3911,8 @@
               </div>
             </div>
             {% endfor %}
-          </article>
+            </article>
+          </div>
         </section>
         {% endif %}
       </section>
@@ -5462,6 +5498,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
         html: `
           <p>These settings only decide when the add-on should notify about charge/discharge FET state changes.</p>
           <ul>
+            <li><code>notify_fet</code> is the main switch for FET state notifications.</li>
             <li><code>notify_ignore_charge_fet_off_when_full</code> avoids noisy charge-FET alerts when the pack is already full.</li>
             <li><code>notify_alert_discharge_fet_off</code> enables an alert when the discharge FET turns off.</li>
           </ul>
@@ -5483,8 +5520,6 @@ Restart the add-on afterwards for runtime changes to apply.`);
           <h3>Operational alerts</h3>
           <ul>
             <li><code>notify_warnings</code> enables BMS warning notifications.</li>
-            <li><code>notify_fet</code> enables charge/discharge FET notifications.</li>
-            <li><code>notify_daily_summary</code> enables the daily battery summary.</li>
           </ul>
           <p>These settings only decide what the add-on reports. They do not change BMS behaviour.</p>
         `
@@ -5577,6 +5612,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
 
           <h3>Daily summary</h3>
           <ul>
+            <li><code>notify_daily_summary</code> enables or disables the daily battery summary.</li>
             <li><code>notify_daily_summary_time</code> — the time the daily summary notification is sent. Example: <code>19:00</code>.</li>
             <li><code>daily_energy_current_deadband_a</code> — current below this value is ignored for daily charged/discharged kWh, so tiny zero-current noise does not create fake energy movement.</li>
             <li><code>notify_delta_report</code> is shown in Battery Profile & References because it belongs to the cell-delta reference row.</li>
@@ -6169,12 +6205,15 @@ Restart the add-on afterwards for runtime changes to apply.`);
         warn_force_republish_seconds: [0, 86400],
         bms_baudrate: [1200, 921600],
         scan_interval: [1, 3600],
-        debug_output: [0, 5],
+        debug_output: [0, 3],
         zero_pad_number_cells: [0, 4],
         zero_pad_number_packs: [0, 4],
         notify_cell_delta_warn_mv: [0, 5000],
         notify_temp_high_warn_c: [-40, 100],
         notify_temp_low_warn_c: [-40, 100],
+        notify_soc_high_threshold: [0, 100],
+        notify_soc_high_reset: [0, 100],
+        notify_soh_threshold: [0, 100],
         notify_retry_count: [0, 10],
         notify_stale_data_seconds: [10, 86400],
         notify_stale_data_repeat_seconds: [60, 86400],
@@ -6187,9 +6226,6 @@ Restart the add-on afterwards for runtime changes to apply.`);
       const decimalRules = {
         notify_cell_high_warn_voltage: [0, 5],
         notify_cell_low_warn_voltage: [0, 5],
-        notify_soc_high_threshold: [0, 100],
-        notify_soc_high_reset: [0, 100],
-        notify_soh_threshold: [0, 100],
         daily_energy_current_deadband_a: [0, 10],
       };
 

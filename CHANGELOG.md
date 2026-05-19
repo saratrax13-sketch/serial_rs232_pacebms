@@ -1,3 +1,32 @@
+## 2.6.98 - 2026-05-19
+
+### Fixed
+- Aligned Config info-button help text with the current card grouping for Notifications, FET Notifications, Warning Detail and Scheduled Reports.
+- Fixed Config save handling for decimal-comma float fields such as `daily_energy_current_deadband_a` and battery reference voltages.
+- Aligned browser validation with the add-on schema so `debug_output` is limited to 0-3 and SOC/SOH percentage threshold fields remain integer values.
+
+### Notes
+- Config changes remain Home Assistant add-on option writes only; no BMS write/control commands were added.
+- No MQTT topics, Home Assistant discovery entities or monitor polling behavior changed.
+
+## 2.6.97 - 2026-05-19
+
+### Changed
+- Added a Tech Status Pack Comparisons section title around the SOC, SOH, voltage, cell delta and cell-extreme comparison cards.
+
+### Notes
+- UI structure only; no MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
+## 2.6.96 - 2026-05-19
+
+### Changed
+- Added clearer Tech Status section titles for Warning Intelligence and Battery Packs so the grouped cards are easier to scan.
+
+### Notes
+- UI structure only; no MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
 ## 2.6.95 - 2026-05-19
 
 ### Changed

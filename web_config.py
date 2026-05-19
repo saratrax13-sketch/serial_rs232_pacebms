@@ -2130,6 +2130,7 @@ CARD_HELP = {
     "Battery Profile & References": "Shows measured battery values beside profile/default references and user-configured references. The BMS warning Telegram policy and row alert switches control Telegram noise only; active BMS warnings remain visible in the UI. The editable values are Home Assistant add-on options only and never write to the BMS.",
     "FET Notifications": "Controls charge/discharge FET notification behavior. These settings only decide when to alert; they do not control FETs.",
     "Notification Thresholds": "Controls SOC, SOH, stale-data and BMS warning repeat timing. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale and warning repeat values are in seconds. BMS warning repeats are severity-aware: caution repeats for low-risk ongoing warnings, warning repeats for near-limit conditions, and critical repeats for protection/fault or measured values outside configured references.",
+    "Warning Detail": "Controls the extra context included in BMS warning explanations, such as highest/lowest cell, pack voltage and SOC/SOH. These settings only affect Telegram/UI message detail and never write to the BMS.",
     "Scheduled Reports": "Controls scheduled Telegram reports, daily summary timing, energy deadband and cell delta report window. These settings do not write to the BMS.",
 }
 
@@ -2355,7 +2356,7 @@ def parse_form_value(key, raw_value, current_value):
 
     if isinstance(current_value, float):
         try:
-            return float(str(raw_value).strip())
+            return float(normalize_decimal_text(raw_value))
         except Exception:
             return current_value
 
@@ -2424,7 +2425,7 @@ def validate_addon_options(options):
 
     def as_float(key, default=None):
         try:
-            return float(options.get(key, default))
+            return float(normalize_decimal_text(options.get(key, default)))
         except Exception:
             return default
 
@@ -3135,6 +3136,9 @@ INTEGER_FIELDS = {
     "notify_cell_delta_warn_mv": (0, 5000),
     "notify_temp_high_warn_c": (-40, 100),
     "notify_temp_low_warn_c": (-40, 100),
+    "notify_soc_high_threshold": (0, 100),
+    "notify_soc_high_reset": (0, 100),
+    "notify_soh_threshold": (0, 100),
     "notify_retry_count": (0, 10),
     "notify_stale_data_seconds": (10, 86400),
     "notify_stale_data_repeat_seconds": (60, 86400),
@@ -3147,9 +3151,6 @@ INTEGER_FIELDS = {
 FLOAT_FIELDS = {
     "notify_cell_high_warn_voltage": (0.0, 5.0),
     "notify_cell_low_warn_voltage": (0.0, 5.0),
-    "notify_soc_high_threshold": (0.0, 100.0),
-    "notify_soc_high_reset": (0.0, 100.0),
-    "notify_soh_threshold": (0.0, 100.0),
     "daily_energy_current_deadband_a": (0.0, 10.0),
 }
 
