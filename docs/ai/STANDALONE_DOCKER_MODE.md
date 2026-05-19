@@ -10,7 +10,7 @@ core monitor behavior around Docker-only assumptions.
 Standalone Docker may need:
 
 - `Dockerfile`
-- `docker-compose.yaml`
+- `docker-compose.yml`
 - `.env.example`
 - README instructions
 - restart policy
@@ -26,11 +26,12 @@ Example:
 
 ```yaml
 devices:
-  - /dev/ttyUSB0:/dev/ttyUSB0
+  - "${PACEBMS_SERIAL_DEVICE:-/dev/ttyUSB0}:/dev/pacebms"
 ```
 
-The current `docker-compose.yaml` should map a specific serial device using
-`PACEBMS_SERIAL_DEVICE` instead of requiring broad `/dev:/dev` access.
+The current `docker-compose.yml` should map a specific host serial device using
+`PACEBMS_SERIAL_DEVICE` to `/dev/pacebms` inside the container instead of
+requiring broad `/dev:/dev` access.
 
 ## Config Strategy
 

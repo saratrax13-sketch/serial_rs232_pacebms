@@ -385,7 +385,6 @@ http://localhost:8099
 Minimum `.env` values to review:
 
 - `PACEBMS_SERIAL_DEVICE`
-- `PACEBMS_BMS_SERIAL`
 - `PACEBMS_MQTT_HOST`
 - `PACEBMS_MQTT_USER`
 - `PACEBMS_MQTT_PASSWORD`

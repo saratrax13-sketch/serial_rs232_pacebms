@@ -22,7 +22,7 @@ Configuration values are used for MQTT, Telegram, display and notification refer
 | File | Purpose |
 |---|---|
 | `Dockerfile` | Builds the Python monitor image |
-| `docker-compose.yaml` | Standalone Docker Compose example |
+| `docker-compose.yml` | Standalone Docker Compose example |
 | `.env.example` | Safe example environment file |
 | `standalone_config.py` | Creates `/data/options.json` from defaults and env vars when missing |
 | `run.sh` | Starts the config bootstrap and monitor supervisor |
@@ -53,7 +53,6 @@ Edit `.env` and set at least:
 
 ```text
 PACEBMS_SERIAL_DEVICE=/dev/ttyUSB0
-PACEBMS_BMS_SERIAL=/dev/ttyUSB0
 PACEBMS_MQTT_HOST=192.168.1.10
 PACEBMS_MQTT_USER=YOUR_MQTT_USER
 PACEBMS_MQTT_PASSWORD=YOUR_MQTT_PASSWORD
@@ -85,20 +84,18 @@ docker compose down
 
 ## Serial Device Mapping
 
-The compose file maps the serial device named by `PACEBMS_SERIAL_DEVICE`.
+The compose file maps the host serial device named by `PACEBMS_SERIAL_DEVICE` to a stable container path, `/dev/pacebms`. The monitor uses `/dev/pacebms` inside the container.
 
 Common Linux example:
 
 ```text
 PACEBMS_SERIAL_DEVICE=/dev/ttyUSB0
-PACEBMS_BMS_SERIAL=/dev/ttyUSB0
 ```
 
 Stable by-id example:
 
 ```text
 PACEBMS_SERIAL_DEVICE=/dev/serial/by-id/usb-Prolific_Technology_Inc._USB-Serial_Controller_D-if00-port0
-PACEBMS_BMS_SERIAL=/dev/serial/by-id/usb-Prolific_Technology_Inc._USB-Serial_Controller_D-if00-port0
 ```
 
 If your host cannot map a `/dev/serial/by-id/...` symlink cleanly, use the actual `/dev/ttyUSBx` device or adjust the compose device mapping for your host.
@@ -126,7 +123,7 @@ The compose file exposes the common setup values:
 |---|---|
 | `PACEBMS_WEB_PORT` | Host web UI port, default `8099` |
 | `PACEBMS_SERIAL_DEVICE` | Host serial device mapped into the container |
-| `PACEBMS_BMS_SERIAL` | Serial path used by the monitor inside the container |
+| `PACEBMS_BMS_SERIAL` | Serial path used by the monitor inside the container. Compose sets this to `/dev/pacebms` |
 | `PACEBMS_BMS_BAUDRATE` | Serial baud rate, normally `9600` |
 | `PACEBMS_SCAN_INTERVAL` | Poll interval in seconds |
 | `PACEBMS_MQTT_HOST` | MQTT broker host |

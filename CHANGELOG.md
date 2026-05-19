@@ -6,6 +6,10 @@
 - Added a standalone-friendly `docker-compose.yaml` with persistent `/data`, web UI port mapping, serial device mapping, restart policy, log rotation and healthcheck.
 - Added `.env.example` and standalone Docker documentation.
 
+### Changed
+- Standardized the standalone compose file as `docker-compose.yml`.
+- Mapped the configured host serial device to `/dev/pacebms` inside the container so the monitor uses a stable internal serial path.
+
 ### Notes
 - Existing `/data/options.json` files are never overwritten by the Docker bootstrap.
 - MQTT topics, Home Assistant discovery identifiers and monitor polling behavior were not changed.

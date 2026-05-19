@@ -9,13 +9,13 @@ services:
       - ./data:/data
 
     devices:
-      - "${PACEBMS_SERIAL_DEVICE:-/dev/ttyUSB0}:${PACEBMS_SERIAL_DEVICE:-/dev/ttyUSB0}"
+      - "${PACEBMS_SERIAL_DEVICE:-/dev/ttyUSB0}:/dev/pacebms"
 
     ports:
       - "${PACEBMS_WEB_PORT:-8099}:8099"
 
     environment:
-      PACEBMS_BMS_SERIAL: "${PACEBMS_BMS_SERIAL:-/dev/ttyUSB0}"
+      PACEBMS_BMS_SERIAL: "/dev/pacebms"
       PACEBMS_BMS_BAUDRATE: "${PACEBMS_BMS_BAUDRATE:-9600}"
       PACEBMS_SCAN_INTERVAL: "${PACEBMS_SCAN_INTERVAL:-5}"
       PACEBMS_MQTT_HOST: "${PACEBMS_MQTT_HOST:-192.168.1.10}"
