@@ -55,6 +55,12 @@ All configurable thresholds in this project are used only for **notification det
 
 ---
 
+## Maintainer / Agent Guidance
+
+Project-specific guidance for future AI-assisted maintenance is kept in [`AGENTS.md`](AGENTS.md) and [`docs/ai/`](docs/ai/). These files document the read-only safety rules, sprint workflow, config rules, alert rules, UI rules and validation checklist used for this add-on.
+
+---
+
 ## Supported Batteries
 
 This project should work with batteries that expose the **Pace BMS RS232 / UART ASCII protocol**.

@@ -5,6 +5,11 @@
 - Added Dashboard, Tech Status, Setup, Config, Diagnostics, Logs, Events, Backups and Telegram examples to the documentation.
 - Updated the screenshot guide to match the current checked-in screenshot files.
 - Updated First-Time Setup, Configuration, Config Reference, Backup/Restore and Warning Deduplication docs with relevant screenshots.
+- Added `AGENTS.md` and `docs/ai/` project guidance for future maintenance, safety rules, sprint workflow, config rules, alert rules, UI rules and validation.
+- Added explicit cautious coding-partner and coding-style guidance for future project work.
+- Expanded project context guidance with battery data points, known watch areas, deployment considerations, versioning and GitHub safety rules.
+- Added focused project skill guides for serial frame debugging, voltage parsing, capacity parsing, warning/alarm handling, MQTT/Home Assistant discovery, Telegram setup, Home Assistant add-on mode and future standalone Docker mode.
+- Added sprint batching and required git commit comment guidance for future GitHub uploads.
 
 ### Removed
 - Removed the temporary `web-ui-2.0.39-warning-reference.png` screenshot.
