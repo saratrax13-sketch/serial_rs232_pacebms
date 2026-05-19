@@ -3,6 +3,10 @@
 ### Fixed
 - Fixed Dashboard live trend graphs so Chart.js canvases are initialized before snapshot duplicate checks can skip rendering.
 - Added stable graph canvas sizing and visible graph status text for missing history samples or chart refresh errors.
+- Changed the vendored Chart.js script path to an Ingress-safe relative path for Home Assistant add-on use.
+- Replaced the static Pace RS232 header badge with a live data-source badge.
+- Hid the legacy `connection_type` field from the visible Config tab while preserving it internally for backward compatibility.
+- Renamed Web UI data source choices to clearer display-source wording.
 
 ### Notes
 - MQTT topics and Home Assistant discovery identifiers were not changed.

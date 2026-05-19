@@ -85,7 +85,6 @@ CONFIG_SECTION_TIERS = {
 GROUPS = {
     "BMS Connection": [
         "bms_connection_mode",
-        "connection_type",
         "bms_serial",
         "bms_baudrate",
         "scan_interval",
@@ -300,9 +299,9 @@ BMS_CONNECTION_MODE_CHOICES = {
 }
 
 UI_DATA_SOURCE_CHOICES = {
-    "auto": "Auto - live serial first, MQTT fallback",
-    "monitor_live": "Live serial snapshot only",
-    "mqtt_retained": "MQTT retained fallback only",
+    "monitor_live": "Live serial data",
+    "auto": "Live serial data, fallback to MQTT",
+    "mqtt_retained": "MQTT retained data only",
 }
 
 
@@ -693,7 +692,7 @@ def build_setup_checklist(options, live=None):
             "title": "BMS Serial",
             "status": "Ready" if bms_configured else "Needs setup",
             "class": "healthy" if bms_configured else "warning",
-            "detail": "Serial connection is configured." if bms_configured else "Set connection_type to Serial and choose the BMS USB/serial path.",
+            "detail": "Serial connection is configured." if bms_configured else "Set BMS connection mode to Serial and choose the BMS USB/serial path.",
         },
         {
             "title": "MQTT",
@@ -1946,7 +1945,7 @@ def get_cached_live_snapshot(options, max_age_seconds=LIVE_SNAPSHOT_MAX_AGE_SECO
 
 
 def refresh_live_snapshot_cache_once(options):
-    mode = str(options.get("ui_data_source", "auto") or "auto")
+    mode = str(options.get("ui_data_source", DEFAULT_OPTION_VALUES["ui_data_source"]) or DEFAULT_OPTION_VALUES["ui_data_source"])
     snapshot = None
     if mode in ("auto", "monitor_live"):
         snapshot = fetch_monitor_live_snapshot(options)
@@ -2332,7 +2331,7 @@ It does not send BMS control commands.
 
 CARD_HELP = {
     "Advanced": "Advanced runtime settings. Keep pack and cell number padding stable after Home Assistant MQTT Discovery has created entities. Changing padding changes MQTT state topics, discovery topics and unique IDs, which can leave old retained discovery entities in Home Assistant until they are cleaned up.",
-    "History & Live Data": "Controls the serial-first web UI data source and local SQLite history. Auto uses the monitor-owned live serial snapshot first and uses retained MQTT only as a fallback when MQTT is enabled. History settings store local metrics for charts and never write to the BMS.",
+    "History & Live Data": "Controls where the web UI reads display data from and whether local SQLite history is stored. This does not change how the BMS is polled. Live serial data reads the monitor-owned snapshot; fallback mode uses MQTT only if live serial data is unavailable and MQTT is enabled. History settings store local metrics for charts and never write to the BMS.",
     "Battery Profile & References": "Shows measured battery values beside profile/default references and user-configured references. This card also contains read-only expected layout checks and capacity fallback settings used only when BMS capacity is unavailable. The BMS warning Telegram policy and row alert switches control Telegram noise only; active BMS warnings remain visible in the UI. The editable values are Home Assistant add-on options only and never write to the BMS.",
     "FET Notifications": "Controls charge/discharge FET notification behavior. These settings only decide when to alert; they do not control FETs.",
     "Notification Thresholds": "Controls SOC, SOH, stale-data and BMS warning repeat timing. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale and warning repeat values are in seconds. BMS warning repeats are severity-aware: caution repeats for low-risk ongoing warnings, warning repeats for near-limit conditions, and critical repeats for protection/fault or measured values outside configured references.",
@@ -2342,7 +2341,7 @@ CARD_HELP = {
 
 FIELD_HELP = {
     "bms_connection_mode": "Physical BMS connection mode. Serial is the only supported read-only BMS interface in this build.",
-    "ui_data_source": "Web UI data source. Auto uses live serial snapshot first, then retained MQTT fallback when available. monitor_live never uses MQTT; mqtt_retained uses retained MQTT only.",
+    "ui_data_source": "Controls where the web UI reads display data from. It does not change how the BMS is polled. Live serial data uses the monitor-owned snapshot; fallback mode uses retained MQTT only if live serial data is unavailable and MQTT is enabled.",
     "mqtt_enabled": "Enables MQTT publishing and Home Assistant discovery. Disable this when using the app as a direct serial web monitor without MQTT.",
     "metrics_enabled": "Enables local SQLite history for charts and troubleshooting. This stores displayed battery values under /data.",
     "history_sample_seconds": "Pack and bank metric sample interval for history storage. Default: 10 seconds.",
@@ -2388,7 +2387,7 @@ FIELD_LABELS = {
     "bms_serial": "Serial device",
     "bms_baudrate": "BMS baud rate",
     "scan_interval": "Poll interval",
-    "ui_data_source": "Web UI data source",
+    "ui_data_source": "Web UI display source",
     "metrics_enabled": "Store local history",
     "history_sample_seconds": "Pack/bank history sample interval",
     "history_cell_sample_seconds": "Cell history sample interval",
@@ -2696,7 +2695,7 @@ def validate_addon_options(options):
     if scan_interval is None or scan_interval < 1:
         errors.append("scan_interval must be at least 1 second.")
 
-    ui_data_source = str(options.get("ui_data_source", "auto")).strip()
+    ui_data_source = str(options.get("ui_data_source", DEFAULT_OPTION_VALUES["ui_data_source"])).strip()
     if ui_data_source not in UI_DATA_SOURCE_CHOICES:
         errors.append("ui_data_source must be one of: auto, monitor_live, mqtt_retained.")
 

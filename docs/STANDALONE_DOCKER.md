@@ -128,7 +128,7 @@ The compose file exposes the common setup values:
 | `PACEBMS_BMS_SERIAL` | Serial path used by the monitor inside the container. Compose sets this to `/dev/pacebms` |
 | `PACEBMS_BMS_BAUDRATE` | Serial baud rate, normally `9600` |
 | `PACEBMS_SCAN_INTERVAL` | Poll interval in seconds |
-| `PACEBMS_UI_DATA_SOURCE` | `auto`, `monitor_live` or `mqtt_retained` |
+| `PACEBMS_UI_DATA_SOURCE` | `monitor_live`, `auto` or `mqtt_retained` |
 | `PACEBMS_METRICS_ENABLED` | Enables local SQLite metrics/history |
 | `PACEBMS_HISTORY_SAMPLE_SECONDS` | Bank and pack metrics sample interval |
 | `PACEBMS_HISTORY_CELL_SAMPLE_SECONDS` | Cell and temperature metrics sample interval |

@@ -102,6 +102,30 @@
       color: #bbf7d0;
     }
 
+    .badge.source-serial {
+      border-color: rgba(56, 189, 248, 0.7);
+      background: rgba(14, 165, 233, 0.12);
+      color: var(--cyan);
+    }
+
+    .badge.source-mqtt {
+      border-color: rgba(34, 197, 94, 0.6);
+      background: rgba(34, 197, 94, 0.12);
+      color: #bbf7d0;
+    }
+
+    .badge.source-stale {
+      border-color: rgba(251, 191, 36, 0.7);
+      background: rgba(251, 191, 36, 0.14);
+      color: var(--yellow);
+    }
+
+    .badge.source-none {
+      border-color: rgba(248, 113, 113, 0.7);
+      background: rgba(248, 113, 113, 0.14);
+      color: #fecaca;
+    }
+
     .tabs {
       display: flex;
       flex-wrap: nowrap;
@@ -3503,7 +3527,22 @@
       </div>
       <div class="header-badges">
         <div class="badge safety">Read-only BMS</div>
-        <div class="badge">Pace RS232</div>
+        {% set source_text = (live.data_source if live and live.data_source else 'No data') %}
+        {% set source_lower = source_text|lower %}
+        {% if 'mqtt' in source_lower %}
+          {% set source_label = 'MQTT Fallback' if 'fallback' in source_lower or active_tab != 'config' else 'MQTT' %}
+          {% set source_class = 'source-mqtt' %}
+        {% elif 'stale' in source_lower %}
+          {% set source_label = 'Stale' %}
+          {% set source_class = 'source-stale' %}
+        {% elif 'serial' in source_lower or 'live' in source_lower %}
+          {% set source_label = 'Live Serial' %}
+          {% set source_class = 'source-serial' %}
+        {% else %}
+          {% set source_label = 'No Live Data' %}
+          {% set source_class = 'source-none' %}
+        {% endif %}
+        <div class="badge {{ source_class }}" title="Web UI display source: {{ source_text }}">{{ source_label }}</div>
       </div>
     </header>
 
@@ -4324,6 +4363,7 @@
 
 
 <form id="config-save-form" method="post" action="save-config" onsubmit="return confirmSaveConfig();">
+          <input type="hidden" name="connection_type" value="Serial">
           <section class="grid">
             {% for group_name, items in grouped.items() %}
             <article class="card config-card" data-config-group="{{ group_name }}" data-config-tier="{{ config_section_tiers.get(group_name, 'advanced') }}">
@@ -5050,7 +5090,7 @@ This cannot be undone.`);">
     </footer>
   </main>
 
-<script src="{{ url_for('static', filename='vendor/chart.min.js') }}"></script>
+<script src="static/vendor/chart.min.js"></script>
 <script>
     let activeTabTimers = [];
     let softTabLoading = false;
@@ -5780,7 +5820,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
           <p>These settings tell the add-on how to communicate with the Pace BMS.</p>
           <h3>Serial mode</h3>
           <ul>
-            <li><code>connection_type</code> should be <code>Serial</code> for USB/RS232 adapters.</li>
+            <li><code>bms_connection_mode</code> selects the physical BMS connection mode. Serial is the supported read-only interface in this build.</li>
             <li><code>bms_serial</code> should use a stable path such as <code>/dev/serial/by-id/...</code>.</li>
             <li><code>bms_baudrate</code> is usually <code>9600</code> for Pace RS232.</li>
           </ul>
@@ -6455,7 +6495,6 @@ Restart the add-on afterwards for runtime changes to apply.`);
         "mqtt_user",
         "mqtt_base_topic",
         "mqtt_ha_discovery_topic",
-        "connection_type",
         "bms_serial",
       ];
 
@@ -6519,11 +6558,6 @@ Restart the add-on afterwards for runtime changes to apply.`);
       const cellLow = form.elements["notify_cell_low_warn_voltage"] ? parseDecimalInput(form.elements["notify_cell_low_warn_voltage"].value) : null;
       if (cellHigh !== null && cellLow !== null && !Number.isNaN(cellHigh) && !Number.isNaN(cellLow) && cellLow >= cellHigh) {
         errors.push("notify_cell_low_warn_voltage must be lower than notify_cell_high_warn_voltage.");
-      }
-
-      const connectionType = form.elements["connection_type"];
-      if (connectionType && !["Serial", "serial"].includes(String(connectionType.value || ""))) {
-        errors.push("connection_type must be Serial. IP mode is not enabled in this add-on build.");
       }
 
       if (errors.length) {
