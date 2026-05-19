@@ -1140,6 +1140,46 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertNotIn(b"Monitoring Snapshot", response.data)
         self.assertNotIn(b"Warning Summary", response.data)
 
+    def test_live_pages_render_with_partial_retained_pack_snapshot(self):
+        options = dict(web_config.DEFAULT_OPTION_VALUES)
+        live = {
+            "ok": True,
+            "availability": "online",
+            "monitor_state": "running",
+            "stale": "OFF",
+            "stale_reason": "Fresh",
+            "last_analog_read": "2026-05-19 12:00:00",
+            "last_warn_read": "2026-05-19 12:00:01",
+            "analog_age_seconds": 1,
+            "warn_age_seconds": 1,
+            "overall_status": "Healthy",
+            "overall_class": "healthy",
+            "layout": "Partial retained snapshot",
+            "bms_sn": "TEST",
+            "base_topic": "pacebms",
+            "fetched_at": "now",
+            "error": "",
+            "severity_summary": {},
+            "pack_count": 2,
+            "total_cells": 13,
+            "warning_count": 0,
+            "packs": [
+                {"cell_count": 13},
+                {"id": "02", "soc": "99.1", "highest_cell": {}, "warnings": "no warnings"},
+            ],
+        }
+
+        with (
+            patch("web_config.load_options", return_value=(options, "")),
+            patch("web_config.get_page_live_snapshot", return_value=live),
+            patch("web_config.load_events", return_value=[]),
+        ):
+            client = web_config.app.test_client()
+            for tab in ("dashboard", "status", "diagnostics", "setup", "config", "logs"):
+                with self.subTest(tab=tab):
+                    response = client.get(f"/?tab={tab}")
+                    self.assertEqual(response.status_code, 200)
+
     def test_root_defaults_to_user_dashboard(self):
         options = {
             "connection_type": "Serial",

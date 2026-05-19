@@ -1099,9 +1099,83 @@ def build_monitoring_health(options, live=None, heartbeat=None):
 
 def attach_monitoring_health(options, live):
     if isinstance(live, dict):
+        live = normalize_live_snapshot_for_template(live)
         live["monitoring_health"] = build_monitoring_health(options, live)
         live["user_summary"] = _calculate_user_summary(options, live)
     return live
+
+
+def _safe_cell_extreme(value):
+    if not isinstance(value, dict):
+        return {"number": "Unknown", "voltage": "Unknown"}
+    return {
+        "number": value.get("number") or "Unknown",
+        "voltage": value.get("voltage") or "Unknown",
+    }
+
+
+def normalize_live_snapshot_for_template(live):
+    """Fill optional retained MQTT fields so partial snapshots do not break rendering."""
+    if not isinstance(live, dict):
+        return live
+
+    normalized = dict(live)
+    raw_packs = normalized.get("packs") or []
+    packs = []
+    for index, raw_pack in enumerate(raw_packs, start=1):
+        pack = dict(raw_pack or {})
+        pack_id = str(pack.get("id") or f"{index:02d}")
+        warnings = pack.get("warnings") or "Normal"
+        severity_class = pack.get("severity_class")
+        severity_label = pack.get("severity_label")
+        if not severity_class or not severity_label:
+            severity_class, severity_label = classify_warning_severity(
+                warnings,
+                normalized.get("availability", "online"),
+                normalized.get("stale", "OFF"),
+            )
+
+        pack.update({
+            "id": pack_id,
+            "role": pack.get("role") or ("Master" if pack_id == "01" else "Slave"),
+            "serial": pack.get("serial") or "Not reported",
+            "cell_count": pack.get("cell_count") or "Unknown",
+            "soc": pack.get("soc") or "Unknown",
+            "soh": pack.get("soh") or "Unknown",
+            "cycles": pack.get("cycles") or "Unknown",
+            "remaining_capacity_ah": pack.get("remaining_capacity_ah") or "Unknown",
+            "full_capacity_ah": pack.get("full_capacity_ah") or "Unknown",
+            "design_capacity_ah": pack.get("design_capacity_ah") or "Unknown",
+            "voltage": pack.get("voltage") or "Unknown",
+            "current": pack.get("current") or "Unknown",
+            "power_kw": pack.get("power_kw") or "Unknown",
+            "delta": pack.get("delta") or "Unknown",
+            "warnings": warnings,
+            "severity_class": severity_class,
+            "severity_label": severity_label,
+            "highest_cell": _safe_cell_extreme(pack.get("highest_cell")),
+            "lowest_cell": _safe_cell_extreme(pack.get("lowest_cell")),
+            "cell_high_ref": pack.get("cell_high_ref") or "Unknown",
+            "cell_low_ref": pack.get("cell_low_ref") or "Unknown",
+            "pack_high_ref": pack.get("pack_high_ref") or "Unknown",
+            "pack_low_ref": pack.get("pack_low_ref") or "Unknown",
+            "charge_fet": pack.get("charge_fet") or "Unknown",
+            "discharge_fet": pack.get("discharge_fet") or "Unknown",
+            "fully": pack.get("fully") or "Unknown",
+            "temperatures": pack.get("temperatures") if isinstance(pack.get("temperatures"), list) else [],
+            "reference_checks": pack.get("reference_checks") if isinstance(pack.get("reference_checks"), list) else [],
+        })
+        packs.append(pack)
+
+    normalized["packs"] = packs
+    normalized["pack_count"] = normalized.get("pack_count") or len(packs)
+    if not normalized.get("total_cells"):
+        total_cells = 0
+        for pack in packs:
+            cell_count = _to_float(pack.get("cell_count"), 0)
+            total_cells += int(cell_count or 0)
+        normalized["total_cells"] = total_cells
+    return normalized
 
 
 def _to_float(value, default=None):

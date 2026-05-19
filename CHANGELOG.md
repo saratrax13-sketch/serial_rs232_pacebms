@@ -1,3 +1,14 @@
+## 2.6.74 - 2026-05-19
+
+### Fixed
+- Hardened the web UI against partial retained MQTT pack snapshots across Dashboard, Tech Status, Diagnostics and Setup.
+- Missing pack fields such as highest cell, lowest cell, SOC, SOH, voltage, current, capacity, FET state or references now render as `Unknown` instead of causing an Internal Server Error.
+
+### Notes
+- This is a follow-up fix for startup/retained-MQTT timing cases where Home Assistant can open the add-on before every retained pack field is available.
+- No MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
 ## 2.6.73 - 2026-05-19
 
 ### Fixed
