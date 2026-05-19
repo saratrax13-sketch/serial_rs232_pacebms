@@ -327,6 +327,24 @@ class WarningNormalizationTests(unittest.TestCase):
         self.assertFalse(allowed)
         self.assertIn("disabled", reason)
 
+    def test_escalated_same_family_forces_notification_past_raw_text_dedupe(self):
+        notify = bms_notify.NotifyState({"notify_warnings": True})
+        warning_text = "Warning State 1: Above cell volt warn"
+        notify.last_warnings[1] = warning_text
+
+        with patch("bms_notify.telegram_send") as telegram:
+            bms_monitor.call_warning_notify(
+                notify,
+                1,
+                warning_text,
+                force=True,
+                severity="critical",
+                repeat=False,
+            )
+
+        telegram.assert_called_once()
+        self.assertIn("BMS Warning (Critical)", telegram.call_args.args[1])
+
 
 class TelegramConfigTests(unittest.TestCase):
     def test_placeholder_values_are_not_configured(self):
@@ -446,6 +464,39 @@ class TelegramConfigTests(unittest.TestCase):
         self.assertIn("Reference Check", message)
         self.assertIn("Interpretation", message)
         self.assertIn("Suggested Action", message)
+
+    def test_warning_detail_handles_generic_bms_warning_words(self):
+        notify = bms_notify.NotifyState({
+            "notify_warning_detail_enabled": True,
+            "notify_warnings": True,
+            "notify_cell_high_warn_voltage": 4.20,
+            "notify_cell_low_warn_voltage": 3.00,
+            "notify_include_all_cells_above_threshold": True,
+            "notify_include_highest_and_lowest_cell": True,
+            "notify_include_pack_voltage": True,
+        })
+        pack = types.SimpleNamespace(
+            v_cells=[4163, 4176, 4168, 4169, 4170, 4171, 4172, 4200],
+            t_cells=[],
+            v_pack=54.377,
+            soc=100.0,
+            soh=90.3,
+            cells=13,
+            cell_max_diff=37,
+            cycles=987,
+        )
+
+        message = notify._build_warning_detail(
+            1,
+            "cell 2 Above upper limit, cell 8 Above upper limit, Above cell voltage, Above total voltage",
+            pack,
+        )
+
+        self.assertIn("Above upper limit:", message)
+        self.assertIn("- Cell 02: 4.176 V | Ref: 4.20 V", message)
+        self.assertIn("- Cell 08: 4.200 V | Ref: 4.20 V", message)
+        self.assertIn("Pack voltage:", message)
+        self.assertIn("- Pack: 54.377 V | Ref: 54.60 V", message)
 
     def test_p16_profile_uses_lfp_reference_defaults(self):
         notify = bms_notify.NotifyState({

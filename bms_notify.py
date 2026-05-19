@@ -380,6 +380,39 @@ class NotifyState:
                 numbers.append(int(match.group(1)))
         return sorted(set(numbers))
 
+    def _has_high_cell_warning(self, warning_text: str) -> bool:
+        low = str(warning_text or "").lower()
+        return (
+            ("above cell" in low and "volt" in low)
+            or ("above upper limit" in low and "cell" in low)
+            or ("cell" in low and "volt protect" in low and "above" in low)
+        )
+
+    def _has_low_cell_warning(self, warning_text: str) -> bool:
+        low = str(warning_text or "").lower()
+        return (
+            (("lower cell" in low or "low cell" in low or "below cell" in low) and "volt" in low)
+            or ("below lower limit" in low and "cell" in low)
+            or ("cell" in low and "volt protect" in low and ("lower" in low or "below" in low))
+        )
+
+    def _has_high_pack_warning(self, warning_text: str) -> bool:
+        low = str(warning_text or "").lower()
+        return (
+            ("above total" in low and "volt" in low)
+            or ("above pack" in low and "volt" in low)
+            or ("total voltage" in low and ("above" in low or "upper" in low))
+        )
+
+    def _has_low_pack_warning(self, warning_text: str) -> bool:
+        low = str(warning_text or "").lower()
+        return (
+            ("lower total" in low and "volt" in low)
+            or ("low total" in low and "volt" in low)
+            or ("below pack" in low and "volt" in low)
+            or ("total voltage" in low and ("below" in low or "lower" in low))
+        )
+
     def _reference_margin(self, value: Optional[float], reference: Optional[float], direction: str) -> tuple[str, str]:
         if value is None or reference is None:
             return "Unknown", "Unknown"
@@ -460,10 +493,13 @@ class NotifyState:
             cell_map = {idx: value for idx, value in enumerate(cells_v, start=1)}
 
             if cells_v:
-                if 'Above cell volt warn' in cleaned:
+                if self._has_high_cell_warning(cleaned):
                     candidates = self._warning_cell_numbers(cleaned, "above upper limit")
+                    if self.config.get('notify_include_all_cells_above_threshold', True):
+                        candidates.extend(idx for idx, value in cell_map.items() if value >= cell_high)
                     if not candidates and high_idx is not None:
                         candidates = [high_idx]
+                    candidates = sorted(set(candidates))
                     lines.append("Above upper limit:")
                     for cell_num in candidates:
                         row, status = self._warning_detail_row(f"Cell {cell_num:02d}", cell_map.get(cell_num), cell_high, "above", "notify_alert_cell_high_voltage")
@@ -471,10 +507,13 @@ class NotifyState:
                         exceeded = exceeded or status == "Exceeded"
                     detail_added = True
 
-                if 'Lower cell volt warn' in cleaned or 'Below lower limit' in cleaned:
+                if self._has_low_cell_warning(cleaned):
                     candidates = self._warning_cell_numbers(cleaned, "below lower limit")
+                    if self.config.get('notify_include_all_cells_below_threshold', True):
+                        candidates.extend(idx for idx, value in cell_map.items() if value <= cell_low)
                     if not candidates and low_idx is not None:
                         candidates = [low_idx]
+                    candidates = sorted(set(candidates))
                     lines.append("Below lower limit:")
                     for cell_num in candidates:
                         row, status = self._warning_detail_row(f"Cell {cell_num:02d}", cell_map.get(cell_num), cell_low, "below", "notify_alert_cell_low_voltage")
@@ -485,13 +524,13 @@ class NotifyState:
             if self.config.get('notify_include_pack_voltage', True):
                 pack_high = cell_high * cell_count if cell_count else 0.0
                 pack_low = cell_low * cell_count if cell_count else 0.0
-                if 'Above total volt warn' in cleaned or 'total voltage Above upper limit' in cleaned:
+                if self._has_high_pack_warning(cleaned):
                     lines.extend(["", "Pack voltage:"])
                     row, status = self._warning_detail_row("Pack", pack_v, pack_high, "above", "notify_alert_pack_high_voltage")
                     lines.append(row)
                     exceeded = exceeded or status == "Exceeded"
                     detail_added = True
-                if 'Lower total volt warn' in cleaned or 'total voltage Below lower limit' in cleaned:
+                if self._has_low_pack_warning(cleaned):
                     lines.extend(["", "Low pack voltage:"])
                     row, status = self._warning_detail_row("Pack", pack_v, pack_low, "below", "notify_alert_pack_low_voltage")
                     lines.append(row)

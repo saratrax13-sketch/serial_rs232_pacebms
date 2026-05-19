@@ -1,3 +1,14 @@
+## 2.6.101 - 2026-05-19
+
+### Fixed
+- Improved Telegram BMS warning detail so generic Pace warning text such as `Above cell voltage` and `Above total voltage` still produces measured cell and pack-voltage reference rows.
+- Ensured same-family warning escalation can still send a Telegram alert even when the raw BMS warning text did not change.
+- Kept duplicate warning suppression quiet during normal operation while still allowing first-send, escalation, cooldown reminder and clear notifications.
+
+### Notes
+- Telegram warning behavior only; no MQTT topics, Home Assistant discovery identifiers or monitor polling behavior changed.
+- No BMS write/control commands were added.
+
 ## 2.6.100 - 2026-05-19
 
 ### Changed

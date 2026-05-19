@@ -2236,7 +2236,7 @@ def main():
                                 p,
                                 pack_warn.warnings,
                                 pack_detail,
-                                force=repeat,
+                                force=repeat or escalated,
                                 severity=severity,
                                 repeat=repeat,
                             )
