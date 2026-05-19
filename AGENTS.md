@@ -19,9 +19,7 @@ Use this guide before making project changes. More detailed guidance lives in `d
 
 ## UI/UX Instructions
 
-When working on the frontend UI, follow the clean Option 1 dashboard direction where requested.
-
-The UI must be neat, sleek, tidy, light, compact, professional and easy for normal users, installers and technicians.
+When working on the frontend UI, keep the current Home Assistant ingress UI neat, tidy, compact, professional and easy for normal users, installers and technicians.
 
 Avoid bulky layouts, oversized cards, full dark dashboards, unnecessary animations, and hiding stale, invalid or unavailable values.
 

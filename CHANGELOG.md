@@ -1,3 +1,23 @@
+## 2.6.89 - 2026-05-19
+
+### Changed
+- Reworked the Dashboard Pack Comparison Cards into compact themed pack cards with headline SOC, SOH, voltage and current tiles.
+- Added clearer pack comparison rows for remaining/full/design capacity, projected runtime or charge estimate, cell extremes, cycles and cell delta.
+
+### Notes
+- UI layout only; no MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
+## 2.6.88 - 2026-05-19
+
+### Removed
+- Removed the abandoned alternate light UI preview, including its route, template, stylesheet, documentation and tests.
+- Returned the project to a single Home Assistant web UI to avoid confusion during future UI work.
+
+### Notes
+- UI cleanup only; no MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
 ## 2.6.87 - 2026-05-19
 
 ### Changed
@@ -6,57 +26,6 @@
 
 ### Notes
 - Styling only; no MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
-- No BMS write/control commands were added.
-
-## 2.6.86 - 2026-05-19
-
-### Changed
-- Restored the classic Home Assistant web UI as the default `/` page.
-- Kept the light Option 1 dashboard available as an optional preview with `?ui=option1` or `/option1`.
-
-### Notes
-- UI routing only; no MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
-- No BMS write/control commands were added.
-
-## 2.6.85 - 2026-05-19
-
-### Fixed
-- Changed Option 1 dashboard navigation to ingress-safe relative links so tab and pack clicks no longer leave the Home Assistant add-on path.
-
-### Notes
-- UI navigation only; no MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
-- No BMS write/control commands were added.
-
-## 2.6.84 - 2026-05-19
-
-### Fixed
-- Inlined the Option 1 dashboard stylesheet so Home Assistant Ingress loads the light UI styling reliably.
-
-### Notes
-- UI styling delivery only; no MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
-- No BMS write/control commands were added.
-
-## 2.6.83 - 2026-05-19
-
-### Changed
-- Made the light Option 1 operations dashboard the default web UI for Home Assistant ingress.
-- Kept the existing classic web UI available at `/classic` and `/?ui=classic`.
-- Preserved classic UI POST redirects by routing old tab names back to the classic UI.
-
-### Notes
-- UI routing only; no MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
-- No BMS write/control commands were added.
-
-## 2.6.82 - 2026-05-19
-
-### Added
-- Added an optional light "Option 1" operations dashboard at `/option1` and `/?ui=option1`.
-- Added `docs/ui-redesign-option-1.md` to document the clean UI direction and data display rules.
-- Added a dashboard-friendly mapper for the new UI that shows missing values as `No data` and NaN values as `Invalid`.
-
-### Notes
-- The existing dark Home Assistant web UI remains unchanged and available at `/`.
-- The new UI reuses existing retained MQTT/live status data and does not change MQTT topics or Home Assistant discovery entities.
 - No BMS write/control commands were added.
 
 ## 2.6.81 - 2026-05-19
