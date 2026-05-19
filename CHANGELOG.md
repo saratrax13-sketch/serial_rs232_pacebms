@@ -1,3 +1,16 @@
+## 2.6.102 - 2026-05-19
+
+### Changed
+- Fixed the Home Assistant repository metadata URL so it points to the current `serial_rs232_pacebms` repository.
+- Added a root coding-skills index for future maintenance guidance.
+- Removed stale one-off migration and old release-note archive files that no longer belong in the public release set.
+- Redacted visible serial-number values from manual screenshots.
+- Bumped the Home Assistant add-on version so the cleanup is visible as an update.
+
+### Notes
+- Repository/docs/screenshot hygiene only; no MQTT topics, Home Assistant discovery identifiers or monitor polling behavior changed.
+- No BMS write/control commands were added.
+
 ## 2.6.101 - 2026-05-19
 
 ### Fixed
