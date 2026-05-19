@@ -4097,7 +4097,7 @@
           <div class="user-dashboard-tile">
             <div class="user-dashboard-label">Last Updated</div>
             <div id="user-last-updated" class="user-dashboard-value">{{ live.user_summary.last_updated }}</div>
-            <div class="user-dashboard-detail">Auto-refresh runs every 15 seconds.</div>
+            <div class="user-dashboard-detail">Live cards refresh every 1 second.</div>
           </div>
         </div>
       </section>
@@ -4861,7 +4861,7 @@ This cannot be undone.`);">
     <section class="tab-panel {% if active_tab == 'diagnostics' %}active{% endif %}">
       <section class="card wide-card status-header-card {% if diagnostics %}{{ diagnostics.live.overall_class }}{% endif %}">
         <h2>Diagnostics</h2>
-        <p>Health overview and redacted support information for the add-on. This page reads MQTT/add-on state only and does not write to the BMS. It auto-refreshes every 15 seconds while open.</p>
+        <p>Health overview and redacted support information for the add-on. This page reads add-on state only and does not write to the BMS. Live fields refresh every 1 second while open.</p>
         <button class="icon-button" type="button" onclick="reloadTab('diagnostics')" aria-label="Refresh diagnostics" title="Refresh diagnostics">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M21 12a9 9 0 0 1-15.5 6.2"></path>
@@ -5327,7 +5327,7 @@ This cannot be undone.`);">
         refreshStatus(true);
         addActiveTabTimer(function () {
           refreshStatus(true);
-        }, 2000);
+        }, 1000);
         return;
       }
 
@@ -5354,7 +5354,7 @@ This cannot be undone.`);">
         refreshDiagnostics(true);
         addActiveTabTimer(function () {
           refreshDiagnostics(true);
-        }, 5000);
+        }, 1000);
         return;
       }
 

@@ -1,3 +1,15 @@
+## 2.9.7 - 2026-05-19
+
+### Changed
+- Bumped the Home Assistant add-on version so the live refresh timing hotfix is visible as an update.
+- Aligned Tech Status and Diagnostics live-field refresh with Dashboard at 1 second while each tab is open.
+- Corrected visible refresh wording for Dashboard and Diagnostics live fields.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.6 - 2026-05-19
 
 ### Changed
