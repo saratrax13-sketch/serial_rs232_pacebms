@@ -2,6 +2,7 @@ import csv
 import io
 import json
 import logging
+import math
 import re
 import os
 from pathlib import Path
@@ -2891,6 +2892,219 @@ def build_battery_reference_table(options, live):
     }
 
 
+OPTION1_MISSING_TEXT = {"", "unknown", "none", "not available", "n/a", "nan"}
+
+
+def option1_is_missing(value):
+    if value is None:
+        return True
+    if isinstance(value, float) and math.isnan(value):
+        return False
+    return str(value).strip().lower() in OPTION1_MISSING_TEXT
+
+
+def option1_display(value, suffix="", decimals=None):
+    """Format values for the light Option 1 UI without hiding bad data."""
+    if value is None:
+        return "No data"
+    try:
+        if isinstance(value, float) and math.isnan(value):
+            return "Invalid"
+    except Exception:
+        pass
+    if option1_is_missing(value):
+        return "No data"
+    if decimals is not None:
+        number = _to_float(value)
+        if number is None:
+            return "Invalid"
+        return f"{number:.{decimals}f}{suffix}"
+    return f"{value}{suffix}" if suffix and str(value).strip() and not str(value).strip().endswith(suffix.strip()) else str(value)
+
+
+def option1_number(value):
+    if option1_is_missing(value):
+        return None
+    return _to_float(value)
+
+
+def option1_status_label(pack):
+    if not isinstance(pack, dict):
+        return "Offline", "offline"
+    warnings = str(pack.get("warnings", "Normal") or "Normal")
+    severity = str(pack.get("severity_class", "") or "").lower()
+    if severity in {"critical", "offline", "stale"}:
+        return str(pack.get("severity_label", severity.title()) or severity.title()), severity
+    if warnings != "Normal":
+        if severity in {"warning", "caution"}:
+            return "Warning" if severity == "warning" else "Watch", "warning" if severity == "warning" else "watch"
+        return "Warning", "warning"
+    return "Normal", "healthy"
+
+
+def option1_time_estimate(pack):
+    voltage = option1_number(pack.get("voltage"))
+    current = option1_number(pack.get("current"))
+    remaining = option1_number(pack.get("remaining_capacity_ah"))
+    full = option1_number(pack.get("full_capacity_ah"))
+    if voltage is None or current is None:
+        return "No data", "No data"
+    power_kw = (voltage * current) / 1000.0
+    if power_kw < -0.05 and remaining and remaining > 0:
+        remaining_kwh = voltage * remaining / 1000.0
+        return runtime_label_from_hours(remaining_kwh / abs(power_kw)), "Idle"
+    if power_kw > 0.05 and remaining is not None and full is not None and full > remaining:
+        needed_kwh = voltage * (full - remaining) / 1000.0
+        return "Idle", runtime_label_from_hours(needed_kwh / power_kw)
+    if abs(power_kw) <= 0.05:
+        return "Idle", "Idle"
+    return "No data", "No data"
+
+
+def option1_warning_kind(pack):
+    warnings = str(pack.get("warnings", "Normal") or "Normal")
+    high_cell = option1_number((pack.get("highest_cell") or {}).get("voltage"))
+    high_ref = option1_number(pack.get("cell_high_ref"))
+    if warnings != "Normal" and "above cell" in warnings.lower() and high_cell is not None and high_ref is not None and high_cell < high_ref:
+        return "Watch condition"
+    status, _status_class = option1_status_label(pack)
+    return status if warnings != "Normal" else "Normal"
+
+
+def build_option1_model(options, live, diagnostics=None, events=None, selected_pack_id=None):
+    """Build a compact light-dashboard model from existing retained MQTT data."""
+    options = options or {}
+    live = live if isinstance(live, dict) else {}
+    diagnostics = diagnostics if isinstance(diagnostics, dict) else {}
+    events = events or []
+    packs = live.get("packs", []) if isinstance(live.get("packs"), list) else []
+    user_summary = live.get("user_summary") or _calculate_user_summary(options, live)
+
+    highest_cells = []
+    lowest_cells = []
+    deltas = []
+    for pack in packs:
+        high = option1_number((pack.get("highest_cell") or {}).get("voltage"))
+        low = option1_number((pack.get("lowest_cell") or {}).get("voltage"))
+        delta = option1_number(pack.get("delta"))
+        if high is not None:
+            highest_cells.append(high)
+        if low is not None:
+            lowest_cells.append(low)
+        if delta is not None:
+            deltas.append(delta)
+
+    bank = {
+        "soc": option1_display(user_summary.get("combined_soc")),
+        "voltage": option1_display(user_summary.get("pack_voltage")),
+        "remaining_capacity": option1_display(user_summary.get("remaining_capacity_ah")),
+        "full_capacity": option1_display(user_summary.get("full_capacity_ah")),
+        "design_capacity": option1_display(user_summary.get("design_capacity_ah")),
+        "highest_cell": option1_display(max(highest_cells), " V", 3) if highest_cells else "No data",
+        "lowest_cell": option1_display(min(lowest_cells), " V", 3) if lowest_cells else "No data",
+        "cell_delta": option1_display(max(deltas), " mV", 0) if deltas else "No data",
+        "runtime": option1_display(user_summary.get("runtime_remaining")),
+        "state": option1_display(user_summary.get("status")),
+        "state_class": str(user_summary.get("class", "unknown")).lower(),
+    }
+
+    option1_packs = []
+    for pack in packs:
+        status, status_class = option1_status_label(pack)
+        runtime, charge_time = option1_time_estimate(pack)
+        power_kw = option1_number(pack.get("power_kw"))
+        temp_values = [option1_number(temp) for temp in pack.get("temperatures", [])]
+        temp_values = [temp for temp in temp_values if temp is not None]
+        option1_packs.append({
+            "id": option1_display(pack.get("id")),
+            "label": f"Pack {option1_display(pack.get('id'))}",
+            "role": option1_display(pack.get("role")),
+            "status": status,
+            "status_class": status_class,
+            "soc": option1_display(pack.get("soc"), "%"),
+            "soh": option1_display(pack.get("soh"), "%"),
+            "voltage": option1_display(pack.get("voltage"), " V"),
+            "current": option1_display(pack.get("current"), " A"),
+            "power": option1_display(power_kw, " kW", 2) if power_kw is not None else "No data",
+            "remaining_capacity": option1_display(pack.get("remaining_capacity_ah"), " Ah"),
+            "full_capacity": option1_display(pack.get("full_capacity_ah"), " Ah"),
+            "design_capacity": option1_display(pack.get("design_capacity_ah"), " Ah"),
+            "temperature": option1_display(max(temp_values), " C", 1) if temp_values else "No data",
+            "highest_cell": pack.get("highest_cell") or {},
+            "lowest_cell": pack.get("lowest_cell") or {},
+            "cell_delta": option1_display(pack.get("delta"), " mV"),
+            "runtime": runtime,
+            "charge_time": charge_time,
+            "last_packet": option1_display(live.get("last_analog_read")),
+            "warnings": option1_display(pack.get("warnings")),
+            "warning_kind": option1_warning_kind(pack),
+            "cells": pack.get("cells", []) if isinstance(pack.get("cells"), list) else [],
+            "cell_high_ref": option1_display(pack.get("cell_high_ref"), " V"),
+            "warning_intelligence": pack.get("warning_intelligence", {}),
+        })
+
+    selected_text = str(selected_pack_id or "").strip()
+    selected_pack = next((pack for pack in option1_packs if str(pack.get("id")) == selected_text), None)
+    if selected_pack is None:
+        selected_pack = option1_packs[0] if option1_packs else None
+    warning_packs = [pack for pack in option1_packs if pack["warnings"] != "Normal" and pack["warnings"] != "No data"]
+    settings = [
+        ("High cell reference", option1_display(options.get("notify_cell_high_warn_voltage", 4.20), " V")),
+        ("Cell delta watch", option1_display(options.get("notify_cell_delta_warn_mv", 100), " mV")),
+        ("Low SOC warning", option1_display(options.get("notify_soc_low_thresholds", "20"), "%")),
+        ("Critical SOC", "10%"),
+        ("Stale data timeout", option1_display(options.get("notify_stale_data_seconds", 60), " sec")),
+        ("Telegram notifications", "Enabled" if options.get("notify_enabled", True) else "Disabled"),
+        ("Repeated warning protection", "Enabled"),
+        ("Back online notification", "Enabled" if options.get("notify_stale_recovery", True) else "Disabled"),
+        ("Warning explanation text", "Enabled" if options.get("notify_warning_detail_enabled", True) else "Disabled"),
+    ]
+
+    data_quality = [
+        ("Stale data handling", "Stale" if str(live.get("stale", "")).upper() == "ON" else "Enabled"),
+        ("NaN filtering", "Enabled"),
+        ("Unavailable handling", "Visible"),
+        ("Master / Slave aggregation", "Enabled" if len(option1_packs) > 1 else "Single pack"),
+        ("Cell count", option1_display(live.get("total_cells"))),
+    ]
+
+    return {
+        "tabs": ["Overview", "Packs", "Cells", "Warnings", "Diagnostics", "Raw Data", "Settings"],
+        "live": live,
+        "bank": bank,
+        "packs": option1_packs,
+        "selected_pack": selected_pack,
+        "warnings": warning_packs,
+        "diagnostics": diagnostics,
+        "settings": settings,
+        "data_quality": data_quality,
+        "events": events[:10],
+        "raw_json": json.dumps({"live": live, "diagnostics": diagnostics}, indent=2, default=str),
+        "backend_status": "Backend healthy" if live.get("ok") else "Backend check",
+        "backend_class": "ok" if live.get("ok") else "warn",
+        "polling": f"Polling {option1_display(options.get('scan_interval', 5))} sec",
+        "warning_badge": f"{live.get('warning_count', 0)} warning" if int(_to_float(live.get("warning_count"), 0) or 0) == 1 else f"{live.get('warning_count', 0)} warnings",
+        "warning_class": "warn" if int(_to_float(live.get("warning_count"), 0) or 0) else "ok",
+        "fetched_at": option1_display(live.get("fetched_at")),
+        "stale": str(live.get("stale", "")).upper() == "ON",
+        "error": option1_display(live.get("error")) if live.get("error") else "",
+    }
+
+
+def render_option1(active_tab="overview"):
+    options, error = load_options()
+    live = attach_monitoring_health(options, get_page_live_snapshot(options)) if options and not error else {}
+    diagnostics = build_diagnostics(options, live) if options and not error else {}
+    model = build_option1_model(options or {}, live, diagnostics, load_events(), request.args.get("pack"))
+    return render_template(
+        "index_option1.html",
+        option1=model,
+        active_tab=str(active_tab or "overview").lower(),
+        error=error,
+        generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    )
+
+
 def render_index(action_result="", action_message="", active_tab="dashboard", compare_data=None, restore_preview=None):
     options, error = load_options()
     grouped = build_grouped_config(options)
@@ -2929,6 +3143,9 @@ def render_index(action_result="", action_message="", active_tab="dashboard", co
 
 @app.route("/", methods=["GET"])
 def index():
+    if request.args.get("ui", "").lower() == "option1":
+        return render_option1(request.args.get("tab", "overview"))
+
     tab = request.args.get("tab", "dashboard")
     result = request.args.get("result", "")
     message = request.args.get("message", "")
@@ -2986,6 +3203,11 @@ def index():
         compare_data=compare_data,
         restore_preview=restore_preview,
     )
+
+
+@app.route("/option1", methods=["GET"])
+def route_option1():
+    return render_option1(request.args.get("tab", "overview"))
 
 
 @app.route("/test-telegram", methods=["GET", "POST"])

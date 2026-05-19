@@ -17,6 +17,18 @@ Use this guide before making project changes. More detailed guidance lives in `d
 - Preserve MQTT topics and Home Assistant discovery entity names unless the maintainer explicitly accepts breaking changes.
 - Preserve support for tested 13S Hubble AM2 and 16S Eenovance MANA packs.
 
+## UI/UX Instructions
+
+When working on the frontend UI, follow the clean Option 1 dashboard direction where requested.
+
+The UI must be neat, sleek, tidy, light, compact, professional and easy for normal users, installers and technicians.
+
+Avoid bulky layouts, oversized cards, full dark dashboards, unnecessary animations, and hiding stale, invalid or unavailable values.
+
+Clearly separate normal user view, technician diagnostics, raw backend data, warnings/events and settings/configuration display.
+
+Never silently hide bad data. Show `No data`, `Invalid`, `Stale` or `Offline` states clearly.
+
 ## Coding Style
 
 Prefer readable code over clever code.

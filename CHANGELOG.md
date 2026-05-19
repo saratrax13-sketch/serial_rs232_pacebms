@@ -1,3 +1,15 @@
+## 2.6.82 - 2026-05-19
+
+### Added
+- Added an optional light "Option 1" operations dashboard at `/option1` and `/?ui=option1`.
+- Added `docs/ui-redesign-option-1.md` to document the clean UI direction and data display rules.
+- Added a dashboard-friendly mapper for the new UI that shows missing values as `No data` and NaN values as `Invalid`.
+
+### Notes
+- The existing dark Home Assistant web UI remains unchanged and available at `/`.
+- The new UI reuses existing retained MQTT/live status data and does not change MQTT topics or Home Assistant discovery entities.
+- No BMS write/control commands were added.
+
 ## 2.6.81 - 2026-05-19
 
 ### Changed

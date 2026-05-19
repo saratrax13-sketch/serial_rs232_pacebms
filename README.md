@@ -20,6 +20,7 @@ The add-on includes:
 - Estimated runtime remaining while discharging
 - Estimated charge time remaining while charging
 - Profile-based BMS warning Telegram filtering
+- Optional light operations dashboard preview at `/option1`
 - Read-only BMS communication
 
 ---
@@ -27,7 +28,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.81"
+version: "2.6.82"
 ```
 
 ---

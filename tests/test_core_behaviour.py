@@ -1176,6 +1176,98 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertNotIn(b"Monitoring Snapshot", response.data)
         self.assertNotIn(b"Warning Summary", response.data)
 
+    def test_option1_route_renders_light_dashboard_without_replacing_current_ui(self):
+        options = dict(web_config.DEFAULT_OPTION_VALUES)
+        options.update({
+            "scan_interval": 5,
+            "notify_cell_high_warn_voltage": 4.20,
+            "notify_cell_delta_warn_mv": 100,
+            "notify_enabled": True,
+        })
+        live = {
+            "ok": True,
+            "availability": "online",
+            "monitor_state": "running",
+            "stale": "OFF",
+            "stale_reason": "Fresh",
+            "last_analog_read": "2026-05-19 12:00:00",
+            "last_warn_read": "2026-05-19 12:00:01",
+            "analog_age_seconds": 4,
+            "warn_age_seconds": 5,
+            "overall_status": "Healthy",
+            "overall_class": "healthy",
+            "layout": "1 pack(s), 13 cells total",
+            "bms_sn": "TEST",
+            "base_topic": "pacebms",
+            "fetched_at": "2026-05-19 12:00:05",
+            "error": "",
+            "severity_summary": {},
+            "pack_count": 1,
+            "total_cells": 13,
+            "warning_count": 1,
+            "packs": [{
+                "id": "01",
+                "role": "Master",
+                "cell_count": 13,
+                "soc": "100",
+                "soh": "90.3",
+                "cycles": "987",
+                "remaining_capacity_ah": "88.86",
+                "full_capacity_ah": "100",
+                "design_capacity_ah": "100",
+                "voltage": "54.09",
+                "current": "-2.4",
+                "power_kw": "-0.13",
+                "delta": "36",
+                "temperatures": [28],
+                "warnings": "Warning State 1: Above cell volt warn",
+                "severity_class": "caution",
+                "severity_label": "Caution",
+                "highest_cell": {"number": "08", "voltage": "4.178"},
+                "lowest_cell": {"number": "01", "voltage": "4.142"},
+                "cells": [
+                    {"number": "01", "voltage": "4.142", "labels": ["Lowest"], "class": "cell-highlow"},
+                    {"number": "08", "voltage": "4.178", "labels": ["Highest"], "class": "cell-highlow"},
+                ],
+                "cell_high_ref": "4.20",
+                "cell_low_ref": "3.00",
+            }],
+        }
+
+        with (
+            patch("web_config.load_options", return_value=(options, "")),
+            patch("web_config.get_page_live_snapshot", return_value=live),
+            patch("web_config.load_events", return_value=[]),
+        ):
+            client = web_config.app.test_client()
+            response = client.get("/option1")
+            query_response = client.get("/?ui=option1&tab=packs")
+            legacy_response = client.get("/")
+
+        html = response.get_data(as_text=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(query_response.status_code, 200)
+        self.assertIn(b"Battery Packs", query_response.data)
+        self.assertIn("Clean Operations Dashboard", html)
+        self.assertIn("Overview", html)
+        self.assertIn("Packs", html)
+        self.assertIn("Cells", html)
+        self.assertIn("Warnings", html)
+        self.assertIn("Diagnostics", html)
+        self.assertIn("Raw Data", html)
+        self.assertIn("Settings", html)
+        self.assertIn("Watch condition", html)
+        self.assertIn("C08", html)
+        self.assertIn("54.09 V", html)
+        self.assertEqual(legacy_response.status_code, 200)
+        self.assertIn(b"Battery Confidence", legacy_response.data)
+
+    def test_option1_display_rules_show_missing_and_invalid_values(self):
+        self.assertEqual(web_config.option1_display(None), "No data")
+        self.assertEqual(web_config.option1_display("Unknown"), "No data")
+        self.assertEqual(web_config.option1_display(float("nan")), "Invalid")
+        self.assertEqual(web_config.option1_display("4.2", " V"), "4.2 V")
+
     def test_live_pages_render_with_partial_retained_pack_snapshot(self):
         options = dict(web_config.DEFAULT_OPTION_VALUES)
         live = {
