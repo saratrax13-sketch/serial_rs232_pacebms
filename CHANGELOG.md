@@ -1,3 +1,14 @@
+## 2.9.6 - 2026-05-19
+
+### Changed
+- Bumped the Home Assistant add-on version so the Dashboard graph text polish is visible as an update.
+- Made the Dashboard Live Trends helper text quieter and shorter.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.5 - 2026-05-19
 
 ### Fixed
