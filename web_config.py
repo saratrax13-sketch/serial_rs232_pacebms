@@ -28,6 +28,7 @@ MONITOR_HEALTH_PATH = "/data/monitor_health.json"
 CONFIG_BACKUP_DIR = "/data/config_backups"
 MONITOR_LOG_PATH = "/data/pacebms-monitor.log"
 WEB_LOG_PATH = "/data/pacebms-web.log"
+OPTION1_CSS_PATH = Path(__file__).resolve().parent / "static" / "option1.css"
 WARNING_NOTIFY_STATE_PATH = "/data/warning_notify_state.json"
 WARNING_NOTIFY_CLEAR_FLAG_PATH = "/data/clear_warning_notify_state.flag"
 MAX_CONFIG_BACKUPS = 10
@@ -3096,9 +3097,14 @@ def render_option1(active_tab="overview"):
     live = attach_monitoring_health(options, get_page_live_snapshot(options)) if options and not error else {}
     diagnostics = build_diagnostics(options, live) if options and not error else {}
     model = build_option1_model(options or {}, live, diagnostics, load_events(), request.args.get("pack"))
+    try:
+        option1_css = OPTION1_CSS_PATH.read_text(encoding="utf-8")
+    except Exception:
+        option1_css = ""
     return render_template(
         "index_option1.html",
         option1=model,
+        option1_css=option1_css,
         active_tab=str(active_tab or "overview").lower(),
         error=error,
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),

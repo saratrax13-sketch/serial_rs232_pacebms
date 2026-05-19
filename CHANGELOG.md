@@ -1,3 +1,12 @@
+## 2.6.84 - 2026-05-19
+
+### Fixed
+- Inlined the Option 1 dashboard stylesheet so Home Assistant Ingress loads the light UI styling reliably.
+
+### Notes
+- UI styling delivery only; no MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
 ## 2.6.83 - 2026-05-19
 
 ### Changed
