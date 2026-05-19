@@ -1,3 +1,14 @@
+## 2.7.4 - 2026-05-19
+
+### Fixed
+- Normalized the Docker startup script during image builds so standalone Docker containers can start correctly even when the source archive contains Windows line endings.
+- Added Git line-ending rules for shell, Python, YAML, Markdown and JSON files to prevent future CRLF startup issues.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling intervals were not changed.
+- No BMS write/control commands were added.
+
 ## 2.7.3 - 2026-05-19
 
 ### Fixed
