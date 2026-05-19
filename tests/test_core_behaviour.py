@@ -588,6 +588,9 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertNotIn(b"Open Setup", response.data)
         self.assertNotIn(b"Tech Status auto-refresh runs every 15 seconds", response.data)
         self.assertIn(b"Refresh tech status", response.data)
+        self.assertIn(b"Operating State", response.data)
+        self.assertIn(b"Charging", response.data)
+        self.assertIn(b"Charging at 0.05 kW", response.data)
         self.assertIn(b"Warning Intelligence", response.data)
         self.assertIn(b"Energy & Health", response.data)
         self.assertIn(b"Capacity", response.data)
@@ -1149,6 +1152,9 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertNotIn(b"Read-Only Safety", response.data)
         self.assertNotIn(b"Diagnostics loaded from current retained MQTT values. Auto-refresh runs every 15 seconds", response.data)
         self.assertIn(b"Refresh diagnostics", response.data)
+        self.assertIn(b"Operating State", response.data)
+        self.assertIn(b"Charging", response.data)
+        self.assertIn(b"Charging at 0.05 kW", response.data)
 
     def test_health_endpoint_fails_when_monitor_heartbeat_is_stale(self):
         with tempfile.TemporaryDirectory() as tmpdir:

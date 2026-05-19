@@ -1,3 +1,13 @@
+## 2.6.71 - 2026-05-19
+
+### Added
+- Added compact Operating State cards to Tech Status and Diagnostics.
+- Reused the Dashboard operating state, power flow, current and runtime/charge-time estimate logic.
+
+### Notes
+- No MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
 ## 2.6.70 - 2026-05-19
 
 ### Changed

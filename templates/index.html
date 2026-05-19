@@ -189,7 +189,7 @@
 
     .summary-card.compact-summary {
       position: relative;
-      grid-template-columns: minmax(220px, 0.8fr) minmax(320px, 1.4fr);
+      grid-template-columns: minmax(220px, 0.8fr) minmax(240px, 0.9fr) minmax(320px, 1.4fr);
       padding-right: 70px;
     }
 
@@ -486,7 +486,7 @@
 
     .diagnostics-header-summary {
       display: grid;
-      grid-template-columns: minmax(220px, 0.8fr) minmax(320px, 1.4fr);
+      grid-template-columns: minmax(220px, 0.8fr) minmax(240px, 0.9fr) minmax(320px, 1.4fr);
       gap: 16px;
       margin-top: 16px;
       padding-right: 52px;
@@ -1862,6 +1862,7 @@
       .metric-grid { grid-template-columns: repeat(2, 1fr); }
       .pack-quick-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .summary-card.compact-summary { grid-template-columns: 1fr; }
+      .diagnostics-header-summary { grid-template-columns: 1fr; }
       .chart-grid { grid-template-columns: 1fr; }
       .event-item { grid-template-columns: 1fr auto; }
       .event-time { grid-column: 1 / -1; }
@@ -2367,6 +2368,19 @@
             Stale: <span id="stale-summary-value">{{ live.stale }}</span>
           </div>
         </div>
+
+        {% if live.user_summary %}
+        <div class="status-hero">
+          <div class="status-label">Operating State</div>
+          <div id="tech-operating-state" class="status-value {{ live.user_summary.class }}">{{ live.user_summary.status }}</div>
+          <div class="summary-meta">
+            <span id="tech-power-flow">{{ live.user_summary.power_flow }}</span><br>
+            Power: <span id="tech-total-power">{{ live.user_summary.total_power_kw }}</span><br>
+            Current: <span id="tech-battery-current">{{ live.user_summary.battery_current }}</span><br>
+            {{ live.user_summary.time_label }}: <span id="tech-battery-time">{{ live.user_summary.runtime_remaining }}</span>
+          </div>
+        </div>
+        {% endif %}
 
         <div class="status-hero">
           <div class="status-label">Detected Battery Layout</div>
@@ -3499,6 +3513,19 @@ This cannot be undone.`);">
             Stale: <span id="diagnostics-stale">{{ diagnostics.live.stale }}</span>
           </div>
         </div>
+
+        {% if diagnostics.live.user_summary %}
+        <div class="status-hero">
+          <div class="status-label">Operating State</div>
+          <div id="diagnostics-operating-state" class="status-value {{ diagnostics.live.user_summary.class }}">{{ diagnostics.live.user_summary.status }}</div>
+          <div class="summary-meta">
+            <span id="diagnostics-power-flow">{{ diagnostics.live.user_summary.power_flow }}</span><br>
+            Power: <span id="diagnostics-total-power">{{ diagnostics.live.user_summary.total_power_kw }}</span><br>
+            Current: <span id="diagnostics-battery-current">{{ diagnostics.live.user_summary.battery_current }}</span><br>
+            {{ diagnostics.live.user_summary.time_label }}: <span id="diagnostics-battery-time">{{ diagnostics.live.user_summary.runtime_remaining }}</span>
+          </div>
+        </div>
+        {% endif %}
 
         <div class="status-hero">
           <div class="status-label">Detected Battery Layout</div>
