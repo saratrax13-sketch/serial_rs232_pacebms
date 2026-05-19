@@ -1,3 +1,13 @@
+## 2.6.76 - 2026-05-19
+
+### Changed
+- Widened the Config tab `Battery Profile & Alert References` card so the profile policy dropdown and reference table have more horizontal space.
+
+### Notes
+- Web UI layout only.
+- No MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
 ## 2.6.75 - 2026-05-19
 
 ### Fixed
