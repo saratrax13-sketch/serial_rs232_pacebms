@@ -136,6 +136,10 @@ The compose file exposes the common setup values:
 | `PACEBMS_TELEGRAM_CHAT_ID` | Telegram chat ID |
 | `PACEBMS_DEBUG_OUTPUT` | Debug level `0`, `1`, `2` or `3` |
 | `PACEBMS_BATTERY_PROFILE` | `auto`, `p13s_hubble_am2`, `p16s_eenovance_mana` or `custom` |
+| `PACEBMS_EXPECTED_CELL_COUNT` | Optional expected total cell count; `0` means auto/detected |
+| `PACEBMS_EXPECTED_PACK_COUNT` | Optional expected pack count; `0` means auto/detected |
+| `PACEBMS_CAPACITY_FALLBACK_ENABLED` | Enables configured capacity fallback for estimates only when BMS capacity is unavailable |
+| `PACEBMS_CAPACITY_PER_PACK_AH` | Fallback capacity per pack in Ah |
 
 Advanced users can override any existing option by using:
 

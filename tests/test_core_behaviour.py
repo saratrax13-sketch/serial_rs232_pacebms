@@ -1156,6 +1156,8 @@ class HealthEndpointTests(unittest.TestCase):
         grouped_keys = [key for keys in web_config.GROUPS.values() for key in keys]
 
         self.assertEqual(group_names[-1], "Battery Profile & References")
+        self.assertIn("Battery Layout & Fallbacks", group_names)
+        self.assertLess(group_names.index("Battery Layout & Fallbacks"), group_names.index("Battery Profile & References"))
         self.assertEqual(web_config.GROUPS["Scheduled Reports"][-1], "daily_energy_current_deadband_a")
         self.assertEqual(len(grouped_keys), len(set(grouped_keys)))
         self.assertIn("notify_fet", web_config.GROUPS["FET Notifications"])
@@ -1173,6 +1175,66 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"Low SOC thresholds", response.data)
         self.assertIn(b"notify_soc_low_thresholds", response.data)
         self.assertIn(b"FET state alerts", response.data)
+        self.assertIn(b"Battery Layout &amp; Fallbacks", response.data)
+        self.assertIn(b"Expected pack count", response.data)
+
+    def test_capacity_fallback_is_used_only_when_bms_capacity_is_missing(self):
+        options = dict(web_config.DEFAULT_OPTION_VALUES)
+        options.update({
+            "capacity_fallback_enabled": True,
+            "capacity_per_pack_ah": 100,
+        })
+        live = {
+            "packs": [
+                {"voltage": "50", "current": "-10", "soc": "50", "soh": "90", "warnings": "Normal", "fully": "OFF", "temperatures": [25]},
+            ],
+            "warning_count": 0,
+            "stale": "OFF",
+            "availability": "online",
+            "total_cells": 13,
+            "fetched_at": "now",
+        }
+
+        summary = web_config._calculate_user_summary(options, live)
+
+        self.assertEqual(summary["remaining_capacity_ah"], "50 Ah")
+        self.assertEqual(summary["full_capacity_ah"], "100 Ah")
+        self.assertIn("fallback used", summary["capacity_detail"])
+        self.assertNotEqual(summary["runtime_remaining"], "Unknown")
+
+    def test_capacity_fallback_does_not_override_bms_capacity(self):
+        options = dict(web_config.DEFAULT_OPTION_VALUES)
+        options.update({
+            "capacity_fallback_enabled": True,
+            "capacity_per_pack_ah": 100,
+        })
+        live = {
+            "packs": [
+                {
+                    "voltage": "50",
+                    "current": "-10",
+                    "soc": "50",
+                    "soh": "90",
+                    "remaining_capacity_ah": "80",
+                    "full_capacity_ah": "160",
+                    "design_capacity_ah": "160",
+                    "warnings": "Normal",
+                    "fully": "OFF",
+                    "temperatures": [25],
+                },
+            ],
+            "warning_count": 0,
+            "stale": "OFF",
+            "availability": "online",
+            "total_cells": 13,
+            "fetched_at": "now",
+        }
+
+        summary = web_config._calculate_user_summary(options, live)
+
+        self.assertEqual(summary["remaining_capacity_ah"], "80 Ah")
+        self.assertEqual(summary["full_capacity_ah"], "160 Ah")
+        self.assertNotIn("fallback used", summary["capacity_detail"])
 
     def test_logs_page_uses_simple_show_filter(self):
         options = dict(web_config.DEFAULT_OPTION_VALUES)

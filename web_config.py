@@ -49,12 +49,14 @@ SECTION_HELP = {
     "Battery Profile & References": "Selects the read-only battery profile used for warning explanations. Auto detect uses detected cell count: 13S defaults suit Hubble AM2-style packs, and 16S defaults suit Eenovance MANA LFP-style packs. Custom references use your configured cell high/low values. These references affect UI and Telegram interpretation only; they never write to the BMS.",
     "Notification Thresholds": "Controls SOC, SOH, stale-data and BMS warning repeat timing. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale and warning repeat values are in seconds. BMS warning repeats are severity-aware: caution repeats for low-risk ongoing warnings, warning repeats for near-limit conditions, and critical repeats for protection/fault or measured values outside configured references.",
     "Scheduled Reports": "Controls scheduled Telegram report toggles, report times, delta report window and the daily energy current deadband. Use 24-hour HH:MM format, for example 19:00, 10:15 or 00:00.",
+    "Battery Layout & Fallbacks": "Optional read-only setup checks for expected pack/cell count and capacity fallback. These values never force BMS parsing and never overwrite BMS-reported capacity. Capacity fallback is used only for estimates when the BMS does not report valid capacity.",
 }
 
 CONFIG_SECTION_BADGES = {
     "BMS Connection": "Required",
     "MQTT": "Required",
     "Advanced": "Required",
+    "Battery Layout & Fallbacks": "Optional",
     "Telegram": "Optional",
     "Notifications": "Optional",
     "FET Notifications": "Optional",
@@ -68,6 +70,7 @@ CONFIG_SECTION_TIERS = {
     "BMS Connection": "required",
     "MQTT": "required",
     "Advanced": "required",
+    "Battery Layout & Fallbacks": "monitoring",
     "Telegram": "monitoring",
     "Notifications": "monitoring",
     "FET Notifications": "monitoring",
@@ -100,6 +103,12 @@ GROUPS = {
         "debug_output",
         "zero_pad_number_cells",
         "zero_pad_number_packs",
+    ],
+    "Battery Layout & Fallbacks": [
+        "expected_cell_count",
+        "expected_pack_count",
+        "capacity_fallback_enabled",
+        "capacity_per_pack_ah",
     ],
     "Telegram": [
         "notify_enabled",
@@ -195,6 +204,10 @@ DEFAULT_OPTION_VALUES = {
     "debug_output": 0,
     "zero_pad_number_cells": 2,
     "zero_pad_number_packs": 2,
+    "expected_cell_count": 0,
+    "expected_pack_count": 0,
+    "capacity_fallback_enabled": False,
+    "capacity_per_pack_ah": 0.0,
     "telegram_bot_token": "YOUR_TELEGRAM_BOT_TOKEN",
     "telegram_chat_id": "YOUR_TELEGRAM_CHAT_ID",
     "notify_enabled": True,
@@ -632,6 +645,19 @@ def build_setup_checklist(options, live=None):
         warning_repeats = False
     monitor_seen = str(live.get("monitor_state", "")).lower() == "running" or str(live.get("availability", "")).lower() == "online"
     bms_reads_seen = live.get("last_analog_read", "Unknown") not in ("Unknown", "Not available", "")
+    expected_cells = int(_to_float(options.get("expected_cell_count"), 0) or 0)
+    expected_packs = int(_to_float(options.get("expected_pack_count"), 0) or 0)
+    detected_cells = int(_to_float(live.get("total_cells"), 0) or 0)
+    detected_packs = int(_to_float(live.get("pack_count"), 0) or 0)
+    layout_check_enabled = expected_cells > 0 or expected_packs > 0
+    layout_matches = True
+    layout_details = []
+    if expected_cells > 0:
+        layout_matches = layout_matches and (detected_cells == 0 or detected_cells == expected_cells)
+        layout_details.append(f"expected {expected_cells} total cells")
+    if expected_packs > 0:
+        layout_matches = layout_matches and (detected_packs == 0 or detected_packs == expected_packs)
+        layout_details.append(f"expected {expected_packs} pack(s)")
 
     items = [
         {
@@ -669,6 +695,16 @@ def build_setup_checklist(options, live=None):
             "status": "Seen" if bms_reads_seen else "Waiting",
             "class": "healthy" if bms_reads_seen else "warning",
             "detail": f"Last analog read: {live.get('last_analog_read', 'Unknown')}" if bms_reads_seen else "Waiting for a successful analog read from the BMS.",
+        },
+        {
+            "title": "Battery Layout",
+            "status": "Auto" if not layout_check_enabled else ("Matches" if layout_matches else "Check"),
+            "class": "healthy" if not layout_check_enabled or layout_matches else "warning",
+            "detail": (
+                "No expected pack/cell count is configured; using detected BMS layout."
+                if not layout_check_enabled
+                else f"{', '.join(layout_details)}. Detected: {detected_packs or 'Unknown'} pack(s), {detected_cells or 'Unknown'} total cells."
+            ),
         },
         {
             "title": "Telegram",
@@ -813,6 +849,7 @@ def _calculate_user_summary(options, live):
     weighted_soc_weight = 0.0
     weighted_soh_total = 0.0
     weighted_soh_weight = 0.0
+    capacity_fallback_used = False
 
     for pack in packs:
         voltage = _to_float(pack.get("voltage"))
@@ -822,6 +859,18 @@ def _calculate_user_summary(options, live):
         remain = _to_float(pack.get("remaining_capacity_ah"))
         full = _to_float(pack.get("full_capacity_ah"))
         design = _to_float(pack.get("design_capacity_ah"))
+        fallback_used = False
+        fallback_capacity = _to_float(options.get("capacity_per_pack_ah"), 0)
+        if bool(options.get("capacity_fallback_enabled", False)) and fallback_capacity and fallback_capacity > 0:
+            if full is None or full <= 0:
+                full = fallback_capacity
+                fallback_used = True
+            if design is None or design <= 0:
+                design = fallback_capacity
+                fallback_used = True
+            if remain is None and soc is not None:
+                remain = fallback_capacity * max(0.0, min(100.0, soc)) / 100.0
+                fallback_used = True
 
         if voltage is not None:
             voltage_values.append(voltage)
@@ -849,6 +898,8 @@ def _calculate_user_summary(options, live):
             full_ah += full
         if design is not None:
             design_ah += design
+        if fallback_used:
+            capacity_fallback_used = True
         for temp in pack.get("temperatures", []):
             temp_f = _to_float(temp)
             if temp_f is not None:
@@ -960,7 +1011,8 @@ def _calculate_user_summary(options, live):
         warning_summary = "No active warnings"
         warning_class = "healthy"
 
-    capacity_detail = f"Full: {_fmt_number(full_ah if full_ah else None, 0, ' Ah')} | Design: {_fmt_number(design_ah if design_ah else None, 0, ' Ah')}"
+    capacity_source_note = " | fallback used" if capacity_fallback_used else ""
+    capacity_detail = f"Full: {_fmt_number(full_ah if full_ah else None, 0, ' Ah')} | Design: {_fmt_number(design_ah if design_ah else None, 0, ' Ah')}{capacity_source_note}"
 
     return {
         "status": status,
@@ -2033,6 +2085,25 @@ def build_diagnostics(options, live=None):
         },
     ]
 
+    expected_cells = int(_to_float(options.get("expected_cell_count"), 0) or 0)
+    expected_packs = int(_to_float(options.get("expected_pack_count"), 0) or 0)
+    detected_cells = int(_to_float(live.get("total_cells"), 0) or 0)
+    detected_packs = int(_to_float(live.get("pack_count"), 0) or 0)
+    layout_notes = []
+    if expected_packs:
+        layout_notes.append(f"Expected packs: {expected_packs}; detected: {detected_packs or 'Unknown'}")
+    if expected_cells:
+        layout_notes.append(f"Expected total cells: {expected_cells}; detected: {detected_cells or 'Unknown'}")
+    if options.get("capacity_fallback_enabled"):
+        layout_notes.append(f"Capacity fallback: {options.get('capacity_per_pack_ah', 0)} Ah per pack when BMS capacity is unavailable")
+    if layout_notes:
+        health_cards.insert(3, {
+            "title": "Layout Checks",
+            "status": "Configured",
+            "class": "healthy",
+            "detail": " | ".join(layout_notes),
+        })
+
     config_summary = {
         key: redact_value_for_report(key, options.get(key))
         for group_keys in GROUPS.values()
@@ -2128,6 +2199,7 @@ It does not send BMS control commands.
 
 CARD_HELP = {
     "Advanced": "Advanced runtime settings. Keep pack and cell number padding stable after Home Assistant MQTT Discovery has created entities. Changing padding changes MQTT state topics, discovery topics and unique IDs, which can leave old retained discovery entities in Home Assistant until they are cleaned up.",
+    "Battery Layout & Fallbacks": "Optional read-only layout checks and estimate fallback values. Expected pack/cell counts only warn when detected values differ. Capacity fallback is used only when the BMS does not report usable capacity; it never overwrites valid BMS capacity and never writes to the BMS.",
     "Battery Profile & References": "Shows measured battery values beside profile/default references and user-configured references. The BMS warning Telegram policy and row alert switches control Telegram noise only; active BMS warnings remain visible in the UI. The editable values are Home Assistant add-on options only and never write to the BMS.",
     "FET Notifications": "Controls charge/discharge FET notification behavior. These settings only decide when to alert; they do not control FETs.",
     "Notification Thresholds": "Controls SOC, SOH, stale-data and BMS warning repeat timing. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale and warning repeat values are in seconds. BMS warning repeats are severity-aware: caution repeats for low-risk ongoing warnings, warning repeats for near-limit conditions, and critical repeats for protection/fault or measured values outside configured references.",
@@ -2163,6 +2235,10 @@ FIELD_HELP = {
     "notify_delta_report_time": "Cell delta report notification time. Use HH:MM 24-hour format. Example: 10:15.",
     "notify_delta_window_start": "Start of the delta report calculation window. Use HH:MM 24-hour format. Example: 00:00.",
     "notify_delta_window_end": "End of the delta report calculation window. Use HH:MM 24-hour format. Example: 10:00.",
+    "expected_cell_count": "Optional expected total cell count across all packs. Use 0 for auto/detected. This only warns when detected layout differs; it does not force parsing.",
+    "expected_pack_count": "Optional expected pack count. Use 0 for auto/detected. This only warns when detected layout differs; it does not force parsing.",
+    "capacity_fallback_enabled": "Use configured capacity only when BMS capacity is missing or invalid. Valid BMS-reported capacity always wins.",
+    "capacity_per_pack_ah": "Fallback capacity per pack in Ah for runtime/charge estimates when BMS capacity is unavailable. Use 0 to disable.",
 }
 
 FIELD_LABELS = {
@@ -2183,6 +2259,10 @@ FIELD_LABELS = {
     "debug_output": "Log detail level",
     "zero_pad_number_cells": "Cell number padding (entity-sensitive)",
     "zero_pad_number_packs": "Pack number padding (entity-sensitive)",
+    "expected_cell_count": "Expected total cells",
+    "expected_pack_count": "Expected pack count",
+    "capacity_fallback_enabled": "Use capacity fallback when BMS capacity is missing",
+    "capacity_per_pack_ah": "Fallback capacity per pack",
     "notify_enabled": "Enable Telegram notifications",
     "telegram_bot_token": "Telegram bot token",
     "telegram_chat_id": "Telegram chat ID",
@@ -3134,6 +3214,8 @@ INTEGER_FIELDS = {
     "debug_output": (0, 3),
     "zero_pad_number_cells": (0, 4),
     "zero_pad_number_packs": (0, 4),
+    "expected_cell_count": (0, 512),
+    "expected_pack_count": (0, 32),
     "notify_cell_delta_warn_mv": (0, 5000),
     "notify_temp_high_warn_c": (-40, 100),
     "notify_temp_low_warn_c": (-40, 100),
@@ -3153,6 +3235,7 @@ FLOAT_FIELDS = {
     "notify_cell_high_warn_voltage": (0.0, 5.0),
     "notify_cell_low_warn_voltage": (0.0, 5.0),
     "daily_energy_current_deadband_a": (0.0, 10.0),
+    "capacity_per_pack_ah": (0.0, 2000.0),
 }
 
 TIME_FIELDS = {
@@ -3200,6 +3283,7 @@ BOOLEAN_FIELDS = {
     "notify_alert_discharge_fet_off",
     "mqtt_ha_discovery",
     "mqtt_retain_state",
+    "capacity_fallback_enabled",
 }
 
 

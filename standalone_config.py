@@ -34,6 +34,10 @@ ENV_ALIASES = {
     "NOTIFY_ENABLED": "notify_enabled",
     "DEBUG_OUTPUT": "debug_output",
     "BATTERY_PROFILE": "battery_profile",
+    "EXPECTED_CELL_COUNT": "expected_cell_count",
+    "EXPECTED_PACK_COUNT": "expected_pack_count",
+    "CAPACITY_FALLBACK_ENABLED": "capacity_fallback_enabled",
+    "CAPACITY_PER_PACK_AH": "capacity_per_pack_ah",
 }
 
 SENSITIVE_KEYS = {

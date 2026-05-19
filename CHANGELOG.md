@@ -1,3 +1,17 @@
+## 2.7.1 - 2026-05-19
+
+### Added
+- Added optional Battery Layout & Fallbacks settings for expected total cell count, expected pack count, capacity fallback enable and fallback capacity per pack.
+- Added setup and diagnostics visibility for configured layout checks.
+- Added capacity fallback support for dashboard runtime/charge estimates only when BMS capacity is missing or invalid.
+- Added standalone Docker environment examples for the new layout/fallback settings.
+
+### Notes
+- Layout values are read-only checks only; they do not force BMS parsing and do not overwrite detected BMS values.
+- Capacity fallback is used only for estimates when valid BMS capacity is unavailable.
+- MQTT topics, Home Assistant discovery identifiers and monitor polling behavior were not changed.
+- No BMS write/control commands were added.
+
 ## 2.7.0 - 2026-05-19
 
 ### Added

@@ -1,6 +1,6 @@
 name: "Pace BMS RS232 Monitor"
 description: "Read-only Pace BMS RS232 to MQTT bridge with Home Assistant discovery and Telegram notifications"
-version: "2.7.0"
+version: "2.7.1"
 slug: "pace_bms_rs232"
 url: "https://github.com/saratrax13-sketch/serial_rs232_pacebms"
 init: false
@@ -45,6 +45,12 @@ options:
   debug_output: 0
   zero_pad_number_cells: 2
   zero_pad_number_packs: 2
+
+  # Basic Required - detected layout checks and read-only capacity fallback
+  expected_cell_count: 0
+  expected_pack_count: 0
+  capacity_fallback_enabled: false
+  capacity_per_pack_ah: 0
 
   # Full Monitoring - Telegram
   telegram_bot_token: "YOUR_TELEGRAM_BOT_TOKEN"
@@ -134,6 +140,10 @@ schema:
   debug_output: list(0|1|2|3)
   zero_pad_number_cells: int
   zero_pad_number_packs: int
+  expected_cell_count: int
+  expected_pack_count: int
+  capacity_fallback_enabled: bool
+  capacity_per_pack_ah: float
 
   telegram_bot_token: password
   telegram_chat_id: password

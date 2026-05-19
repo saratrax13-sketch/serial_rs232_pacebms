@@ -5,6 +5,7 @@ The Config tab saves Home Assistant add-on options only. It does not write thres
 The current Config layout groups the settings by task:
 
 - **BMS Connection**, **MQTT** and **Advanced** are the required baseline settings for polling and Home Assistant discovery.
+- **Battery Layout & Fallbacks** provides optional read-only expected layout checks and capacity fallback for estimates.
 - **Telegram**, **Notifications**, **FET Notifications** and **Scheduled Reports** control optional direct Telegram messages.
 - **Notification Thresholds**, **Battery Profile & Alert References** and **Warning Detail** control how warnings are explained and when Telegram alerts are allowed.
 
@@ -43,6 +44,21 @@ notify_enabled: true
 telegram_bot_token: "YOUR_TELEGRAM_BOT_TOKEN"
 telegram_chat_id: "YOUR_TELEGRAM_CHAT_ID"
 ```
+
+### Battery Layout & Fallbacks
+
+```yaml
+expected_cell_count: 0
+expected_pack_count: 0
+capacity_fallback_enabled: false
+capacity_per_pack_ah: 0
+```
+
+Use `0` for auto/detected pack and cell counts.
+
+Expected counts only warn when detected values differ. They do not force parser behavior.
+
+Capacity fallback is used only for runtime and charge estimates when the BMS does not report valid capacity. It does not overwrite valid BMS capacity.
 
 ### Disconnect
 
