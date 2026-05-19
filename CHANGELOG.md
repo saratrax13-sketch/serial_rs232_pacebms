@@ -1,3 +1,12 @@
+## 2.6.94 - 2026-05-19
+
+### Changed
+- Reduced Events and Backups typography weight and size so event titles, backup filenames, helper text, badges and table rows match the calmer Dashboard and Tech Status styling.
+
+### Notes
+- Styling only; no MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
 ## 2.6.93 - 2026-05-19
 
 ### Changed
