@@ -1,15 +1,17 @@
-# PaceBMS — Pace BMS RS232 to MQTT Bridge
+# PaceBMS - Pace BMS Serial Monitor
 
-A Python-based bridge for **Pace-compatible BMS batteries** that reads battery data over the **Pace BMS RS232 / UART ASCII protocol** and publishes live values to MQTT with **Home Assistant auto-discovery**.
+A Python-based read-only monitor for **Pace-compatible BMS batteries**. It reads battery data over the **Pace BMS RS232 / UART ASCII protocol**, writes a local live snapshot for the web UI, stores local SQLite history for graphs, and can optionally publish MQTT/Home Assistant entities.
 
 This project is designed for batteries using a Pace-compatible BMS protocol. It is **not limited to Hubble AM2**. Hubble AM2 is one tested example.
 
 The add-on includes:
 
-- Home Assistant MQTT Discovery
+- Serial-first live web UI
+- Local SQLite history and compact graphs
+- Optional Home Assistant MQTT Discovery
 - Direct Telegram notifications
 - Home Assistant Ingress web UI
-- Live MQTT status page
+- Live serial status page with MQTT fallback when enabled
 - Test Telegram and Test MQTT buttons
 - Auto cell-count detection
 - Auto multi-pack detection
@@ -20,6 +22,7 @@ The add-on includes:
 - Estimated runtime remaining while discharging
 - Estimated charge time remaining while charging
 - Profile-based BMS warning Telegram filtering
+- Local vendored Chart.js graphs; no CDN required at runtime
 - Read-only BMS communication
 
 ---
@@ -27,7 +30,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.8.0"
+version: "2.9.0"
 ```
 
 ---
@@ -240,7 +243,7 @@ The test buttons only test external services:
 
 - Test Telegram sends a Telegram test message.
 - Test MQTT checks broker connectivity.
-- Test Full Monitoring checks MQTT, Telegram configuration and notification thresholds without sending a Telegram message.
+- Test Full Monitoring checks enabled integrations, Telegram configuration and notification thresholds without sending a Telegram message.
 
 ### Runtime and Charge-Time Estimates
 
@@ -253,7 +256,7 @@ The User Dashboard time tile changes with battery direction:
 Runtime is calculated from current remaining energy divided by current discharge power.
 Charge time is calculated from the energy needed to reach reported full capacity divided by current charge power.
 
-These values are estimates from retained MQTT values. They will change as load or charge current changes, and charge time may increase near full SOC when charge current tapers.
+These values are estimates from the latest live serial snapshot, with retained MQTT used only as fallback when configured and fresh. They will change as load or charge current changes, and charge time may increase near full SOC when charge current tapers.
 
 ---
 
@@ -385,9 +388,12 @@ http://localhost:8099
 Minimum `.env` values to review:
 
 - `PACEBMS_SERIAL_DEVICE`
-- `PACEBMS_MQTT_HOST`
-- `PACEBMS_MQTT_USER`
-- `PACEBMS_MQTT_PASSWORD`
+- `PACEBMS_MQTT_ENABLED`
+- `PACEBMS_UI_DATA_SOURCE`
+- `PACEBMS_METRICS_ENABLED`
+- `PACEBMS_HISTORY_SAMPLE_SECONDS`
+- `PACEBMS_HISTORY_CELL_SAMPLE_SECONDS`
+- `PACEBMS_MQTT_HOST`, `PACEBMS_MQTT_USER`, `PACEBMS_MQTT_PASSWORD` only when MQTT is enabled
 - `PACEBMS_TELEGRAM_BOT_TOKEN`
 - `PACEBMS_TELEGRAM_CHAT_ID`
 
@@ -406,10 +412,10 @@ After starting the add-on, open the **Pace BMS** web UI from the Home Assistant 
 The **Setup** tab includes a **Setup Checklist** card. Use it as the guided first-run check:
 
 - **BMS Serial** should show that the USB/serial path is configured.
-- **MQTT** should show that broker host and port are configured.
+- **MQTT** should show disabled when serial-only monitoring is intended, or show broker host and port when MQTT is enabled.
 - **Home Assistant Discovery** should be enabled if you want sensors created automatically.
 - **Retained State** should be enabled so the web UI and Home Assistant recover values after reconnects.
-- **Monitor Seen** confirms monitor status has appeared through MQTT.
+- **Monitor Seen** confirms live monitor status has appeared through the current data source.
 - **BMS Reads** confirms a successful analog read was seen.
 - **Telegram** confirms direct notification values are configured.
 - **Warning Noise Control** confirms severity-aware repeat intervals are valid.
@@ -418,7 +424,7 @@ Use the buttons on the Setup tab:
 
 - **Test MQTT** checks broker connectivity only.
 - **Test Telegram** sends a Telegram test message.
-- **Test Full Monitoring** checks MQTT connectivity, Telegram configuration and notification thresholds without sending a Telegram message and without sending any BMS commands.
+- **Test Full Monitoring** checks enabled integrations, Telegram configuration and notification thresholds without sending a Telegram message and without sending any BMS commands.
 
 If Telegram still contains placeholder values such as `YOUR_TELEGRAM_BOT_TOKEN` or `YOUR_TELEGRAM_CHAT_ID`, the checklist shows a warning and direct Telegram alerts will be skipped.
 
@@ -438,26 +444,28 @@ The add-on can run in two practical modes:
 
 ### Basic Required Setup
 
-Basic Required is the minimum needed for Home Assistant visibility. It connects to the BMS, reads battery data, publishes MQTT state, and creates Home Assistant discovery entities.
+Basic Required is the minimum needed for serial monitoring and the web UI. It connects to the BMS, reads battery data, writes the local live snapshot and stores local history when metrics are enabled.
 
-Use Basic Required when you want dashboard sensors and Home Assistant automations, but do not want the add-on itself to send Telegram alerts.
+Use Basic Required when you want the Dashboard, Tech Status, Diagnostics and local graphs to work without requiring Telegram. MQTT/Home Assistant publishing can be enabled separately.
 
 Required groups:
 
 - **BMS Connection**: serial adapter path, baud rate, and scan interval.
-- **MQTT**: broker address, credentials, base topic, discovery, and retain settings.
+- **History & Live Data**: UI data source, metrics enablement, sample intervals and retention.
+- **MQTT**: optional broker address, credentials, base topic, discovery, and retain settings.
 - **Advanced**: debug level and MQTT topic padding.
 - **Battery Profile & Alert References**: battery profile selection, optional expected pack/cell checks, read-only capacity fallback and alert reference rows used for UI/Telegram explanation.
 
 With only Basic Required configured:
 
 - The BMS is still read-only.
-- Pack, cell, SOC, SOH, warning, FET and temperature values publish to MQTT.
-- Home Assistant can show dashboards and run its own automations.
-- MQTT availability and monitor status topics are published.
+- The web UI reads monitor-owned live serial snapshots first.
+- Pack, cell, SOC, SOH, warning, FET and temperature values can publish to MQTT when MQTT is enabled.
+- Home Assistant can show dashboards and run its own automations when MQTT discovery is enabled.
+- MQTT availability and monitor status topics are published only when MQTT is enabled.
 - Direct Telegram notifications, daily reports, stale-data Telegram alerts and FET Telegram alerts are not useful unless Telegram and notification options are configured.
 
-In the web UI, choose **Basic Required** on the Config tab to focus on only these required connection and publishing fields.
+In the web UI, choose **Basic Required** on the Config tab to focus on the required serial and live-data fields.
 
 The Home Assistant add-on Configuration tab also lists these Basic Required options first. That page is rendered by Home Assistant, so it remains a plain form, but the order is arranged to make first setup easier.
 
@@ -497,9 +505,16 @@ telegram_bot_token: "YOUR_TELEGRAM_BOT_TOKEN"
 telegram_chat_id: "YOUR_TELEGRAM_CHAT_ID"
 
 connection_type: "Serial"
+bms_connection_mode: "Serial"
 bms_serial: "/dev/serial/by-id/usb-Prolific_Technology_Inc._USB-Serial_Controller_D-if00-port0"
 bms_baudrate: 9600
 scan_interval: 5
+
+ui_data_source: "auto"
+metrics_enabled: true
+history_sample_seconds: 10
+history_cell_sample_seconds: 30
+mqtt_enabled: true
 
 notify_enabled: true
 notify_startup: true

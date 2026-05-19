@@ -4036,6 +4036,29 @@
       {% endif %}
 
       <section class="card wide-card">
+        <h2>Live Trends</h2>
+        <p>Compact history from the local serial snapshot database. Graphs refresh every 10 seconds while this tab is open.</p>
+        <div class="chart-grid">
+          <article class="chart-card">
+            <div class="chart-title">Bank SOC</div>
+            <canvas id="chart-bank-soc" height="120" aria-label="Bank SOC history"></canvas>
+          </article>
+          <article class="chart-card">
+            <div class="chart-title">Battery Power</div>
+            <canvas id="chart-bank-power" height="120" aria-label="Battery power history"></canvas>
+          </article>
+          <article class="chart-card">
+            <div class="chart-title">Pack Voltage</div>
+            <canvas id="chart-bank-voltage" height="120" aria-label="Pack voltage history"></canvas>
+          </article>
+          <article class="chart-card">
+            <div class="chart-title">Cell Delta</div>
+            <canvas id="chart-bank-delta" height="120" aria-label="Cell delta history"></canvas>
+          </article>
+        </div>
+      </section>
+
+      <section class="card wide-card">
         <h2>Pack Comparison Cards</h2>
         <div class="pack-comparison-grid" id="pack-comparison-grid">
           {% for pack in live.packs %}
@@ -5009,7 +5032,8 @@ This cannot be undone.`);">
     </footer>
   </main>
 
-  <script>
+<script src="{{ url_for('static', filename='vendor/chart.min.js') }}"></script>
+<script>
     let activeTabTimers = [];
     let softTabLoading = false;
 
@@ -5219,16 +5243,22 @@ This cannot be undone.`);">
       clearActiveTabTimers();
 
       if (document.querySelector('.tab-panel.active #refresh-message')) {
+        refreshStatus(true);
         addActiveTabTimer(function () {
-          refreshActiveTabSoft();
-        }, 15000);
+          refreshStatus(true);
+        }, 2000);
         return;
       }
 
       if (document.querySelector('.tab-panel.active #dashboard-refresh-message')) {
+        refreshDashboard(true);
+        refreshLiveTrends();
         addActiveTabTimer(function () {
-          refreshActiveTabSoft();
-        }, 15000);
+          refreshDashboard(true);
+        }, 1000);
+        addActiveTabTimer(function () {
+          refreshLiveTrends();
+        }, 10000);
         return;
       }
 
@@ -5240,9 +5270,10 @@ This cannot be undone.`);">
       }
 
       if (document.querySelector('.tab-panel.active #diagnostics-refresh-message')) {
+        refreshDiagnostics(true);
         addActiveTabTimer(function () {
-          refreshActiveTabSoft();
-        }, 15000);
+          refreshDiagnostics(true);
+        }, 5000);
         return;
       }
 
@@ -5998,6 +6029,88 @@ Restart the add-on afterwards for runtime changes to apply.`);
       const number = cell.number ?? "Unknown";
       const voltage = cell.voltage ?? "Unknown";
       return `C${number} · ${voltage} V`;
+    }
+
+    const liveTrendCharts = {};
+    let liveTrendLastSnapshotId = null;
+
+    function createLiveTrendChart(canvasId, label, color, unit) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas || !window.Chart) return null;
+      if (liveTrendCharts[canvasId]) return liveTrendCharts[canvasId];
+      const chart = new Chart(canvas, {
+        type: "line",
+        data: {
+          labels: [],
+          datasets: [{
+            label,
+            data: [],
+            borderColor: color,
+            backgroundColor: color + "22",
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.25,
+            fill: true,
+          }],
+        },
+        options: {
+          animation: false,
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function (context) {
+                  const value = Number(context.parsed.y);
+                  return `${label}: ${Number.isFinite(value) ? value.toFixed(2) : "No data"}${unit}`;
+                },
+              },
+            },
+          },
+          scales: {
+            x: { ticks: { color: "#9fb7d5", maxTicksLimit: 5 }, grid: { color: "rgba(148, 163, 184, 0.10)" } },
+            y: { ticks: { color: "#9fb7d5" }, grid: { color: "rgba(148, 163, 184, 0.10)" } },
+          },
+        },
+      });
+      liveTrendCharts[canvasId] = chart;
+      return chart;
+    }
+
+    function updateLiveTrendChart(canvasId, labels, values) {
+      const chart = liveTrendCharts[canvasId];
+      if (!chart) return;
+      chart.data.labels = labels;
+      chart.data.datasets[0].data = values;
+      chart.update("none");
+    }
+
+    async function refreshLiveTrends() {
+      if (!window.Chart || !document.getElementById("chart-bank-soc")) return;
+      try {
+        const liveResponse = await fetch("api/live", { cache: "no-store" });
+        if (liveResponse.ok) {
+          const liveData = await liveResponse.json();
+          if (liveData.snapshot_id && liveData.snapshot_id === liveTrendLastSnapshotId) return;
+          liveTrendLastSnapshotId = liveData.snapshot_id || null;
+        }
+        const response = await fetch("api/history?range_seconds=1800", { cache: "no-store" });
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        const history = await response.json();
+        const bankRows = history.bank || [];
+        const labels = bankRows.map(row => String(row.ts || "").slice(11, 19));
+        createLiveTrendChart("chart-bank-soc", "SOC", "#60a5fa", "%");
+        createLiveTrendChart("chart-bank-power", "Power", "#fbbf24", " kW");
+        createLiveTrendChart("chart-bank-voltage", "Voltage", "#34d399", " V");
+        createLiveTrendChart("chart-bank-delta", "Cell delta", "#f59e0b", " mV");
+        updateLiveTrendChart("chart-bank-soc", labels, bankRows.map(row => row.soc));
+        updateLiveTrendChart("chart-bank-power", labels, bankRows.map(row => row.power_kw));
+        updateLiveTrendChart("chart-bank-voltage", labels, bankRows.map(row => row.voltage));
+        updateLiveTrendChart("chart-bank-delta", labels, bankRows.map(row => row.cell_delta_mv));
+      } catch (err) {
+        // Graph refresh must never interrupt live monitoring UI updates.
+      }
     }
 
     async function refreshDashboard(quiet = false) {

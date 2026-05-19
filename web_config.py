@@ -18,6 +18,8 @@ from flask import Flask, Response, jsonify, render_template, request, send_file,
 import paho.mqtt.client as mqtt
 from bms_notify import telegram_value_configured
 from battery_profiles import BATTERY_PROFILE_CHOICES, effective_warning_references, normalize_profile
+from bms_live import LIVE_SNAPSHOT_PATH, load_live_snapshot
+from bms_history import HISTORY_DB_PATH, init_history_db, query_history
 
 app = Flask(__name__)
 
@@ -46,6 +48,7 @@ _LIVE_SNAPSHOT_CACHE = {
 _LIVE_SNAPSHOT_WORKER_STARTED = False
 
 SECTION_HELP = {
+    "History & Live Data": "Controls how the web UI reads live battery values and how local history is stored. Auto uses the monitor-owned live serial snapshot first and falls back to retained MQTT only when configured. Metrics are stored locally in SQLite under /data and never write to the BMS.",
     "Battery Profile & References": "Selects the read-only battery profile used for warning explanations. Auto detect uses detected cell count: 13S defaults suit Hubble AM2-style packs, and 16S defaults suit Eenovance MANA LFP-style packs. Custom references use your configured cell high/low values. These references affect UI and Telegram interpretation only; they never write to the BMS.",
     "Notification Thresholds": "Controls SOC, SOH, stale-data and BMS warning repeat timing. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale and warning repeat values are in seconds. BMS warning repeats are severity-aware: caution repeats for low-risk ongoing warnings, warning repeats for near-limit conditions, and critical repeats for protection/fault or measured values outside configured references.",
     "Scheduled Reports": "Controls scheduled Telegram report toggles, report times, delta report window and the daily energy current deadband. Use 24-hour HH:MM format, for example 19:00, 10:15 or 00:00.",
@@ -53,7 +56,8 @@ SECTION_HELP = {
 
 CONFIG_SECTION_BADGES = {
     "BMS Connection": "Required",
-    "MQTT": "Required",
+    "History & Live Data": "Required",
+    "MQTT": "Optional",
     "Advanced": "Required",
     "Telegram": "Optional",
     "Notifications": "Optional",
@@ -66,7 +70,8 @@ CONFIG_SECTION_BADGES = {
 
 CONFIG_SECTION_TIERS = {
     "BMS Connection": "required",
-    "MQTT": "required",
+    "History & Live Data": "required",
+    "MQTT": "advanced",
     "Advanced": "required",
     "Telegram": "monitoring",
     "Notifications": "monitoring",
@@ -79,12 +84,22 @@ CONFIG_SECTION_TIERS = {
 
 GROUPS = {
     "BMS Connection": [
+        "bms_connection_mode",
         "connection_type",
         "bms_serial",
         "bms_baudrate",
         "scan_interval",
     ],
+    "History & Live Data": [
+        "ui_data_source",
+        "metrics_enabled",
+        "history_sample_seconds",
+        "history_cell_sample_seconds",
+        "history_retention_days",
+        "history_event_retention_days",
+    ],
     "MQTT": [
+        "mqtt_enabled",
         "mqtt_host",
         "mqtt_port",
         "mqtt_user",
@@ -182,10 +197,18 @@ SENSITIVE_KEYS = {
 }
 
 DEFAULT_OPTION_VALUES = {
+    "bms_connection_mode": "Serial",
     "connection_type": "Serial",
     "bms_serial": "/dev/serial/by-id/usb-Prolific_Technology_Inc._USB-Serial_Controller_D-if00-port0",
     "bms_baudrate": 9600,
     "scan_interval": 5,
+    "ui_data_source": "auto",
+    "metrics_enabled": True,
+    "history_sample_seconds": 10,
+    "history_cell_sample_seconds": 30,
+    "history_retention_days": 90,
+    "history_event_retention_days": 365,
+    "mqtt_enabled": True,
     "mqtt_host": "192.168.10.16",
     "mqtt_port": 1883,
     "mqtt_user": "YOUR_MQTT_USER",
@@ -270,6 +293,16 @@ DEBUG_OUTPUT_CHOICES = {
     1: "1 - Summary troubleshooting",
     2: "2 - Poll troubleshooting",
     3: "3 - Protocol/raw frame troubleshooting",
+}
+
+BMS_CONNECTION_MODE_CHOICES = {
+    "Serial": "Serial",
+}
+
+UI_DATA_SOURCE_CHOICES = {
+    "auto": "Auto - live serial first, MQTT fallback",
+    "monitor_live": "Live serial snapshot only",
+    "mqtt_retained": "MQTT retained fallback only",
 }
 
 
@@ -620,7 +653,8 @@ def build_setup_checklist(options, live=None):
         mqtt_port = int(options.get("mqtt_port", 0) or 0)
     except Exception:
         mqtt_port = 0
-    mqtt_configured = mqtt_value_configured(options.get("mqtt_host")) and mqtt_port > 0
+    mqtt_enabled = bool(options.get("mqtt_enabled", DEFAULT_OPTION_VALUES["mqtt_enabled"]))
+    mqtt_configured = mqtt_enabled and mqtt_value_configured(options.get("mqtt_host")) and mqtt_port > 0
     bms_configured = (
         str(options.get("connection_type", "")).strip().lower() == "serial"
         and bool(str(options.get("bms_serial", "")).strip())
@@ -663,27 +697,27 @@ def build_setup_checklist(options, live=None):
         },
         {
             "title": "MQTT",
-            "status": "Ready" if mqtt_configured else "Needs setup",
-            "class": "healthy" if mqtt_configured else "warning",
-            "detail": "MQTT host and port are configured." if mqtt_configured else "Set mqtt_host, mqtt_port and credentials for your MQTT broker.",
+            "status": "Ready" if mqtt_configured else ("Disabled" if not mqtt_enabled else "Needs setup"),
+            "class": "healthy" if mqtt_configured or not mqtt_enabled else "warning",
+            "detail": "MQTT host and port are configured." if mqtt_configured else ("MQTT is disabled; web UI uses live serial data." if not mqtt_enabled else "Set mqtt_host, mqtt_port and credentials for your MQTT broker."),
         },
         {
             "title": "Home Assistant Discovery",
-            "status": "Enabled" if discovery_enabled else "Disabled",
-            "class": "healthy" if discovery_enabled else "warning",
-            "detail": "Home Assistant can auto-create MQTT entities." if discovery_enabled else "Enable mqtt_ha_discovery for automatic Home Assistant sensors.",
+            "status": "Enabled" if mqtt_enabled and discovery_enabled else "Disabled",
+            "class": "healthy" if not mqtt_enabled or discovery_enabled else "warning",
+            "detail": "Home Assistant can auto-create MQTT entities." if mqtt_enabled and discovery_enabled else ("MQTT is disabled; discovery is not used." if not mqtt_enabled else "Enable mqtt_ha_discovery for automatic Home Assistant sensors."),
         },
         {
             "title": "Retained State",
-            "status": "Enabled" if retained_enabled else "Disabled",
-            "class": "healthy" if retained_enabled else "warning",
-            "detail": "MQTT retains latest values for HA and the web UI." if retained_enabled else "Enable mqtt_retain_state so HA and the web UI recover values after reconnects.",
+            "status": "Enabled" if mqtt_enabled and retained_enabled else "Disabled",
+            "class": "healthy" if not mqtt_enabled or retained_enabled else "warning",
+            "detail": "MQTT retains latest values for HA fallback." if mqtt_enabled and retained_enabled else ("MQTT is disabled; retained fallback is not used." if not mqtt_enabled else "Enable mqtt_retain_state so HA and fallback values recover after reconnects."),
         },
         {
             "title": "Monitor Seen",
             "status": "Running" if monitor_seen else "Waiting",
             "class": "healthy" if monitor_seen else "warning",
-            "detail": "Monitor status has been seen via MQTT." if monitor_seen else "Start the add-on and confirm MQTT monitor state appears.",
+            "detail": f"Monitor status has been seen through {live.get('data_source', 'the current data source')}." if monitor_seen else "Start the add-on and confirm monitor state appears.",
         },
         {
             "title": "BMS Reads",
@@ -719,8 +753,8 @@ def build_setup_checklist(options, live=None):
     if ready == len(items):
         summary = "Full Monitoring setup looks ready."
         summary_class = "healthy"
-    elif bms_configured and mqtt_configured:
-        summary = "Basic Required setup is ready; finish optional monitoring items."
+    elif bms_configured:
+        summary = "Basic Required serial setup is ready; finish optional MQTT/Telegram monitoring items."
         summary_class = "warning"
     else:
         summary = "Basic Required setup still needs attention."
@@ -742,9 +776,10 @@ def test_full_monitoring(options):
     checklist = build_setup_checklist(options)
     errors = validate_addon_options(options)
 
-    mqtt_ok, mqtt_message = test_mqtt(options)
-    if not mqtt_ok:
-        errors.append(mqtt_message)
+    if bool(options.get("mqtt_enabled", DEFAULT_OPTION_VALUES["mqtt_enabled"])):
+        mqtt_ok, mqtt_message = test_mqtt(options)
+        if not mqtt_ok:
+            errors.append(mqtt_message)
 
     if not checklist["telegram_configured"]:
         errors.append("Telegram bot token/chat ID are missing or still use placeholder values.")
@@ -754,7 +789,7 @@ def test_full_monitoring(options):
     if errors:
         return False, "Full Monitoring check needs attention: " + " | ".join(errors[:6])
 
-    return True, "Full Monitoring dry check passed: MQTT connects, Telegram values are configured, and notification thresholds look valid. No BMS commands or Telegram messages were sent."
+    return True, "Full Monitoring dry check passed: enabled integrations, Telegram values and notification thresholds look valid. No BMS commands or Telegram messages were sent."
 
 
 def seconds_label(value):
@@ -1085,10 +1120,12 @@ def build_monitoring_health(options, live=None, heartbeat=None):
     pack_count = int(_to_float(live.get("pack_count"), 0) or 0)
     total_cells = int(_to_float(live.get("total_cells"), 0) or 0)
 
+    data_source = str(live.get("data_source") or live.get("source") or "Unknown")
+
     if not live_ok:
-        status = "Waiting for MQTT"
+        status = "Waiting for Data"
         status_class = "warning"
-        summary = live.get("error") or "No retained MQTT monitor values were received yet."
+        summary = live.get("error") or "No live serial or retained MQTT values were received yet."
     elif not monitor_running:
         status = "Needs Attention"
         status_class = "warning"
@@ -1104,7 +1141,7 @@ def build_monitoring_health(options, live=None, heartbeat=None):
     else:
         status = "Watching"
         status_class = "healthy"
-        summary = "Monitor heartbeat and retained MQTT data look healthy."
+        summary = f"Monitor heartbeat and {data_source} data look healthy."
 
     checks = [
         {
@@ -1114,7 +1151,13 @@ def build_monitoring_health(options, live=None, heartbeat=None):
             "detail": f"State: {heartbeat_state} | Timeout: {heartbeat_timeout}s",
         },
         {
-            "label": "MQTT monitor state",
+            "label": "Data source",
+            "value": data_source,
+            "class": "healthy" if live_ok else "warning",
+            "detail": f"Snapshot source: {live.get('source', 'Unknown')}",
+        },
+        {
+            "label": "Monitor state",
             "value": monitor_state,
             "class": "healthy" if availability.lower() == "online" and monitor_state.lower() == "running" else "warning",
             "detail": f"Availability: {availability}",
@@ -1141,7 +1184,7 @@ def build_monitoring_health(options, live=None, heartbeat=None):
             "label": "Cell count",
             "value": str(total_cells),
             "class": "healthy" if total_cells > 0 else "warning",
-            "detail": "Detected from retained pack cell topics.",
+            "detail": "Detected from current live data source.",
         },
     ]
 
@@ -1225,6 +1268,31 @@ def normalize_live_snapshot_for_template(live):
             "temperatures": pack.get("temperatures") if isinstance(pack.get("temperatures"), list) else [],
             "reference_checks": pack.get("reference_checks") if isinstance(pack.get("reference_checks"), list) else [],
         })
+        if not pack.get("warning_intelligence"):
+            cell_values = []
+            for cell in pack.get("cells") or []:
+                cell_num = _to_float(cell.get("number"))
+                cell_v = _to_float(cell.get("voltage"))
+                if cell_num is not None and cell_v is not None:
+                    cell_values.append((int(cell_num), cell_v))
+            pack_v = _to_float(pack.get("voltage"))
+            cell_high_ref = _to_float(pack.get("cell_high_ref"), _to_float(normalized.get("cell_high_ref"), 4.20))
+            cell_low_ref = _to_float(pack.get("cell_low_ref"), _to_float(normalized.get("cell_low_ref"), 3.00))
+            pack_high_ref = _to_float(pack.get("pack_high_ref"))
+            pack_low_ref = _to_float(pack.get("pack_low_ref"))
+            pack["warning_intelligence"] = build_warning_intelligence(
+                pack,
+                warnings,
+                sorted(cell_values, key=lambda item: item[0]),
+                pack_v,
+                cell_high_ref,
+                cell_low_ref,
+                pack_high_ref,
+                pack_low_ref,
+                pack.get("battery_profile", ""),
+                pack.get("reference_source", ""),
+                bool(DEFAULT_OPTION_VALUES.get("notify_enabled", True)),
+            )
         packs.append(pack)
 
     normalized["packs"] = packs
@@ -1411,6 +1479,19 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
     add-on base topic. It only reads retained/current MQTT states. It does not
     publish anything and it does not communicate with the BMS directly.
     """
+    if not bool(options.get("mqtt_enabled", DEFAULT_OPTION_VALUES["mqtt_enabled"])):
+        return {
+            "ok": False,
+            "error": "MQTT is disabled.",
+            "source": "mqtt_retained",
+            "data_source": "MQTT disabled",
+            "packs": [],
+            "pack_count": 0,
+            "total_cells": 0,
+            "warning_count": 0,
+            "fetched_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+
     host = options.get("mqtt_host")
     port = int(options.get("mqtt_port", 1883) or 1883)
     user = options.get("mqtt_user", "")
@@ -1420,6 +1501,8 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
     result = {
         "ok": False,
         "error": "",
+        "source": "mqtt_retained",
+        "data_source": "MQTT fallback",
         "base_topic": base_topic,
         "availability": "Unknown",
         "monitor_state": "Unknown",
@@ -1773,9 +1856,43 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
     return result
 
 
+def fetch_monitor_live_snapshot(options):
+    """Read the monitor-owned live serial snapshot without touching the BMS."""
+    snapshot = load_live_snapshot(LIVE_SNAPSHOT_PATH)
+    if not isinstance(snapshot, dict):
+        return {
+            "ok": False,
+            "error": "No live serial snapshot has been written yet.",
+            "source": "live_serial",
+            "data_source": "Live serial",
+            "packs": [],
+            "pack_count": 0,
+            "total_cells": 0,
+            "warning_count": 0,
+            "fetched_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+
+    updated_at = _to_float(snapshot.get("updated_at_epoch"))
+    if updated_at is not None:
+        age = max(0, int(time.time() - updated_at))
+        snapshot["snapshot_age_seconds"] = age
+        stale_limit = int(_to_float(options.get("notify_stale_data_seconds"), 120) or 120)
+        if age > stale_limit:
+            snapshot["stale"] = "ON"
+            snapshot["stale_reason"] = f"Live serial snapshot age {age}s exceeds {stale_limit}s"
+            snapshot["data_source"] = "Stale live serial"
+
+    snapshot.setdefault("source", "live_serial")
+    snapshot.setdefault("data_source", "Live serial")
+    snapshot.setdefault("error", "")
+    return snapshot
+
+
 def live_snapshot_options_key(options):
-    """Build a non-secret key for values that change the retained MQTT snapshot."""
+    """Build a non-secret key for values that change the live snapshot view."""
     keys = (
+        "ui_data_source",
+        "mqtt_enabled",
         "mqtt_host",
         "mqtt_port",
         "mqtt_base_topic",
@@ -1829,7 +1946,28 @@ def get_cached_live_snapshot(options, max_age_seconds=LIVE_SNAPSHOT_MAX_AGE_SECO
 
 
 def refresh_live_snapshot_cache_once(options):
-    snapshot = fetch_mqtt_snapshot(options)
+    mode = str(options.get("ui_data_source", "auto") or "auto")
+    snapshot = None
+    if mode in ("auto", "monitor_live"):
+        snapshot = fetch_monitor_live_snapshot(options)
+        if mode == "monitor_live" or snapshot.get("ok"):
+            update_live_snapshot_cache(options, snapshot)
+            return snapshot
+
+    if mode in ("auto", "mqtt_retained") and bool(options.get("mqtt_enabled", DEFAULT_OPTION_VALUES["mqtt_enabled"])):
+        snapshot = fetch_mqtt_snapshot(options)
+    elif snapshot is None:
+        snapshot = {
+            "ok": False,
+            "error": "No enabled live data source is available.",
+            "source": mode,
+            "data_source": "No data",
+            "packs": [],
+            "pack_count": 0,
+            "total_cells": 0,
+            "warning_count": 0,
+            "fetched_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
     update_live_snapshot_cache(options, snapshot)
     return snapshot
 
@@ -1862,7 +2000,7 @@ def ensure_live_snapshot_cache_worker():
 
 
 def get_page_live_snapshot(options):
-    """Return retained MQTT data for page renders without waiting on MQTT when cached."""
+    """Return live serial data first, then retained MQTT fallback when configured."""
     cached = get_cached_live_snapshot(options)
     if cached is not None:
         return cached
@@ -1870,7 +2008,7 @@ def get_page_live_snapshot(options):
 
 
 def input_type_for_value(key, value):
-    if key in ("battery_profile", "notify_bms_warning_policy", "debug_output"):
+    if key in ("battery_profile", "notify_bms_warning_policy", "debug_output", "bms_connection_mode", "ui_data_source"):
         return "select"
     if isinstance(value, bool):
         return "checkbox"
@@ -2194,6 +2332,7 @@ It does not send BMS control commands.
 
 CARD_HELP = {
     "Advanced": "Advanced runtime settings. Keep pack and cell number padding stable after Home Assistant MQTT Discovery has created entities. Changing padding changes MQTT state topics, discovery topics and unique IDs, which can leave old retained discovery entities in Home Assistant until they are cleaned up.",
+    "History & Live Data": "Controls the serial-first web UI data source and local SQLite history. Auto uses the monitor-owned live serial snapshot first and uses retained MQTT only as a fallback when MQTT is enabled. History settings store local metrics for charts and never write to the BMS.",
     "Battery Profile & References": "Shows measured battery values beside profile/default references and user-configured references. This card also contains read-only expected layout checks and capacity fallback settings used only when BMS capacity is unavailable. The BMS warning Telegram policy and row alert switches control Telegram noise only; active BMS warnings remain visible in the UI. The editable values are Home Assistant add-on options only and never write to the BMS.",
     "FET Notifications": "Controls charge/discharge FET notification behavior. These settings only decide when to alert; they do not control FETs.",
     "Notification Thresholds": "Controls SOC, SOH, stale-data and BMS warning repeat timing. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale and warning repeat values are in seconds. BMS warning repeats are severity-aware: caution repeats for low-risk ongoing warnings, warning repeats for near-limit conditions, and critical repeats for protection/fault or measured values outside configured references.",
@@ -2202,6 +2341,14 @@ CARD_HELP = {
 }
 
 FIELD_HELP = {
+    "bms_connection_mode": "Physical BMS connection mode. Serial is the only supported read-only BMS interface in this build.",
+    "ui_data_source": "Web UI data source. Auto uses live serial snapshot first, then retained MQTT fallback when available. monitor_live never uses MQTT; mqtt_retained uses retained MQTT only.",
+    "mqtt_enabled": "Enables MQTT publishing and Home Assistant discovery. Disable this when using the app as a direct serial web monitor without MQTT.",
+    "metrics_enabled": "Enables local SQLite history for charts and troubleshooting. This stores displayed battery values under /data.",
+    "history_sample_seconds": "Pack and bank metric sample interval for history storage. Default: 10 seconds.",
+    "history_cell_sample_seconds": "Cell and temperature metric sample interval for history storage. Default: 30 seconds.",
+    "history_retention_days": "Raw metric history retention. Default: 90 days.",
+    "history_event_retention_days": "Event/history retention for warning and system events. Default: 365 days.",
     "notify_warning_repeat_seconds": "Repeat interval in seconds for the same active BMS warning Telegram notification. Example: 1800 means repeat at most every 30 minutes.",
     "notify_warning_repeat_caution_seconds": "Repeat interval for ongoing caution-level BMS warnings. Recommended: 21600 seconds (6 hours).",
     "notify_warning_repeat_warning_seconds": "Repeat interval for ongoing warning-level BMS warnings. Recommended: 3600 seconds (1 hour).",
@@ -2236,10 +2383,18 @@ FIELD_HELP = {
 }
 
 FIELD_LABELS = {
+    "bms_connection_mode": "BMS connection mode",
     "connection_type": "Connection type",
     "bms_serial": "Serial device",
     "bms_baudrate": "BMS baud rate",
     "scan_interval": "Poll interval",
+    "ui_data_source": "Web UI data source",
+    "metrics_enabled": "Store local history",
+    "history_sample_seconds": "Pack/bank history sample interval",
+    "history_cell_sample_seconds": "Cell history sample interval",
+    "history_retention_days": "Raw history retention",
+    "history_event_retention_days": "Event history retention",
+    "mqtt_enabled": "Enable MQTT publishing",
     "mqtt_host": "MQTT broker host",
     "mqtt_port": "MQTT broker port",
     "mqtt_user": "MQTT username",
@@ -2329,7 +2484,14 @@ def build_grouped_config(options):
                 "label": field_label(key),
                 "raw_value": raw_value,
                 "input_type": input_type_for_value(key, raw_value),
-                "choices": BATTERY_PROFILE_CHOICES if key == "battery_profile" else WARNING_TELEGRAM_POLICY_CHOICES if key == "notify_bms_warning_policy" else DEBUG_OUTPUT_CHOICES if key == "debug_output" else {},
+                "choices": (
+                    BATTERY_PROFILE_CHOICES if key == "battery_profile"
+                    else WARNING_TELEGRAM_POLICY_CHOICES if key == "notify_bms_warning_policy"
+                    else DEBUG_OUTPUT_CHOICES if key == "debug_output"
+                    else BMS_CONNECTION_MODE_CHOICES if key == "bms_connection_mode"
+                    else UI_DATA_SOURCE_CHOICES if key == "ui_data_source"
+                    else {}
+                ),
                 "is_bool": isinstance(raw_value, bool),
                 "is_sensitive": key in SENSITIVE_KEYS,
                 "value": safe_value(key, raw_value),
@@ -2402,6 +2564,11 @@ def generate_config_yaml(options):
 
 def parse_form_value(key, raw_value, current_value):
     """Parse web form values back to the expected option type."""
+    if key == "bms_connection_mode":
+        return "Serial"
+    if key == "ui_data_source":
+        value = str(raw_value or DEFAULT_OPTION_VALUES["ui_data_source"]).strip()
+        return value if value in UI_DATA_SOURCE_CHOICES else DEFAULT_OPTION_VALUES["ui_data_source"]
     if key == "battery_profile":
         return normalize_profile(raw_value)
     if key == "notify_bms_warning_policy":
@@ -2504,13 +2671,20 @@ def validate_addon_options(options):
         except Exception:
             return default
 
+    mqtt_enabled = bool(options.get("mqtt_enabled", DEFAULT_OPTION_VALUES["mqtt_enabled"]))
     mqtt_host = str(options.get("mqtt_host", "")).strip()
-    if not mqtt_host:
-        errors.append("mqtt_host cannot be blank.")
-
     mqtt_port = as_int("mqtt_port")
-    if mqtt_port is None or mqtt_port < 1 or mqtt_port > 65535:
-        errors.append("mqtt_port must be between 1 and 65535.")
+    if mqtt_enabled:
+        if not mqtt_host:
+            errors.append("mqtt_host cannot be blank when MQTT is enabled.")
+        if mqtt_port is None or mqtt_port < 1 or mqtt_port > 65535:
+            errors.append("mqtt_port must be between 1 and 65535 when MQTT is enabled.")
+    elif mqtt_port is not None and (mqtt_port < 1 or mqtt_port > 65535):
+        errors.append("mqtt_port must be between 1 and 65535 when provided.")
+
+    bms_connection_mode = str(options.get("bms_connection_mode", "Serial")).strip().lower()
+    if bms_connection_mode != "serial":
+        errors.append("bms_connection_mode must be Serial.")
 
     connection_type = str(options.get("connection_type", "")).strip().lower()
     if connection_type != "serial":
@@ -2521,6 +2695,23 @@ def validate_addon_options(options):
     scan_interval = as_float("scan_interval")
     if scan_interval is None or scan_interval < 1:
         errors.append("scan_interval must be at least 1 second.")
+
+    ui_data_source = str(options.get("ui_data_source", "auto")).strip()
+    if ui_data_source not in UI_DATA_SOURCE_CHOICES:
+        errors.append("ui_data_source must be one of: auto, monitor_live, mqtt_retained.")
+
+    history_sample = as_int("history_sample_seconds")
+    history_cell_sample = as_int("history_cell_sample_seconds")
+    history_retention = as_int("history_retention_days")
+    history_event_retention = as_int("history_event_retention_days")
+    if history_sample is not None and history_sample < 1:
+        errors.append("history_sample_seconds must be at least 1 second.")
+    if history_cell_sample is not None and history_cell_sample < 1:
+        errors.append("history_cell_sample_seconds must be at least 1 second.")
+    if history_retention is not None and history_retention < 1:
+        errors.append("history_retention_days must be at least 1 day.")
+    if history_event_retention is not None and history_event_retention < 1:
+        errors.append("history_event_retention_days must be at least 1 day.")
 
     notify_retry_count = as_int("notify_retry_count")
     if notify_retry_count is not None and notify_retry_count < 0:
@@ -3656,6 +3847,61 @@ def api_status():
         return jsonify({"ok": False, "error": error}), 500
     live = refresh_live_snapshot_cache_once(options)
     return jsonify(attach_monitoring_health(options, live))
+
+
+@app.route("/api/live", methods=["GET"])
+def api_live():
+    options, error = load_options()
+    if error:
+        return jsonify({"ok": False, "error": error}), 500
+    live = refresh_live_snapshot_cache_once(options)
+    return jsonify(attach_monitoring_health(options, live))
+
+
+@app.route("/api/history", methods=["GET"])
+def api_history():
+    try:
+        range_seconds = int(request.args.get("range_seconds", "1800"))
+    except Exception:
+        range_seconds = 1800
+    try:
+        return jsonify(query_history(range_seconds=range_seconds, db_path=HISTORY_DB_PATH))
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc), "bank": [], "packs": []}), 500
+
+
+@app.route("/api/history/pack/<pack_id>", methods=["GET"])
+def api_history_pack(pack_id):
+    try:
+        range_seconds = int(request.args.get("range_seconds", "1800"))
+    except Exception:
+        range_seconds = 1800
+    history = query_history(range_seconds=range_seconds, db_path=HISTORY_DB_PATH)
+    history["packs"] = [row for row in history.get("packs", []) if str(row.get("pack_id")) == str(pack_id).zfill(2)]
+    return jsonify(history)
+
+
+@app.route("/api/history/cells/<pack_id>", methods=["GET"])
+def api_history_cells(pack_id):
+    try:
+        range_seconds = int(request.args.get("range_seconds", "1800"))
+    except Exception:
+        range_seconds = 1800
+    init_history_db(HISTORY_DB_PATH)
+    import sqlite3
+    since = int(time.time()) - max(60, range_seconds)
+    with sqlite3.connect(HISTORY_DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """
+            SELECT ts, pack_id, cell_number, voltage
+            FROM cell_metrics
+            WHERE ts >= ? AND pack_id = ?
+            ORDER BY ts ASC, cell_number ASC
+            """,
+            (since, str(pack_id).zfill(2)),
+        ).fetchall()
+    return jsonify({"ok": True, "range_seconds": range_seconds, "cells": [dict(row) for row in rows]})
 
 
 @app.route("/api/events", methods=["GET"])

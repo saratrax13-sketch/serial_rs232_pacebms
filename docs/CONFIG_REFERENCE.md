@@ -9,16 +9,31 @@ Required for RS232 BMS reading.
 Fields:
 
 - connection_type
+- bms_connection_mode
 - bms_serial
 - bms_baudrate
 - scan_interval
 
-### MQTT
+### History & Live Data
 
-Required for MQTT and Home Assistant discovery.
+Required for serial-first web UI and local metrics history.
 
 Fields:
 
+- ui_data_source
+- metrics_enabled
+- history_sample_seconds
+- history_cell_sample_seconds
+- history_retention_days
+- history_event_retention_days
+
+### MQTT
+
+Optional output/fallback for MQTT and Home Assistant discovery.
+
+Fields:
+
+- mqtt_enabled
 - mqtt_host
 - mqtt_port
 - mqtt_user

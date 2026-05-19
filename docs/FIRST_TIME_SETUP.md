@@ -1,13 +1,13 @@
 # First-Time Setup Guide
 
-## Basic MQTT-only setup
+## Basic serial monitoring setup
 
-Use this mode if you only want to read the battery BMS and publish values to MQTT/Home Assistant.
+Use this mode if you want the add-on to read the battery BMS, show live web UI data, store local history and optionally publish MQTT/Home Assistant values.
 
 Required Config sections:
 
 1. BMS Connection
-2. MQTT
+2. History & Live Data
 3. Advanced
 
 Optional sections can be left disabled or unchanged.
@@ -18,16 +18,31 @@ Set:
 
 ```yaml
 connection_type: Serial
+bms_connection_mode: Serial
 bms_serial: /dev/serial/by-id/your-usb-serial-device
 bms_baudrate: 9600
 scan_interval: 5
 ```
 
-### Step 2: Configure MQTT
+### Step 2: Configure live data and history
 
 Set:
 
 ```yaml
+ui_data_source: auto
+metrics_enabled: true
+history_sample_seconds: 10
+history_cell_sample_seconds: 30
+history_retention_days: 90
+history_event_retention_days: 365
+```
+
+### Step 3: Configure MQTT only if required
+
+MQTT is optional. Enable it when you want Home Assistant MQTT discovery/entities or retained MQTT fallback.
+
+```yaml
+mqtt_enabled: true
 mqtt_host: your_mqtt_broker_ip
 mqtt_port: 1883
 mqtt_user: your_user
@@ -38,7 +53,7 @@ mqtt_ha_discovery_topic: homeassistant
 mqtt_retain_state: true
 ```
 
-### Step 3: Keep Advanced defaults
+### Step 4: Keep Advanced defaults
 
 Recommended:
 
@@ -48,23 +63,24 @@ zero_pad_number_cells: 2
 zero_pad_number_packs: 2
 ```
 
-### Step 4: Start the add-on
+### Step 5: Start the add-on
 
 Confirm logs show:
 
 ```text
 BMS serial connected
-MQTT connected
 Analog read OK
 Warn read OK
 ```
 
-### Step 5: Confirm UI data
+If MQTT is disabled, the logs should state that MQTT is disabled and serial monitoring is starting.
+
+### Step 6: Confirm UI data
 
 Open the web UI and check:
 
 - Dashboard tab: user battery confidence values should be visible.
-- Tech Status tab: Overall Status should not be Unknown once MQTT retained values are available.
+- Tech Status tab: Overall Status should not be Unknown once the live serial snapshot is available.
 - Tech Status tab: Warning Intelligence should show whether active BMS warnings are normal, watch, warning or critical against the configured references.
 - Tech Status tab: Battery Packs should show per-pack role, SOC, SOH, cycles, capacity, electrical values, cell balance and BMS control state.
 - Setup tab: Setup Checklist should show Basic Required items as ready.

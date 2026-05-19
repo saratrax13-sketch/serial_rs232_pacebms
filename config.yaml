@@ -1,6 +1,6 @@
 name: "Pace BMS RS232 Monitor"
-description: "Read-only Pace BMS RS232 to MQTT bridge with Home Assistant discovery and Telegram notifications"
-version: "2.8.0"
+description: "Read-only Pace BMS serial monitor with live web UI, local history, optional MQTT/Home Assistant discovery and Telegram notifications"
+version: "2.9.0"
 slug: "pace_bms_rs232"
 url: "https://github.com/saratrax13-sketch/serial_rs232_pacebms"
 init: false
@@ -24,12 +24,22 @@ usb: true
 
 options:
   # Basic Required - BMS connection
+  bms_connection_mode: "Serial"
   connection_type: "Serial"
   bms_serial: "/dev/serial/by-id/usb-Prolific_Technology_Inc._USB-Serial_Controller_D-if00-port0"
   bms_baudrate: 9600
   scan_interval: 5
 
-  # Basic Required - MQTT and Home Assistant discovery
+  # Basic Required - live UI and local history
+  ui_data_source: "auto"
+  metrics_enabled: true
+  history_sample_seconds: 10
+  history_cell_sample_seconds: 30
+  history_retention_days: 90
+  history_event_retention_days: 365
+
+  # Optional - MQTT and Home Assistant discovery
+  mqtt_enabled: true
   mqtt_host: "192.168.10.16"
   mqtt_port: 1883
   mqtt_user: "YOUR_MQTT_USER"
@@ -121,11 +131,20 @@ options:
   notify_delta_window_end: "10:00"
 
 schema:
+  bms_connection_mode: list(Serial)
   connection_type: list(Serial)
   bms_serial: str
   bms_baudrate: int
   scan_interval: int
 
+  ui_data_source: list(auto|monitor_live|mqtt_retained)
+  metrics_enabled: bool
+  history_sample_seconds: int
+  history_cell_sample_seconds: int
+  history_retention_days: int
+  history_event_retention_days: int
+
+  mqtt_enabled: bool
   mqtt_host: str
   mqtt_port: int
   mqtt_user: str

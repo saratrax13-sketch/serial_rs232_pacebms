@@ -72,6 +72,8 @@ from logging.handlers import RotatingFileHandler
 import constants
 from bms_notify import NotifyState, telegram_send
 from battery_profiles import effective_warning_references
+from bms_live import build_live_snapshot, write_live_snapshot
+from bms_history import HistoryWriter, bool_option, int_option
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -257,8 +259,14 @@ def lchksum_calc(lenid: bytes) -> Optional[str]:
 
 def bms_connect(config: dict):
     """Open serial connection to BMS. Returns (comms, connected)."""
-    if str(config.get('connection_type', '')).strip().lower() != "serial":
-        log.error("Unsupported BMS connection_type: %s", config.get('connection_type'))
+    connection_mode = str(config.get("bms_connection_mode", config.get("connection_type", ""))).strip().lower()
+    legacy_connection_type = str(config.get("connection_type", "")).strip().lower()
+    if connection_mode != "serial" or legacy_connection_type != "serial":
+        log.error(
+            "Unsupported BMS connection mode: bms_connection_mode=%s connection_type=%s",
+            config.get("bms_connection_mode"),
+            config.get("connection_type"),
+        )
         return None, False
 
     try:
@@ -1658,7 +1666,33 @@ def publish_ha_discovery(client, config: dict, bms_sn: str, bms_version: str, an
 
 # ─── MQTT setup ───────────────────────────────────────────────────────────────
 
+class NullMqttClient:
+    """No-op MQTT client used when MQTT is disabled."""
+
+    def publish(self, *args, **kwargs):
+        return None
+
+    def is_connected(self):
+        return False
+
+    def loop_start(self):
+        return None
+
+    def loop_stop(self):
+        return None
+
+    def loop(self, timeout=1.0):
+        return None
+
+    def connect(self, *args, **kwargs):
+        return None
+
+
 def setup_mqtt(config: dict, bms_sn: str) -> mqtt.Client:
+    if not bool_option(config, "mqtt_enabled", True):
+        log.info("MQTT disabled; serial monitor, web UI, history and Telegram can continue without MQTT.")
+        return NullMqttClient()
+
     # Use unique client ID to avoid collisions
     client_id = f"bmspace-{bms_sn}"
     client    = mqtt.Client(client_id)
@@ -1751,6 +1785,7 @@ def main():
 
 
     # ── MQTT (client ID uses bms_sn; will set before connect) ────────────────
+    mqtt_enabled = bool_option(config, "mqtt_enabled", True)
     client = setup_mqtt(config, bms_sn)
 
     base = config['mqtt_base_topic']
@@ -1777,7 +1812,7 @@ def main():
 
     publish_monitor_status("state", "starting")
     publish_monitor_status("started_at", int(time.time()))
-    write_monitor_health(config, "starting", "MQTT setup complete")
+    write_monitor_health(config, "starting", "MQTT setup complete" if mqtt_enabled else "MQTT disabled; serial monitor starting")
 
     def append_event(event_type: str, title: str, detail: str = "", level: str = "info"):
         """Append a small event to /data/events.json for the web UI.
@@ -1842,6 +1877,15 @@ def main():
     # ── Warning notification deduplication ───────────────────────────────────
     warning_notify_state = load_warning_notify_state()  # {pack_num: {"family": str, "active": bool, "last_sent": epoch, "severity": str}}
 
+    history_writer = HistoryWriter(config)
+    history_writer.start()
+    history_sample_seconds = max(1, int_option(config, "history_sample_seconds", 10))
+    history_cell_sample_seconds = max(1, int_option(config, "history_cell_sample_seconds", 30))
+    last_history_sample = 0.0
+    last_cell_history_sample = 0.0
+    latest_capacity = None
+    latest_warn_list = []
+
     # ── Clean shutdown handling ──────────────────────────────────────────────
     shutdown_sent = False
 
@@ -1860,6 +1904,7 @@ def main():
             append_event("shutdown", "Monitor stopped", f"SN: {bms_sn}", "warn")
             client.loop(timeout=1.0)
             notify.on_shutdown(bms_sn)
+            history_writer.stop()
             time.sleep(0.5)
         except Exception as e:
             log.warning("Shutdown notification failed: %s", e)
@@ -1898,6 +1943,43 @@ def main():
     publish_monitor_status("stale", "OFF")
     publish_monitor_status("stale_reason", "Fresh")
     publish_monitor_status("stale_threshold_seconds", int(stale_seconds))
+
+    def update_serial_live_snapshot(include_history: bool = False, include_cells: bool = False):
+        """Write monitor-owned live snapshot and queue history without polling BMS."""
+        nonlocal last_history_sample, last_cell_history_sample
+        if analog_data is None:
+            return None
+
+        snapshot = build_live_snapshot(
+            config,
+            analog_data,
+            latest_capacity,
+            latest_warn_list,
+            bms_sn=bms_sn,
+            pack_sn=pack_sn,
+            bms_version=bms_version,
+            monitor_state="disconnected" if bms_error_published else "running",
+            availability="offline" if bms_error_published else "online",
+            stale="ON" if stale_notified else "OFF",
+            stale_reason="Stale" if stale_notified else "Fresh",
+            last_analog_success=last_analog_success,
+            last_warn_success=last_warn_success,
+        )
+
+        try:
+            write_live_snapshot(snapshot)
+        except Exception as exc:
+            log.debug("Could not write live serial snapshot: %s", exc)
+
+        now = time.time()
+        should_write_pack = include_history or (now - last_history_sample >= history_sample_seconds)
+        should_write_cells = include_cells or (now - last_cell_history_sample >= history_cell_sample_seconds)
+        if should_write_pack:
+            history_writer.record_snapshot(snapshot, include_cells=should_write_cells)
+            last_history_sample = now
+            if should_write_cells:
+                last_cell_history_sample = now
+        return snapshot
 
     def check_stale_data():
         """Check whether analog or warning data is stale.
@@ -1939,6 +2021,7 @@ def main():
                         f"Last analog read: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(last_analog_success))}\n"
                         f"Last warning read: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(last_warn_success))}\n"
                         f"Time: {time.strftime('%H:%M:%S')}")
+            update_serial_live_snapshot()
             return
 
         publish_monitor_status("stale", "OFF")
@@ -1953,6 +2036,7 @@ def main():
                     f"Analog age: {analog_age}s\n"
                     f"Warning age: {warn_age}s\n"
                     f"Time: {time.strftime('%H:%M:%S')}")
+        update_serial_live_snapshot()
 
     def mark_bms_disconnected(reason: str):
         """Mark the BMS offline based on failed communication, not just serial port state."""
@@ -1993,6 +2077,7 @@ def main():
         )
 
         notify.on_disconnect(bms_retry_count, offline_str)
+        update_serial_live_snapshot()
 
         try:
             if bms:
@@ -2013,7 +2098,7 @@ def main():
                 continue
 
             # ── Reconnect MQTT if needed ──────────────────────────────────────
-            if not client.is_connected():
+            if mqtt_enabled and not client.is_connected():
                 log.warning("MQTT disconnected - retrying while BMS polling continues...")
                 try:
                     client.loop_stop()
@@ -2109,7 +2194,9 @@ def main():
 
                 # ── HA Discovery: publish only after first successful analog
                 # read so cell/pack counts are known; also guards the startup race
-                if first_analog_ready and time.time() - last_discovery > DISCOVERY_TTL:
+                update_serial_live_snapshot(include_history=True)
+
+                if mqtt_enabled and first_analog_ready and time.time() - last_discovery > DISCOVERY_TTL:
                     publish_ha_discovery(client, config, bms_sn, bms_version, analog_data)
                     publish_availability("online")
                     last_discovery = time.time()
@@ -2170,7 +2257,9 @@ def main():
 
             success, result = bms_get_pack_capacity(bms, config)
             if success:
+                latest_capacity = result
                 publish_pack_capacity(client, config, result, force=(time.time() - last_state_force) >= state_force_seconds)
+                update_serial_live_snapshot()
             else:
                 log.error("Pack capacity error: %s", result)
             time.sleep(scan_interval / 3)
@@ -2178,6 +2267,7 @@ def main():
             packs           = analog_data.packs if analog_data else 1
             success, result = bms_get_warn_info(bms, config, packs)
             if success:
+                latest_warn_list = result
                 last_warn_success = time.time()
                 publish_monitor_status("last_warn_read_epoch", int(last_warn_success))
                 publish_monitor_status("last_warn_read", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(last_warn_success)))
@@ -2229,6 +2319,7 @@ def main():
                             if previous_sent:
                                 call_warning_notify(notify, p, "Normal", pack_detail)
                             log.info("BMS warning cleared for Pack %02d (previous family: %s)", p, previous_warning_state.get("family", "Unknown"))
+                            history_writer.record_warning_event(None, f"{p:02d}", "normal", "BMS warning cleared", str(previous_warning_state.get("family", "Unknown")))
                         warning_notify_state[state_key] = {
                             "family": "Normal",
                             "active": False,
@@ -2271,6 +2362,7 @@ def main():
                                     telegram_policy_reason,
                                     warning_family,
                                 )
+                                history_writer.record_warning_event(None, f"{p:02d}", severity, "BMS warning active - Telegram suppressed", f"{warning_family}; {telegram_policy_reason}")
                             elif get_debug_output(config) >= 2:
                                 log.debug(
                                     "BMS %s warning Telegram still suppressed for Pack %02d by policy: %s (%s)",
@@ -2308,6 +2400,7 @@ def main():
                                     elapsed,
                                     warning_family,
                                 )
+                                history_writer.record_warning_event(None, f"{p:02d}", severity, "BMS warning reminder sent", warning_family)
                             elif escalated:
                                 log.info(
                                     "BMS warning escalated for Pack %02d: %s -> %s (%s)",
@@ -2316,8 +2409,10 @@ def main():
                                     severity,
                                     warning_family,
                                 )
+                                history_writer.record_warning_event(None, f"{p:02d}", severity, "BMS warning escalated", warning_family)
                             else:
                                 log.info("BMS %s warning notification sent for Pack %02d: %s", severity, p, warning_family)
+                                history_writer.record_warning_event(None, f"{p:02d}", severity, "BMS warning notification sent", warning_family)
                         else:
                             if hasattr(notify, "last_warnings"):
                                 try:
@@ -2349,6 +2444,7 @@ def main():
                         'ON' if pack_warn.discharge_fet else 'OFF',
                         bool(pack_warn.fully))
                 log_warn_summary(result)
+                update_serial_live_snapshot(include_history=True)
             else:
                 log.error("Warn info error: %s", result)
 

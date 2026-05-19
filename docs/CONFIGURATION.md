@@ -4,7 +4,8 @@ The Config tab saves Home Assistant add-on options only. It does not write thres
 
 The current Config layout groups the settings by task:
 
-- **BMS Connection**, **MQTT** and **Advanced** are the required baseline settings for polling and Home Assistant discovery.
+- **BMS Connection** and **History & Live Data** are the required baseline settings for serial-first monitoring and the web UI.
+- **MQTT** is optional output/fallback for Home Assistant discovery and retained-state compatibility.
 - **Battery Profile & Alert References** provides battery profile selection, optional read-only expected layout checks, capacity fallback for estimates and per-reference Telegram alert controls.
 - **Telegram**, **Notifications**, **FET Notifications** and **Scheduled Reports** control optional direct Telegram messages.
 - **Notification Thresholds** and **Warning Detail** control how warnings are explained and when Telegram alerts are allowed.
@@ -17,24 +18,39 @@ The current Config layout groups the settings by task:
 
 ## Important Settings
 
+### Serial BMS Connection
+
+```yaml
+connection_type: "Serial"
+bms_connection_mode: "Serial"
+bms_serial: "/dev/serial/by-id/usb-Prolific_Technology_Inc._USB-Serial_Controller_D-if00-port0"
+bms_baudrate: 9600
+scan_interval: 5
+```
+
+### History & Live Data
+
+```yaml
+ui_data_source: "auto"
+metrics_enabled: true
+history_sample_seconds: 10
+history_cell_sample_seconds: 30
+history_retention_days: 90
+history_event_retention_days: 365
+```
+
+The web UI uses the monitor-owned live serial snapshot first. Retained MQTT is used only as fallback when MQTT is enabled and fresh.
+
 ### MQTT
 
 ```yaml
+mqtt_enabled: false
 mqtt_host: "192.168.10.16"
 mqtt_port: 1883
 mqtt_user: "YOUR_MQTT_USER"
 mqtt_password: "YOUR_MQTT_PASSWORD"
 mqtt_base_topic: "pacebms"
 mqtt_retain_state: true
-```
-
-### Serial BMS Connection
-
-```yaml
-connection_type: "Serial"
-bms_serial: "/dev/serial/by-id/usb-Prolific_Technology_Inc._USB-Serial_Controller_D-if00-port0"
-bms_baudrate: 9600
-scan_interval: 5
 ```
 
 ### Telegram

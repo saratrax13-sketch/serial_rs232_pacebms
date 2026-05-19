@@ -12,7 +12,7 @@
 
 Pace BMS RS232 Monitor is used to monitor Pace-compatible BMS batteries over the Pace RS232/UART ASCII protocol.
 
-The project reads battery data, rejects invalid data, interprets BMS values, exposes useful diagnostics, publishes MQTT/Home Assistant state, and optionally sends Telegram notifications.
+The project reads battery data, rejects invalid data, interprets BMS values, writes a monitor-owned live serial snapshot, stores local history, exposes useful diagnostics, optionally publishes MQTT/Home Assistant state, and optionally sends Telegram notifications.
 
 The monitor is intended to help users know whether the battery pack is healthy, stale, warning, critical, charging, discharging, idle or disconnected.
 
@@ -23,7 +23,8 @@ The monitor is intended to help users know whether the battery pack is healthy, 
 - Current supported path is RS232 serial using Pace/UART ASCII frames.
 - RS485 and standalone Docker may be considered later, but do not change protocol assumptions without proof from logs and maintainer approval.
 - TCP/IP BMS connection code was intentionally removed.
-- MQTT retained state drives the Web UI and Home Assistant sensors.
+- Serial polling drives the Web UI through `/data/pacebms-live.json`.
+- MQTT retained state is optional output/fallback, not the primary UI source.
 - Telegram is an optional monitoring/alerting layer.
 - Web UI is split by audience:
   - Dashboard: user confidence
@@ -167,7 +168,9 @@ Renaming repositories, add-ons, topics or discovery IDs may create stale Home As
 
 | File | Responsibility |
 |---|---|
-| `bms_monitor.py` | Serial polling, Pace frame parsing, MQTT publishing, monitor heartbeat |
+| `bms_monitor.py` | Serial polling, Pace frame parsing, live snapshot/history writing, optional MQTT publishing, monitor heartbeat |
+| `bms_live.py` | Atomic live snapshot helpers for `/data/pacebms-live.json` |
+| `bms_history.py` | SQLite metrics/history storage using the standard library |
 | `bms_notify.py` | Telegram notifications, warning detail, daily summaries and deduplication state |
 | `web_config.py` | Flask web UI, config save/restore, diagnostics, log view, live status |
 | `battery_profiles.py` | Read-only battery reference profiles for UI/Telegram explanation |
@@ -178,9 +181,11 @@ Renaming repositories, add-ons, topics or discovery IDs may create stale Home As
 ## Data Flow
 
 ```text
-Pace BMS RS232 -> bms_monitor.py -> retained MQTT topics
-retained MQTT topics -> Home Assistant discovery/entities
-retained MQTT topics -> web_config.py live UI
+Pace BMS RS232 -> bms_monitor.py -> /data/pacebms-live.json
+bms_monitor.py -> /data/pacebms_metrics.db
+bms_monitor.py -> optional retained MQTT topics
+retained MQTT topics -> optional Home Assistant discovery/entities
+/data/pacebms-live.json -> web_config.py live UI
 warning/status reads -> bms_notify.py -> Telegram
 web_config.py -> Home Assistant add-on options only
 ```
@@ -275,4 +280,3 @@ When assisting with code changes:
 - avoid unnecessary rewrites
 - keep production and battery safety in mind
 - state clearly when something was not tested
-

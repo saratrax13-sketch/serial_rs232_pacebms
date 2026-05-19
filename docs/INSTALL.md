@@ -23,11 +23,12 @@ https://github.com/saratrax13-sketch/serial_rs232_pacebms
 Check the add-on logs for:
 
 ```text
-MQTT connected
 Startup notification published
 Analog read OK
 Warn read OK
 ```
+
+If MQTT is enabled, the logs should also show `MQTT connected`. If MQTT is disabled, the monitor should keep running and log that MQTT is disabled.
 
 Open the web UI and confirm:
 
@@ -37,7 +38,7 @@ Monitor: running
 Data Stale: OFF
 ```
 
-The Dashboard should then show Battery Confidence values from retained MQTT data:
+The Dashboard should then show Battery Confidence values from the live serial snapshot:
 
 ![Dashboard](screenshots/Dashboard.png)
 
@@ -57,7 +58,7 @@ A stable path is recommended, for example:
 
 ## MQTT
 
-Make sure MQTT is running and reachable from the add-on.
+MQTT is optional. Enable it when you want Home Assistant MQTT discovery/entities or retained MQTT fallback. When enabled, make sure MQTT is running and reachable from the add-on.
 
 Recommended:
 

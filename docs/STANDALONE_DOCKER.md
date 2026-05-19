@@ -2,7 +2,7 @@
 
 Standalone Docker mode runs the same read-only Pace BMS monitor outside Home Assistant.
 
-Home Assistant add-on mode remains the primary deployment path. Standalone Docker is intended for users who want to run the monitor on a normal Linux host, mini PC, server, or other Docker-capable machine while still publishing to MQTT/Home Assistant and sending direct Telegram notifications.
+Home Assistant add-on mode and standalone Docker mode both use the same serial-first monitor. Standalone Docker is intended for users who want to run the monitor on a normal Linux host, mini PC, server, or other Docker-capable machine. MQTT/Home Assistant publishing is optional.
 
 ## Safety
 
@@ -53,10 +53,11 @@ Edit `.env` and set at least:
 
 ```text
 PACEBMS_SERIAL_DEVICE=/dev/ttyUSB0
-PACEBMS_MQTT_HOST=192.168.1.10
-PACEBMS_MQTT_USER=YOUR_MQTT_USER
-PACEBMS_MQTT_PASSWORD=YOUR_MQTT_PASSWORD
+PACEBMS_BMS_BAUDRATE=9600
+PACEBMS_MQTT_ENABLED=false
 ```
+
+Set `PACEBMS_MQTT_ENABLED=true` and provide MQTT host/user/password only if you want MQTT/Home Assistant output.
 
 Start the container:
 
@@ -123,9 +124,17 @@ The compose file exposes the common setup values:
 |---|---|
 | `PACEBMS_WEB_PORT` | Host web UI port, default `8099` |
 | `PACEBMS_SERIAL_DEVICE` | Host serial device mapped into the container |
+| `PACEBMS_BMS_CONNECTION_MODE` | BMS connection mode. Current supported value is `Serial` |
 | `PACEBMS_BMS_SERIAL` | Serial path used by the monitor inside the container. Compose sets this to `/dev/pacebms` |
 | `PACEBMS_BMS_BAUDRATE` | Serial baud rate, normally `9600` |
 | `PACEBMS_SCAN_INTERVAL` | Poll interval in seconds |
+| `PACEBMS_UI_DATA_SOURCE` | `auto`, `monitor_live` or `mqtt_retained` |
+| `PACEBMS_METRICS_ENABLED` | Enables local SQLite metrics/history |
+| `PACEBMS_HISTORY_SAMPLE_SECONDS` | Bank and pack metrics sample interval |
+| `PACEBMS_HISTORY_CELL_SAMPLE_SECONDS` | Cell and temperature metrics sample interval |
+| `PACEBMS_HISTORY_RETENTION_DAYS` | Raw detailed history retention |
+| `PACEBMS_HISTORY_EVENT_RETENTION_DAYS` | Event/rollup retention |
+| `PACEBMS_MQTT_ENABLED` | Enables MQTT publishing and Home Assistant discovery |
 | `PACEBMS_MQTT_HOST` | MQTT broker host |
 | `PACEBMS_MQTT_PORT` | MQTT broker port |
 | `PACEBMS_MQTT_USER` | MQTT username |
@@ -165,7 +174,7 @@ This checks whether the monitor process is heartbeating. It does not mean the ba
 
 ## Home Assistant Integration
 
-Standalone Docker still publishes MQTT state and Home Assistant discovery topics when MQTT discovery is enabled.
+Standalone Docker publishes MQTT state and Home Assistant discovery topics only when MQTT is enabled.
 
 Keep these stable after Home Assistant discovers the entities:
 

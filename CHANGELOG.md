@@ -1,3 +1,22 @@
+## 2.9.0 - 2026-05-19
+
+### Added
+- Added serial-first live snapshot support with `/data/pacebms-live.json` so the web UI can read monitor-owned live serial data before falling back to MQTT.
+- Added local SQLite metrics storage at `/data/pacebms_metrics.db` with bank, pack, cell, temperature, warning and system history tables.
+- Added `/api/live`, `/api/history`, `/api/history/pack/<pack_id>` and `/api/history/cells/<pack_id>` endpoints.
+- Added local Chart.js graphs for Dashboard live trends using a vendored `static/vendor/chart.min.js` asset.
+- Added configuration options for BMS connection mode, UI data source, MQTT enablement, metrics enablement, history sampling and retention.
+- Added standalone Docker environment variables for MQTT-optional and metrics/history settings.
+
+### Changed
+- MQTT is now optional output/fallback instead of the required primary web UI source.
+- Dashboard, Tech Status and Diagnostics live refresh now update fields through API polling instead of redrawing the full tab.
+- Home Assistant discovery still uses the existing MQTT topic and unique-id structure when MQTT is enabled.
+
+### Safety
+- No BMS write, FET control, threshold write or command-control features were added.
+- Invalid serial frames remain rejected by the existing parser path before data is published, snapshotted or stored.
+
 ## 2.8.0 - 2026-05-19
 
 ### Stable Release

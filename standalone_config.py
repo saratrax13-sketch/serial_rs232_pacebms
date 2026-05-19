@@ -18,9 +18,12 @@ ADDON_CONFIG_PATH = Path(os.environ.get("PACEBMS_ADDON_CONFIG", "config.yaml"))
 ENV_PREFIX = "PACEBMS_"
 
 ENV_ALIASES = {
+    "BMS_CONNECTION_MODE": "bms_connection_mode",
     "BMS_SERIAL": "bms_serial",
     "BMS_BAUDRATE": "bms_baudrate",
     "SCAN_INTERVAL": "scan_interval",
+    "UI_DATA_SOURCE": "ui_data_source",
+    "MQTT_ENABLED": "mqtt_enabled",
     "MQTT_HOST": "mqtt_host",
     "MQTT_PORT": "mqtt_port",
     "MQTT_USER": "mqtt_user",
@@ -33,6 +36,11 @@ ENV_ALIASES = {
     "TELEGRAM_CHAT_ID": "telegram_chat_id",
     "NOTIFY_ENABLED": "notify_enabled",
     "DEBUG_OUTPUT": "debug_output",
+    "METRICS_ENABLED": "metrics_enabled",
+    "HISTORY_SAMPLE_SECONDS": "history_sample_seconds",
+    "HISTORY_CELL_SAMPLE_SECONDS": "history_cell_sample_seconds",
+    "HISTORY_RETENTION_DAYS": "history_retention_days",
+    "HISTORY_EVENT_RETENTION_DAYS": "history_event_retention_days",
     "BATTERY_PROFILE": "battery_profile",
     "EXPECTED_CELL_COUNT": "expected_cell_count",
     "EXPECTED_PACK_COUNT": "expected_pack_count",
