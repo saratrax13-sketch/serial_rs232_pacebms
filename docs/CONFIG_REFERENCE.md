@@ -58,9 +58,15 @@ Optional alert trigger thresholds and stale-data timing.
 
 Optional extra data included in warning messages.
 
-### Report Schedules
+### Scheduled Reports
 
 Optional scheduled Telegram report times.
+
+### Battery Profile & References
+
+Optional read-only reference values used to explain BMS warnings in the UI and Telegram. These values are saved as add-on options only and are never written to the BMS.
+
+![Battery profile references](screenshots/Config%20p2.png)
 
 ## Format rules
 

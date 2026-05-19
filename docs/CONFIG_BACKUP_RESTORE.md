@@ -2,6 +2,8 @@
 
 The add-on includes local backup and restore tools for Home Assistant add-on configuration.
 
+![Backups tab](screenshots/Backups.png)
+
 ## Where backups are stored
 
 Backups are stored inside the add-on data folder:

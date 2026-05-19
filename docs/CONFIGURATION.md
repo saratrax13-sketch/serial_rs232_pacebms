@@ -1,5 +1,13 @@
 # Configuration Guide
 
+The Config tab saves Home Assistant add-on options only. It does not write thresholds, settings or FET commands to the BMS.
+
+![Config required and notification settings](screenshots/Config.png)
+
+![Config thresholds and battery references](screenshots/Config%20p2.png)
+
+![Config scheduled reports](screenshots/Config%20p3.png)
+
 ## Important Settings
 
 ### MQTT
@@ -63,6 +71,8 @@ notify_temp_low_warn_c: 0
 These are notification/display reference values only.
 
 They do not write to the BMS.
+
+Battery profile references are shown beside measured values and user-defined alert references. Auto detection uses the detected cell count to choose the closest built-in reference profile; custom references use the values saved in the add-on options.
 
 ## Debugging
 

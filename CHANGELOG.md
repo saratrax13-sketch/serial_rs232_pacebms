@@ -1,3 +1,18 @@
+## 2.6.70 - 2026-05-19
+
+### Changed
+- Added current Web UI screenshots to the README and support manuals.
+- Added Dashboard, Tech Status, Setup, Config, Diagnostics, Logs, Events, Backups and Telegram examples to the documentation.
+- Updated the screenshot guide to match the current checked-in screenshot files.
+- Updated First-Time Setup, Configuration, Config Reference, Backup/Restore and Warning Deduplication docs with relevant screenshots.
+
+### Removed
+- Removed the temporary `web-ui-2.0.39-warning-reference.png` screenshot.
+
+### Notes
+- Documentation/screenshots only. No monitor logic, MQTT topics, Home Assistant discovery entities or BMS behavior changed.
+- No BMS write/control commands were added.
+
 ## 2.6.69 - 2026-05-19
 
 ### Changed

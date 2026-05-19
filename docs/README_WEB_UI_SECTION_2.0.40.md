@@ -4,33 +4,66 @@ The add-on includes a read-only Home Assistant Ingress web UI.
 
 The web UI gives a quick operational view of the Pace BMS monitor without needing to open MQTT topics or Home Assistant entity lists.
 
-![Pace BMS Web UI](docs/screenshots/web-ui-2.0.39-warning-reference.png)
+### Dashboard
+
+![Dashboard](screenshots/Dashboard.png)
+
+### Tech Status
+
+![Tech Status warning intelligence](screenshots/Tech%20Status%20p1.png)
+
+![Tech Status pack detail](screenshots/Tech%20Status%20p2.png)
+
+![Tech Status comparison charts](screenshots/Tech%20Status%20p3.png)
+
+### Setup
+
+![Setup](screenshots/Setup.png)
+
+### Config
+
+![Config](screenshots/Config.png)
+
+![Config thresholds and references](screenshots/Config%20p2.png)
+
+![Config scheduled reports](screenshots/Config%20p3.png)
+
+### Diagnostics
+
+![Diagnostics overview](screenshots/Diagnostics%20p1.png)
+
+![Diagnostics cell data](screenshots/Diagnostics%20p2.png)
+
+### Events, Backups and Logs
+
+![Events](screenshots/Events.png)
+
+![Backups](screenshots/Backups.png)
+
+![Logs](screenshots/Logs.png)
+
+### Telegram Examples
+
+![Telegram warning example](screenshots/Telegram1.png)
+
+![Telegram detail example](screenshots/Telegram2.png)
+
+![Telegram report example](screenshots/Telegram3.png)
+
+![Telegram recovery example](screenshots/Telegram4.png)
 
 ### Web UI Sections
 
 The web UI includes:
 
-- Overall Status
-- Detected Battery Layout
-- Test Telegram button
-- Test MQTT button
-- Live Status
-- Pack cards
-- BMS internal warning explanation
-- Reference threshold checks
-- Notification/configuration overview
-- Last Events / Status History
-
-### Overall Status
-
-The Overall Status card summarizes the current condition of the monitor:
-
-| Status | Meaning |
-|---|---|
-| Healthy | BMS is online, data is fresh, and no BMS warnings are active |
-| Warning | BMS is online and fresh, but one or more BMS warning bits are active |
-| Stale | Monitor is running, but fresh BMS reads have not updated within the configured stale-data time |
-| Offline | Monitor or BMS communication is offline |
+- Dashboard battery confidence
+- Tech Status warning intelligence and pack details
+- Setup checklist and safe test buttons
+- Config grouped add-on options
+- Diagnostics support proof and cell data
+- Events history
+- Backups for add-on configuration
+- Logs with Important, Battery reads and Everything views
 
 ### Warning Explanation
 
@@ -41,19 +74,6 @@ The web UI separates two important concepts:
 
 This matters because the BMS may set an internal warning bit before the configured reference threshold is exceeded.
 
-Example:
-
-```text
-BMS internal warning active:
-Warning State 1: Above cell volt warn | Above total volt warn
-
-Reference Check:
-- Cell reference not exceeded: no cell is above 4.20 V
-- Pack reference not exceeded: pack voltage is not above 54.60 V
-```
-
-This means the BMS is reporting a warning, but the configured notification reference value has not been exceeded.
-
 ### Read-Only Safety
 
 The web UI is read-only to the BMS.
@@ -62,6 +82,7 @@ The buttons only test external services:
 
 - Test Telegram sends a Telegram test message.
 - Test MQTT checks broker connectivity.
+- Test Full Monitoring checks MQTT, Telegram configuration and notification thresholds without sending a Telegram message.
 
 No BMS commands are sent from the web UI.
 No thresholds are written to the BMS.

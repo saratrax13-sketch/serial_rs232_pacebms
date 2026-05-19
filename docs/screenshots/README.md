@@ -2,30 +2,27 @@
 
 Use this folder for project screenshots used in the README, support notes and release notes.
 
-Recommended screenshots:
+Current screenshots:
 
-1. `ha-addon-config-basic-required.png`
-   - Home Assistant add-on Configuration tab.
-   - Show the Basic Required fields near the top.
-   - Hide or crop passwords, Telegram token, Telegram chat ID and MQTT password.
-
-2. `web-ui-status-monitoring-health.png`
-   - Pace BMS web UI Status tab.
-   - Include Overall Status, Monitoring Health and Setup Checklist.
-   - This is the best first screenshot for support.
-
-3. `web-ui-test-full-monitoring.png`
-   - Status tab after pressing Test Full Monitoring.
-   - Show the result message.
-   - This confirms MQTT, Telegram configuration and thresholds without BMS writes.
-
-4. `web-ui-dashboard-pack-comparison.png`
-   - Dashboard tab with detected packs and pack comparison cards.
-   - Include Monitoring Snapshot when possible.
-
-5. `telegram-example-alert.png`
-   - Example Telegram alert.
-   - Hide chat/user details if sharing publicly.
+| File | Use |
+|---|---|
+| `Dashboard.png` | User dashboard and daily battery confidence view |
+| `Tech Status p1.png` | Tech Status warning intelligence and live status |
+| `Tech Status p2.png` | Tech Status per-pack detail cards |
+| `Tech Status p3.png` | Tech Status comparison charts |
+| `Setup.png` | First-run checklist and safe test buttons |
+| `Config.png` | Config tab connection, MQTT, Telegram and notification cards |
+| `Config p2.png` | Config tab thresholds, battery profile and warning detail cards |
+| `Config p3.png` | Config tab scheduled reports card |
+| `Diagnostics p1.png` | Diagnostics overview and support proof |
+| `Diagnostics p2.png` | Diagnostics detailed cell data |
+| `Events.png` | Event history |
+| `Backups.png` | Configuration backup/restore tools |
+| `Logs.png` | Read-only log viewer |
+| `Telegram1.png` | Telegram warning example |
+| `Telegram2.png` | Telegram detail example |
+| `Telegram3.png` | Telegram report example |
+| `Telegram4.png` | Telegram recovery/example message |
 
 Screenshot safety:
 

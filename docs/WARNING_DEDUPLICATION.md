@@ -4,6 +4,10 @@
 
 The BMS can report the same active warning with slightly different wording on each warning read.
 
+![Telegram warning example](screenshots/Telegram1.png)
+
+![Logs warning view](screenshots/Logs.png)
+
 Example:
 
 ```text

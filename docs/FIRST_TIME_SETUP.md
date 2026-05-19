@@ -69,6 +69,14 @@ Open the web UI and check:
 - Setup tab: Setup Checklist should show Basic Required items as ready.
 - Diagnostics tab: use this when you need a support report or deeper troubleshooting.
 
+![Dashboard](screenshots/Dashboard.png)
+
+![Setup checklist](screenshots/Setup.png)
+
+![Tech Status overview](screenshots/Tech%20Status%20p1.png)
+
+![Diagnostics overview](screenshots/Diagnostics%20p1.png)
+
 ### Step 6: Capture setup screenshots
 
 For support or release notes, capture these screens:

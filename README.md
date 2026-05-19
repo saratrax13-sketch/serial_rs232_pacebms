@@ -26,7 +26,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.69"
+version: "2.6.70"
 ```
 
 ---
@@ -252,7 +252,71 @@ These values are estimates from retained MQTT values. They will change as load o
 
 ## Web UI Screenshots
 
-The first screen for daily use is the **Dashboard** tab. For setup/support screenshots, capture the audience-specific tabs:
+The first screen for daily use is the **Dashboard** tab. The screenshots below show the main user, technician, setup, support and alerting views.
+
+### Dashboard
+
+Use this for daily battery confidence: operating state, SOC, combined SOH, power flow, runtime/charge-time estimate, voltage/current, capacity, temperature and active warnings.
+
+![Dashboard](docs/screenshots/Dashboard.png)
+
+### Tech Status
+
+Use this for technician review: warning intelligence, per-pack values, reference margins, FET state and comparison charts.
+
+![Tech Status warning intelligence](docs/screenshots/Tech%20Status%20p1.png)
+
+![Tech Status pack detail](docs/screenshots/Tech%20Status%20p2.png)
+
+![Tech Status comparison charts](docs/screenshots/Tech%20Status%20p3.png)
+
+### Setup
+
+Use this for first-run checks and safe external service testing. The Full Monitoring test checks MQTT and Telegram configuration without sending BMS commands.
+
+![Setup](docs/screenshots/Setup.png)
+
+### Config
+
+Use Config to edit Home Assistant add-on options. These settings are saved to the add-on only; they are not written to the BMS.
+
+![Config required and notification settings](docs/screenshots/Config.png)
+
+![Config thresholds and battery references](docs/screenshots/Config%20p2.png)
+
+![Config scheduled reports](docs/screenshots/Config%20p3.png)
+
+### Diagnostics
+
+Use Diagnostics for support proof, battery identity, health checks and detailed cell data.
+
+![Diagnostics overview](docs/screenshots/Diagnostics%20p1.png)
+
+![Diagnostics cell data](docs/screenshots/Diagnostics%20p2.png)
+
+### Logs, Events and Backups
+
+Logs are a read-only support view. Events show app-level history. Backups manage local add-on configuration backups.
+
+![Logs](docs/screenshots/Logs.png)
+
+![Events](docs/screenshots/Events.png)
+
+![Backups](docs/screenshots/Backups.png)
+
+### Telegram Examples
+
+Telegram screenshots show the type of alert/report content the add-on can send when notifications are enabled.
+
+![Telegram warning example](docs/screenshots/Telegram1.png)
+
+![Telegram detail example](docs/screenshots/Telegram2.png)
+
+![Telegram report example](docs/screenshots/Telegram3.png)
+
+![Telegram recovery example](docs/screenshots/Telegram4.png)
+
+For setup/support screenshots, capture the audience-specific tabs:
 
 - **Dashboard**: normal user view with combined battery confidence values.
 - **Tech Status**: live per-pack values, warning intelligence, comparison charts and reference checks.
