@@ -251,6 +251,12 @@ DEFAULT_OPTION_VALUES = {
     "notify_delta_window_end": "10:00",
 }
 
+WARNING_TELEGRAM_POLICY_CHOICES = {
+    "all_bms_warnings": "Alert on all BMS warnings",
+    "user_reference_or_critical": "Alert on user reference exceeded, plus BMS critical/protection",
+    "user_reference_only": "Alert only when user reference is exceeded",
+}
+
 
 def load_options():
     if not os.path.exists(OPTIONS_PATH):
@@ -3563,8 +3569,3 @@ if __name__ == "__main__":
     configure_web_logging(startup_options)
     ensure_live_snapshot_cache_worker()
     app.run(host="0.0.0.0", port=8099)
-WARNING_TELEGRAM_POLICY_CHOICES = {
-    "all_bms_warnings": "Alert on all BMS warnings",
-    "user_reference_or_critical": "Alert on user reference exceeded, plus BMS critical/protection",
-    "user_reference_only": "Alert only when user reference is exceeded",
-}

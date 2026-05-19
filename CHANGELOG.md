@@ -1,3 +1,13 @@
+## 2.6.75 - 2026-05-19
+
+### Fixed
+- Fixed a Home Assistant runtime-only web UI crash caused by `WARNING_TELEGRAM_POLICY_CHOICES` being defined after `app.run()`.
+- The constant is now defined before the Flask server starts, matching both imported test behavior and Home Assistant script execution behavior.
+
+### Notes
+- No MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
 ## 2.6.74 - 2026-05-19
 
 ### Fixed

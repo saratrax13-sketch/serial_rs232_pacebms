@@ -5,6 +5,7 @@ import os
 import sys
 import tempfile
 import types
+from pathlib import Path
 from unittest.mock import patch
 
 
@@ -1179,6 +1180,13 @@ class HealthEndpointTests(unittest.TestCase):
                 with self.subTest(tab=tab):
                     response = client.get(f"/?tab={tab}")
                     self.assertEqual(response.status_code, 200)
+
+    def test_web_runtime_constants_are_defined_before_app_run(self):
+        source = Path("web_config.py").read_text(encoding="utf-8")
+        self.assertLess(
+            source.index("WARNING_TELEGRAM_POLICY_CHOICES ="),
+            source.index('if __name__ == "__main__":'),
+        )
 
     def test_root_defaults_to_user_dashboard(self):
         options = {
