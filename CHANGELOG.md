@@ -1,9 +1,19 @@
+## 2.9.3 - 2026-05-19
+
+### Fixed
+- Bumped the Home Assistant add-on version so the Dashboard graph repair is visible as an update.
+- Corrected Dashboard graph data mapping so bank SOC, battery power and pack voltage read the SQLite history API field names correctly.
+- Changed the Dashboard refresh button to refresh displayed data and graphs in place instead of replacing the dashboard panel.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.2 - 2026-05-19
 
 ### Changed
-- Bumped the Home Assistant add-on version so the graph and live-data-source repair sprint is visible as an update.
-- Corrected Dashboard graph data mapping so bank SOC, battery power and pack voltage read the SQLite history API field names correctly.
-- Changed the Dashboard refresh button to refresh displayed data and graphs in place instead of replacing the dashboard panel.
+- Bumped the Home Assistant add-on version so the live-data-source repair sprint is visible as an update.
 
 ### Notes
 - MQTT topics and Home Assistant discovery identifiers were not changed.
