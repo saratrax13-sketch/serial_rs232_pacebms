@@ -5096,6 +5096,11 @@ This cannot be undone.`);">
     let softTabLoading = false;
 
     function reloadTab(tabName) {
+      if (tabName === "dashboard") {
+        refreshDashboard(false);
+        refreshLiveTrends(true);
+        return;
+      }
       openTabSoft(tabName, false);
     }
 
@@ -5159,6 +5164,9 @@ This cannot be undone.`);">
           return;
         }
 
+        if (currentPanel.querySelector("#chart-bank-soc") || nextPanel.querySelector("#chart-bank-soc")) {
+          resetLiveTrendCharts();
+        }
         currentPanel.replaceWith(nextPanel);
         document.querySelectorAll(".tab-button").forEach(function (button) {
           const buttonTab = new URL(button.href, window.location.href).searchParams.get("tab") || "dashboard";
@@ -6112,6 +6120,44 @@ Restart the add-on afterwards for runtime changes to apply.`);
       });
     }
 
+    function resetLiveTrendCharts() {
+      Object.values(liveTrendCharts).forEach(function (chart) {
+        if (chart && typeof chart.destroy === "function") {
+          chart.destroy();
+        }
+      });
+      Object.keys(liveTrendCharts).forEach(function (key) {
+        delete liveTrendCharts[key];
+      });
+      liveTrendLastSnapshotId = null;
+    }
+
+    function historyNumber(value) {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : null;
+    }
+
+    function historyTimeLabel(ts) {
+      const number = Number(ts);
+      if (!Number.isFinite(number)) return String(ts || "");
+      return new Date(number * 1000).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+    }
+
+    function maxPackDeltaByTimestamp(packRows) {
+      const byTs = {};
+      (packRows || []).forEach(function (row) {
+        const ts = String(row.ts || "");
+        const delta = historyNumber(row.cell_delta_mv);
+        if (!ts || delta === null) return;
+        byTs[ts] = Math.max(byTs[ts] ?? 0, delta);
+      });
+      return byTs;
+    }
+
     function createLiveTrendChart(canvasId, label, color, unit) {
       const canvas = document.getElementById(canvasId);
       if (!canvas || !window.Chart) return null;
@@ -6164,7 +6210,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
       chart.update("none");
     }
 
-    async function refreshLiveTrends() {
+    async function refreshLiveTrends(force = false) {
       if (!document.getElementById("chart-bank-soc")) return;
       if (!window.Chart) {
         setLiveTrendStatus("Chart library did not load.");
@@ -6179,7 +6225,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
         const liveResponse = await fetch("api/live", { cache: "no-store" });
         if (liveResponse.ok) {
           const liveData = await liveResponse.json();
-          if (liveData.snapshot_id && liveData.snapshot_id === liveTrendLastSnapshotId && liveTrendChartsHaveData()) return;
+          if (!force && liveData.snapshot_id && liveData.snapshot_id === liveTrendLastSnapshotId && liveTrendChartsHaveData()) return;
           liveTrendLastSnapshotId = liveData.snapshot_id || null;
         }
         const response = await fetch("api/history?range_seconds=1800", { cache: "no-store" });
@@ -6190,12 +6236,13 @@ Restart the add-on afterwards for runtime changes to apply.`);
           setLiveTrendStatus("Waiting for local history samples.");
           return;
         }
-        const labels = bankRows.map(row => String(row.ts || "").slice(11, 19));
+        const labels = bankRows.map(row => historyTimeLabel(row.ts));
+        const deltaByTs = maxPackDeltaByTimestamp(history.packs || []);
         setLiveTrendStatus("");
-        updateLiveTrendChart("chart-bank-soc", labels, bankRows.map(row => row.soc));
-        updateLiveTrendChart("chart-bank-power", labels, bankRows.map(row => row.power_kw));
-        updateLiveTrendChart("chart-bank-voltage", labels, bankRows.map(row => row.voltage));
-        updateLiveTrendChart("chart-bank-delta", labels, bankRows.map(row => row.cell_delta_mv));
+        updateLiveTrendChart("chart-bank-soc", labels, bankRows.map(row => historyNumber(row.combined_soc)));
+        updateLiveTrendChart("chart-bank-power", labels, bankRows.map(row => historyNumber(row.total_power_kw)));
+        updateLiveTrendChart("chart-bank-voltage", labels, bankRows.map(row => historyNumber(row.avg_voltage)));
+        updateLiveTrendChart("chart-bank-delta", labels, bankRows.map(row => historyNumber(deltaByTs[String(row.ts || "")])));
       } catch (err) {
         setLiveTrendStatus("Graph refresh failed: " + err.message);
       }
