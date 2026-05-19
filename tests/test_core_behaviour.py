@@ -99,6 +99,96 @@ class PaceFrameTests(unittest.TestCase):
         self.assertEqual(message, "Checksum error")
 
 
+class MonitorRuntimeResilienceTests(unittest.TestCase):
+    def setUp(self):
+        bms_monitor._publish_cache.clear()
+
+    def tearDown(self):
+        bms_monitor._publish_cache.clear()
+
+    def test_setup_mqtt_returns_client_when_initial_connect_fails(self):
+        class FakeMqttClient:
+            def __init__(self, *args, **kwargs):
+                self.loop_started = False
+
+            def will_set(self, *args, **kwargs):
+                pass
+
+            def username_pw_set(self, *args, **kwargs):
+                pass
+
+            def connect(self, *args, **kwargs):
+                raise OSError("broker offline")
+
+            def loop_start(self):
+                self.loop_started = True
+
+        config = {
+            "mqtt_base_topic": "pacebms",
+            "mqtt_user": "user",
+            "mqtt_password": "password",
+            "mqtt_host": "192.168.1.10",
+            "mqtt_port": 1883,
+        }
+
+        with patch("bms_monitor.mqtt.Client", FakeMqttClient):
+            client = bms_monitor.setup_mqtt(config, "TESTSN")
+
+        self.assertIsInstance(client, FakeMqttClient)
+        self.assertFalse(client.loop_started)
+
+    def test_initialize_bms_identity_retries_without_exiting_when_serial_missing(self):
+        with (
+            patch("bms_monitor.bms_connect", return_value=(None, False)) as connect,
+            patch("bms_monitor.write_monitor_health") as health,
+            patch("bms_monitor.time.sleep"),
+        ):
+            result = bms_monitor.initialize_bms_identity({}, retry_seconds=0, max_attempts=2)
+
+        self.assertEqual(result, (None, None, None, None))
+        self.assertEqual(connect.call_count, 2)
+        self.assertEqual(health.call_count, 2)
+
+    def test_mqtt_publish_does_not_cache_when_client_is_disconnected(self):
+        class FakeMqttClient:
+            def is_connected(self):
+                return False
+
+            def publish(self, *args, **kwargs):
+                raise AssertionError("publish should not be called while disconnected")
+
+        sent = bms_monitor.mqtt_publish(
+            FakeMqttClient(),
+            "pacebms/test",
+            "123",
+            retain=True,
+        )
+
+        self.assertFalse(sent)
+        self.assertNotIn("pacebms/test", bms_monitor._publish_cache)
+
+    def test_mqtt_publish_caches_only_after_successful_publish(self):
+        class FakeMqttClient:
+            def __init__(self):
+                self.published = []
+
+            def is_connected(self):
+                return True
+
+            def publish(self, topic, value, qos=0, retain=False):
+                self.published.append((topic, value, qos, retain))
+
+        client = FakeMqttClient()
+
+        first = bms_monitor.mqtt_publish(client, "pacebms/test", "123", retain=True)
+        second = bms_monitor.mqtt_publish(client, "pacebms/test", "123", retain=True)
+
+        self.assertTrue(first)
+        self.assertFalse(second)
+        self.assertEqual(client.published, [("pacebms/test", "123", 0, True)])
+        self.assertEqual(bms_monitor._publish_cache["pacebms/test"], "123")
+
+
 class StandaloneDockerConfigTests(unittest.TestCase):
     def test_standalone_bootstrap_creates_options_from_defaults_and_env(self):
         with tempfile.TemporaryDirectory() as tmpdir:

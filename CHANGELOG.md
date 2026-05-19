@@ -1,3 +1,16 @@
+## 2.7.3 - 2026-05-19
+
+### Fixed
+- Kept the monitor process alive when the serial cable or BMS is unavailable during startup; it now reports disconnected health and retries instead of exiting.
+- Made MQTT startup failures non-fatal so the monitor can keep running and retry MQTT.
+- Allowed BMS polling to continue while MQTT reconnect attempts are in progress.
+- Prevented the MQTT publish cache from marking values as sent while the MQTT client is disconnected.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling intervals were not changed.
+- No BMS write/control commands were added.
+
 ## 2.7.2 - 2026-05-19
 
 ### Changed

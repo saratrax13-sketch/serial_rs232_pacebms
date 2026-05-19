@@ -1384,7 +1384,14 @@ def mqtt_publish(client, topic: str, value: str, qos: int = 0, retain: bool = Fa
     """
     value = str(value)
     if not force and _publish_cache.get(topic) == value:
-        return
+        return False
+
+    try:
+        if hasattr(client, "is_connected") and not client.is_connected():
+            log.debug("MQTT publish skipped while disconnected: %s", topic)
+            return False
+    except Exception:
+        pass
 
     client.publish(topic, value, qos=qos, retain=retain)
     _publish_cache[topic] = value
@@ -1393,6 +1400,7 @@ def mqtt_publish(client, topic: str, value: str, qos: int = 0, retain: bool = Fa
         log.debug("MQTT discovery ▶ %s", topic)
     else:
         log.debug("MQTT state ▶ %s = %s", topic, value)
+    return True
 
 
 def _zpad(config: dict, key: str) -> int:
@@ -1667,10 +1675,58 @@ def setup_mqtt(config: dict, bms_sn: str) -> mqtt.Client:
     client.on_disconnect = lambda c, u, rc:    log.warning("MQTT disconnected (rc=%s)", rc)
 
     client.username_pw_set(config['mqtt_user'], config['mqtt_password'])
-    client.connect(config['mqtt_host'], config['mqtt_port'], 60)
-    client.loop_start()
-    time.sleep(2)
+    try:
+        client.connect(config['mqtt_host'], config['mqtt_port'], 60)
+        client.loop_start()
+        time.sleep(2)
+    except Exception as exc:
+        log.warning("MQTT initial connection failed; monitor will keep running and retry: %s", exc)
     return client
+
+
+def initialize_bms_identity(config: dict, retry_seconds: float = 5.0, max_attempts: Optional[int] = None):
+    """Connect to the BMS and read identity, retrying without exiting.
+
+    Startup must remain alive when the serial cable is unplugged or the BMS is
+    still booting. This helper does not publish MQTT and does not write to the
+    BMS; it only performs the existing read-only version/serial requests.
+    """
+    attempts = 0
+    last_reason = "Not attempted"
+
+    while max_attempts is None or attempts < max_attempts:
+        attempts += 1
+        log.info("Connecting to BMS...")
+        bms, bms_connected = bms_connect(config)
+
+        if not bms_connected or bms is None:
+            last_reason = "Serial connection failed"
+            write_monitor_health(config, "disconnected", last_reason, retry_count=attempts)
+        else:
+            success, bms_version = bms_get_version(bms, config)
+            if not success:
+                version_error = bms_version
+                bms_version = "unknown"
+                log.warning("Could not retrieve BMS version: %s", version_error)
+
+            time.sleep(0.1)
+
+            success, bms_sn, pack_sn = bms_get_serial(bms, config)
+            if success and bms_sn:
+                return bms, bms_version, bms_sn, pack_sn or "unknown"
+
+            last_reason = str(bms_sn or "Cannot retrieve BMS serial")
+            log.warning("Cannot retrieve BMS serial; retrying startup identity read: %s", last_reason)
+            write_monitor_health(config, "disconnected", last_reason, retry_count=attempts)
+            try:
+                bms.close()
+            except Exception:
+                pass
+
+        if max_attempts is None or attempts < max_attempts:
+            time.sleep(retry_seconds)
+
+    return None, None, None, None
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
@@ -1690,21 +1746,9 @@ def main():
         logging.getLogger().setLevel(logging.INFO)
 
     # ── Initial BMS connection (needed for serial number before MQTT setup) ──
-    log.info("Connecting to BMS...")
-    bms, bms_connected = bms_connect(config)
+    bms, bms_version, bms_sn, pack_sn = initialize_bms_identity(config)
+    bms_connected = bms is not None
 
-    success, bms_version = bms_get_version(bms, config)
-    bms_version = bms_version if success else "unknown"
-    if not success:
-        log.warning("Could not retrieve BMS version")
-        telegram_notify(config, "WARNING: Could not retrieve BMS version. BMS may be starting up.")
-
-    time.sleep(0.1)
-
-    success, bms_sn, pack_sn = bms_get_serial(bms, config)
-    if not success:
-        telegram_notify(config, "ERROR: Cannot retrieve BMS serial. Monitor exiting.")
-        sys.exit("Cannot retrieve BMS serial — required for HA Discovery. Exiting.")
 
     # ── MQTT (client ID uses bms_sn; will set before connect) ────────────────
     client = setup_mqtt(config, bms_sn)
@@ -1970,13 +2014,19 @@ def main():
 
             # ── Reconnect MQTT if needed ──────────────────────────────────────
             if not client.is_connected():
-                log.warning("MQTT disconnected — retrying in 5s...")
-                client.loop_stop()
-                client.connect(config['mqtt_host'], config['mqtt_port'], 60)
-                client.loop_start()
-                time.sleep(5)
-                last_discovery = 0.0
-                continue
+                log.warning("MQTT disconnected - retrying while BMS polling continues...")
+                try:
+                    client.loop_stop()
+                except Exception:
+                    pass
+                try:
+                    client.connect(config['mqtt_host'], config['mqtt_port'], 60)
+                    client.loop_start()
+                    _publish_cache.clear()
+                    last_discovery = 0.0
+                    log.info("MQTT reconnect attempt started")
+                except Exception as exc:
+                    log.warning("MQTT reconnect failed; continuing BMS polling: %s", exc)
 
             # ── Poll BMS ──────────────────────────────────────────────────────
             success, result = bms_get_analog_data(bms, config)
