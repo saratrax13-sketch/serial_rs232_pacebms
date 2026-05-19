@@ -2411,9 +2411,63 @@ def classify_log_line(line, source):
     return view_level, category
 
 
+def log_row_views(line, level, category):
+    """Return the simplified log views this row should appear in."""
+    lowered = str(line or "").lower()
+    normalized_category = str(category or "")
+    important = level <= 0
+
+    if "telegram sent" in lowered:
+        important = True
+    if normalized_category == "MQTT" and any(word in lowered for word in ("connected", "disconnected", "failed", "error")):
+        important = True
+    if any(phrase in lowered for phrase in (
+        "starting up",
+        "startup notification",
+        "monitor started",
+        "monitor stopped",
+        "shutdown",
+        "warning notification sent",
+        "warning reminder sent",
+        "warning cleared",
+        "stale data",
+        "data recovered",
+    )):
+        important = True
+
+    battery_reads = important or any(phrase in lowered for phrase in (
+        "analog read ok",
+        "warn read ok",
+        "pack_",
+        "charge_fet",
+        "discharge_fet",
+    ))
+
+    return {
+        "important": important,
+        "battery": battery_reads,
+        "everything": True,
+    }
+
+
 def parse_log_time(line):
-    match = re.search(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:,\d{3})?", str(line or ""))
-    return match.group(0) if match else ""
+    text = str(line or "")
+    match = re.search(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:,\d{3})?", text)
+    if match:
+        return match.group(0)
+
+    access_match = re.search(r"\[(\d{1,2})/([A-Za-z]{3})/(\d{4})\s+(\d{2}:\d{2}:\d{2})", text)
+    if access_match:
+        day, month_name, year, clock = access_match.groups()
+        month_map = {
+            "jan": "01", "feb": "02", "mar": "03", "apr": "04",
+            "may": "05", "jun": "06", "jul": "07", "aug": "08",
+            "sep": "09", "oct": "10", "nov": "11", "dec": "12",
+        }
+        month = month_map.get(month_name.lower())
+        if month:
+            return f"{year}-{month}-{int(day):02d} {clock}"
+    return ""
 
 
 def clean_log_message(line):
@@ -2428,33 +2482,43 @@ def build_log_view(options):
         for index, line in enumerate(read_log_tail(path)):
             level, category = classify_log_line(line, source)
             time_text = parse_log_time(line)
+            views = log_row_views(line, level, category)
             rows.append({
                 "source": "Monitor" if source == "monitor" else "Web UI",
                 "time": time_text,
                 "level": level,
                 "level_label": f"Debug {level}",
                 "category": category,
+                "important": views["important"],
+                "battery": views["battery"],
+                "everything": views["everything"],
                 "message": clean_log_message(line),
                 "sort_key": f"{time_text}-{source}-{index:04d}",
             })
 
     rows.sort(key=lambda row: row["sort_key"], reverse=True)
+    rows = rows[:MAX_LOG_VIEW_LINES]
     debug_output = safe_int(options.get("debug_output", 0), 0) if options else 0
-    default_view_level = 2
-    visible_at_default = sum(1 for row in rows if row["level"] <= default_view_level)
+    default_view = "battery"
+    visible_at_default = sum(1 for row in rows if row.get(default_view))
     counts_by_level = {level: sum(1 for row in rows if row["level"] <= level) for level in range(4)}
+    counts_by_view = {
+        "important": sum(1 for row in rows if row.get("important")),
+        "battery": sum(1 for row in rows if row.get("battery")),
+        "everything": len(rows),
+    }
     row_times = [row["time"] for row in rows if row["time"]]
     return {
-        "rows": rows[:MAX_LOG_VIEW_LINES],
+        "rows": rows,
         "debug_output": debug_output,
-        "default_view_level": default_view_level,
+        "default_view": default_view,
         "visible_at_default": visible_at_default,
         "counts_by_level": counts_by_level,
+        "counts_by_view": counts_by_view,
         "oldest_time": row_times[-1] if row_times else "Unknown",
         "newest_time": row_times[0] if row_times else "Unknown",
         "monitor_log_path": MONITOR_LOG_PATH,
         "web_log_path": WEB_LOG_PATH,
-        "categories": ["All", "Monitor", "Warnings", "MQTT", "Telegram", "Web UI", "Protocol"],
     }
 
 

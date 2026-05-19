@@ -1,3 +1,20 @@
+## 2.6.69 - 2026-05-19
+
+### Changed
+- Simplified the Logs tab to one Show dropdown: Important, Battery reads and Everything.
+- Made Battery reads the default Logs view so normal Analog/Warn read summaries are visible without understanding debug levels.
+- Removed the Logs category dropdown and View Detail wording.
+- Kept Logs search, latest 400-line sampling, oldest/newest timestamps and 15-second soft refresh.
+- Preserved the selected Logs view, search text and information panel state during automatic refresh.
+
+### Fixed
+- Added config save/load coverage for upgraded default options, blank sensitive fields and restart-required save messaging.
+- Confirmed config saves still write Home Assistant add-on options only and do not write anything to the BMS.
+
+### Notes
+- Logs filtering is display-only. Changing the Logs view does not change what the monitor records.
+- No MQTT topics, Home Assistant discovery entity names or BMS write/control behavior were changed.
+
 ## 2.6.68 - 2026-05-19
 
 ### Changed

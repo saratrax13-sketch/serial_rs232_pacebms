@@ -371,6 +371,20 @@ class HealthEndpointTests(unittest.TestCase):
     def tearDown(self):
         web_config.clear_live_snapshot_cache()
 
+    def _form_from_options(self, options):
+        form = {}
+        for keys in web_config.GROUPS.values():
+            for key in keys:
+                value = options.get(key, web_config.DEFAULT_OPTION_VALUES.get(key, ""))
+                if isinstance(value, bool):
+                    if value:
+                        form[key] = "on"
+                elif key in web_config.SENSITIVE_KEYS:
+                    form[key] = ""
+                else:
+                    form[key] = str(value)
+        return form
+
     def test_setup_page_renders_setup_checklist(self):
         options = {
             "connection_type": "Serial",
@@ -459,6 +473,44 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"User defined", response.data)
         self.assertIn(b"FET Notifications", response.data)
         self.assertIn(b"Scheduled Reports", response.data)
+
+    def test_build_options_from_form_adds_upgraded_defaults_and_preserves_secrets(self):
+        current_options = dict(web_config.DEFAULT_OPTION_VALUES)
+        current_options["telegram_bot_token"] = "123456:real-token"
+        current_options["telegram_chat_id"] = "987654"
+        current_options.pop("battery_profile", None)
+        current_options.pop("daily_energy_current_deadband_a", None)
+        form = self._form_from_options(dict(web_config.DEFAULT_OPTION_VALUES))
+        form["telegram_bot_token"] = ""
+        form["telegram_chat_id"] = ""
+        form["scan_interval"] = "12"
+        form["daily_energy_current_deadband_a"] = "0.4"
+
+        new_options = web_config.build_options_from_form(form, current_options)
+
+        self.assertEqual(new_options["telegram_bot_token"], "123456:real-token")
+        self.assertEqual(new_options["telegram_chat_id"], "987654")
+        self.assertEqual(new_options["battery_profile"], web_config.DEFAULT_OPTION_VALUES["battery_profile"])
+        self.assertEqual(new_options["daily_energy_current_deadband_a"], 0.4)
+        self.assertEqual(new_options["scan_interval"], 12)
+
+    def test_save_config_redirects_with_restart_message_after_successful_save(self):
+        options = dict(web_config.DEFAULT_OPTION_VALUES)
+        form = self._form_from_options(options)
+        form["scan_interval"] = "14"
+
+        with (
+            patch("web_config.load_options", return_value=(options, "")),
+            patch("web_config.create_config_backup", return_value=(True, "backup ok", "before-save.json")),
+            patch("web_config.save_addon_options", return_value=(True, "Configuration saved to Home Assistant add-on options.")),
+            patch("web_config.append_event"),
+        ):
+            response = web_config.app.test_client().post("/save-config", data=form)
+
+        self.assertEqual(response.status_code, 303)
+        location = response.headers["Location"]
+        self.assertIn("tab=config", location)
+        self.assertIn("Restart%20required%20for%20monitor%20runtime%20changes%20to%20apply", location)
 
     def test_status_page_renders_technician_view(self):
         options = {
@@ -656,16 +708,39 @@ class HealthEndpointTests(unittest.TestCase):
             log_view = web_config.build_log_view(options)
 
         self.assertEqual(log_view["debug_output"], 2)
-        self.assertEqual(log_view["default_view_level"], 2)
+        self.assertEqual(log_view["default_view"], "battery")
         self.assertEqual(log_view["visible_at_default"], 3)
         analog_row = next(row for row in log_view["rows"] if "Analog read OK" in row["message"])
         web_row = next(row for row in log_view["rows"] if "GET /api/status" in row["message"])
         self.assertEqual(analog_row["level"], 2)
         self.assertEqual(analog_row["category"], "Monitor")
+        self.assertTrue(analog_row["battery"])
+        self.assertFalse(analog_row["important"])
         self.assertEqual(web_row["level"], 3)
         self.assertEqual(web_row["category"], "Web UI")
+        self.assertFalse(web_row["battery"])
+        self.assertTrue(web_row["everything"])
         self.assertEqual(log_view["oldest_time"], "2026-05-18 18:46:15,123")
-        self.assertEqual(log_view["newest_time"], "2026-05-18 18:47:18,595")
+        self.assertEqual(log_view["newest_time"], "2026-05-18 18:47:33")
+
+    def test_logs_page_uses_simple_show_filter(self):
+        options = dict(web_config.DEFAULT_OPTION_VALUES)
+
+        with patch("web_config.load_options", return_value=(options, "")), \
+            patch("web_config.read_log_tail", return_value=[
+                "2026-05-18 18:46:15,123 [INFO] Analog read OK: packs=2",
+                "2026-05-18 18:47:18,595 [WARNING] Telegram not configured",
+            ]), \
+            patch("web_config.load_events", return_value=[]):
+            response = web_config.app.test_client().get("/?tab=logs")
+
+        html = response.get_data(as_text=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('id="log-show-filter"', html)
+        self.assertIn("Battery reads", html)
+        self.assertIn("Everything", html)
+        self.assertNotIn('id="log-category-filter"', html)
+        self.assertNotIn("View detail", html)
 
     def test_monitoring_health_uses_heartbeat_and_live_mqtt(self):
         options = {

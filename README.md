@@ -26,7 +26,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.68"
+version: "2.6.69"
 ```
 
 ---
@@ -646,9 +646,22 @@ Debug levels:
 |---:|---|
 | 0 | Normal logs |
 | 1 | Extra parser/debug detail |
+| 2 | Poll troubleshooting detail |
 | 3 | Raw protocol frames |
 
 Use `debug_output: 3` only when troubleshooting protocol issues.
+
+### Logs Tab
+
+The Logs tab is a read-only viewer for the latest 400 captured log lines. It auto-refreshes every 15 seconds while open and keeps the selected view and search text.
+
+Use **Show** to choose:
+
+- **Important**: warnings, errors, Telegram sends/failures, MQTT connect/disconnect issues, startup/shutdown, stale/recovery and warning sent/cleared lines.
+- **Battery reads**: Important lines plus normal `Analog read OK` and `Warn read OK` battery polling summaries. This is the default.
+- **Everything**: the full captured sample, including web access lines, `/api/status`, `/health`, debug and protocol lines.
+
+The oldest and newest timestamps show the time span covered by the current 400-line sample.
 
 ---
 

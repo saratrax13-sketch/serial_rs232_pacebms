@@ -3322,24 +3322,20 @@ This cannot be undone.`);">
         {% if log_view %}
         <div class="log-metric-row">
           <div class="log-metric">
-            <div class="log-metric-label">Captured lines</div>
+            <div class="log-metric-label">Showing latest</div>
             <div class="log-metric-value">{{ log_view.rows|length }}</div>
           </div>
           <div class="log-metric">
-            <div class="log-metric-label">Current capture setting</div>
-            <div class="log-metric-value">debug_output {{ log_view.debug_output }}</div>
-          </div>
-          <div class="log-metric">
-            <div class="log-metric-label">Visible now</div>
-            <div class="log-metric-value">{{ log_view.visible_at_default }}</div>
-          </div>
-          <div class="log-metric">
-            <div class="log-metric-label">Oldest line</div>
+            <div class="log-metric-label">Oldest</div>
             <div class="log-metric-value">{{ log_view.oldest_time }}</div>
           </div>
           <div class="log-metric">
-            <div class="log-metric-label">Newest line</div>
+            <div class="log-metric-label">Newest</div>
             <div class="log-metric-value">{{ log_view.newest_time }}</div>
+          </div>
+          <div class="log-metric">
+            <div class="log-metric-label">Auto-refresh</div>
+            <div class="log-metric-value">15s</div>
           </div>
         </div>
         {% endif %}
@@ -3348,35 +3344,24 @@ This cannot be undone.`);">
         <details id="log-viewer-info" class="compact-help" style="margin-top: 10px;">
           <summary>Log viewer information</summary>
           <div class="helper-note">
-            <strong>Captured lines</strong> are the latest {{ log_view.rows|length if log_view else 0 }} lines read from <code>/data/pacebms-monitor.log</code> and <code>/data/pacebms-web.log</code>. The viewer keeps a latest {{ 400 }} line sample so the page stays fast.
+            <strong>Showing latest</strong> is the newest {{ 400 }} line sample read from <code>/data/pacebms-monitor.log</code> and <code>/data/pacebms-web.log</code>. The sample is capped so the page stays fast.
             <br><br>
             <strong>Refresh Logs</strong> reads the latest sample again and keeps the page in the Logs tab. Logs now also auto-refresh quietly while this tab is open.
             <br><br>
-            <strong>View Detail</strong>, <strong>Category</strong> and <strong>Search</strong> only filter what is displayed. They do not change what the monitor records. To capture deeper monitor detail, change <code>debug_output</code> in Config and restart the add-on.
+            <strong>Show</strong> chooses the display: Important shows alerts/events, Battery reads adds normal Analog/Warn read summaries, and Everything shows the whole captured sample including web access/debug lines.
+            <br><br>
+            <strong>Search</strong> only filters what is displayed. It does not change what the monitor records. To capture deeper monitor detail, change <code>debug_output</code> in Config and restart the add-on.
             <br><br>
             The oldest and newest line timestamps show the time span covered by the current sample.
           </div>
         </details>
         <div class="log-controls">
           <div class="log-control">
-            <label for="log-level-filter">View detail</label>
-            <select id="log-level-filter" onchange="filterLogs()">
-              <option value="0">Alerts / events only</option>
-              <option value="1">Summary</option>
-              <option value="2" {% if log_view and log_view.default_view_level == 2 %}selected{% endif %}>Detailed</option>
-              <option value="3">Debug / Web access</option>
-            </select>
-          </div>
-          <div class="log-control">
-            <label for="log-category-filter">Category</label>
-            <select id="log-category-filter" onchange="filterLogs()">
-              {% if log_view %}
-              {% for category in log_view.categories %}
-              <option value="{{ category }}">{{ category }}</option>
-              {% endfor %}
-              {% else %}
-              <option value="All">All</option>
-              {% endif %}
+            <label for="log-show-filter">Show</label>
+            <select id="log-show-filter" onchange="filterLogs()">
+              <option value="important">Important</option>
+              <option value="battery" {% if not log_view or log_view.default_view == "battery" %}selected{% endif %}>Battery reads</option>
+              <option value="everything">Everything</option>
             </select>
           </div>
           <div class="log-control">
@@ -3387,7 +3372,6 @@ This cannot be undone.`);">
 
         <div class="actions">
           <button type="button" onclick="reloadTab('logs')">Refresh Logs</button>
-          <button type="button" onclick="clearLogView()">Clear View</button>
           <a class="button-link" href="download-logs.txt">Download Logs</a>
         </div>
 
@@ -3397,18 +3381,14 @@ This cannot be undone.`);">
             <tr>
               <th>Time</th>
               <th>Source</th>
-              <th>Category</th>
-              <th>Level</th>
               <th>Message</th>
             </tr>
           </thead>
           <tbody>
             {% for row in log_view.rows %}
-            <tr data-log-level="{{ row.level }}" data-log-category="{{ row.category }}" data-log-search="{{ row.message|lower }} {{ row.category|lower }} {{ row.source|lower }}">
+            <tr data-log-important="{{ 1 if row.important else 0 }}" data-log-battery="{{ 1 if row.battery else 0 }}" data-log-everything="1" data-log-search="{{ row.message|lower }} {{ row.category|lower }} {{ row.source|lower }}">
               <td>{{ row.time or "Unknown" }}</td>
               <td><span class="log-pill">{{ row.source }}</span></td>
-              <td><span class="log-pill">{{ row.category }}</span></td>
-              <td>{{ row.level_label }}</td>
               <td class="log-message">{{ row.message }}</td>
             </tr>
             {% endfor %}
@@ -3731,8 +3711,7 @@ This cannot be undone.`);">
 
     function getLogFilterState() {
       return {
-        level: document.getElementById("log-level-filter")?.value || "",
-        category: document.getElementById("log-category-filter")?.value || "",
+        show: document.getElementById("log-show-filter")?.value || "",
         search: document.getElementById("log-search")?.value || "",
         infoOpen: Boolean(document.getElementById("log-viewer-info")?.open),
       };
@@ -3740,11 +3719,9 @@ This cannot be undone.`);">
 
     function restoreLogFilterState(state) {
       if (!state) return;
-      const level = document.getElementById("log-level-filter");
-      const category = document.getElementById("log-category-filter");
+      const show = document.getElementById("log-show-filter");
       const search = document.getElementById("log-search");
-      if (level && state.level) level.value = state.level;
-      if (category && state.category) category.value = state.category;
+      if (show && state.show) show.value = state.show;
       if (search) search.value = state.search || "";
       const info = document.getElementById("log-viewer-info");
       if (info) info.open = Boolean(state.infoOpen);
@@ -3944,7 +3921,7 @@ This cannot be undone.`);">
         return;
       }
 
-      if (document.querySelector('.tab-panel.active #log-level-filter')) {
+      if (document.querySelector('.tab-panel.active #log-show-filter')) {
         filterLogs();
         addActiveTabTimer(function () {
           refreshActiveTabSoft();
@@ -4588,16 +4565,18 @@ Restart the add-on afterwards for runtime changes to apply.`);
       const table = document.getElementById("log-table");
       if (!table) return;
 
-      const level = Number(document.getElementById("log-level-filter")?.value || 0);
-      const category = document.getElementById("log-category-filter")?.value || "All";
+      const showMode = document.getElementById("log-show-filter")?.value || "battery";
       const search = String(document.getElementById("log-search")?.value || "").trim().toLowerCase();
       let visibleCount = 0;
 
       table.querySelectorAll("tbody tr").forEach(function (row) {
-        const rowLevel = Number(row.dataset.logLevel || 0);
-        const rowCategory = row.dataset.logCategory || "";
+        const rowMatchesMode = showMode === "everything"
+          ? row.dataset.logEverything === "1"
+          : showMode === "important"
+            ? row.dataset.logImportant === "1"
+            : row.dataset.logBattery === "1";
         const haystack = row.dataset.logSearch || "";
-        const show = rowLevel <= level && (category === "All" || rowCategory === category) && (!search || haystack.includes(search));
+        const show = rowMatchesMode && (!search || haystack.includes(search));
         row.style.display = show ? "" : "none";
         if (show) visibleCount += 1;
       });
@@ -4606,27 +4585,13 @@ Restart the add-on afterwards for runtime changes to apply.`);
       if (empty) {
         empty.hidden = visibleCount > 0;
         if (!empty.hidden) {
-          empty.textContent = level < 2
-            ? "No alert/event lines match this view. Change View Detail to Detailed for Analog/Warn read summaries, or Debug / Web access for web access lines."
-            : "No log lines match the current filters. Try All categories or clear the search box.";
+          empty.textContent = showMode === "important"
+            ? "No important alert/event lines match this view. Change Show to Battery reads or Everything, or clear the search box."
+            : "No log lines match the current filters. Change Show or clear the search box.";
         }
       }
     }
 
-    function clearLogView() {
-      const table = document.getElementById("log-table");
-      if (!table) return;
-      table.querySelectorAll("tbody tr").forEach(function (row) {
-        row.style.display = "none";
-      });
-      const empty = document.getElementById("log-empty-filtered");
-      if (empty) {
-        empty.hidden = false;
-        empty.textContent = "Log view cleared. Refresh Logs to reload captured entries.";
-      }
-    }
-
-  
     function setDashboardText(selector, value) {
       const el = document.querySelector(selector);
       if (el) el.textContent = value ?? "Unknown";
