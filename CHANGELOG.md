@@ -10,6 +10,7 @@
 - Expanded project context guidance with battery data points, known watch areas, deployment considerations, versioning and GitHub safety rules.
 - Added focused project skill guides for serial frame debugging, voltage parsing, capacity parsing, warning/alarm handling, MQTT/Home Assistant discovery, Telegram setup, Home Assistant add-on mode and future standalone Docker mode.
 - Added sprint batching and required git commit comment guidance for future GitHub uploads.
+- Added sprint prompt examples for starting future review, implementation and release-note work.
 
 ### Removed
 - Removed the temporary `web-ui-2.0.39-warning-reference.png` screenshot.

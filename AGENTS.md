@@ -78,6 +78,7 @@ For config changes, also verify:
 - `docs/ai/ALERT_RULES.md`
 - `docs/ai/UI_RULES.md`
 - `docs/ai/CODING_STYLE.md`
+- `docs/ai/SPRINT_PROMPTS.md`
 - `docs/ai/VALIDATION_CHECKLIST.md`
 
 ## Project Skills
