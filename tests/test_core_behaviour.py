@@ -64,6 +64,7 @@ if importlib.util.find_spec("flask") is None:
 
 import bms_monitor
 import bms_notify
+import standalone_config
 import web_config
 
 
@@ -96,6 +97,71 @@ class PaceFrameTests(unittest.TestCase):
 
         self.assertFalse(ok)
         self.assertEqual(message, "Checksum error")
+
+
+class StandaloneDockerConfigTests(unittest.TestCase):
+    def test_standalone_bootstrap_creates_options_from_defaults_and_env(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            data_dir = Path(tmpdir) / "data"
+            config_path = Path(tmpdir) / "config.yaml"
+            config_path.write_text(
+                """
+options:
+  bms_serial: /dev/ttyUSB0
+  bms_baudrate: 9600
+  scan_interval: 5
+  mqtt_host: 192.168.1.10
+  mqtt_port: 1883
+  mqtt_password: placeholder
+  notify_enabled: true
+  debug_output: 0
+""".strip(),
+                encoding="utf-8",
+            )
+
+            old_data_dir = standalone_config.DATA_DIR
+            old_options_path = standalone_config.OPTIONS_PATH
+            old_config_path = standalone_config.ADDON_CONFIG_PATH
+            try:
+                standalone_config.DATA_DIR = data_dir
+                standalone_config.OPTIONS_PATH = data_dir / "options.json"
+                standalone_config.ADDON_CONFIG_PATH = config_path
+                with patch.dict(os.environ, {
+                    "PACEBMS_MQTT_HOST": "10.0.0.5",
+                    "PACEBMS_SCAN_INTERVAL": "7",
+                    "PACEBMS_NOTIFY_ENABLED": "false",
+                }, clear=False):
+                    created = standalone_config.ensure_standalone_options()
+
+                self.assertTrue(created)
+                saved = json.loads((data_dir / "options.json").read_text(encoding="utf-8"))
+                self.assertEqual(saved["mqtt_host"], "10.0.0.5")
+                self.assertEqual(saved["scan_interval"], 7)
+                self.assertFalse(saved["notify_enabled"])
+            finally:
+                standalone_config.DATA_DIR = old_data_dir
+                standalone_config.OPTIONS_PATH = old_options_path
+                standalone_config.ADDON_CONFIG_PATH = old_config_path
+
+    def test_standalone_bootstrap_does_not_overwrite_existing_options(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            data_dir = Path(tmpdir) / "data"
+            data_dir.mkdir()
+            options_path = data_dir / "options.json"
+            options_path.write_text('{"mqtt_host": "existing"}', encoding="utf-8")
+
+            old_data_dir = standalone_config.DATA_DIR
+            old_options_path = standalone_config.OPTIONS_PATH
+            try:
+                standalone_config.DATA_DIR = data_dir
+                standalone_config.OPTIONS_PATH = options_path
+                created = standalone_config.ensure_standalone_options()
+
+                self.assertFalse(created)
+                self.assertEqual(json.loads(options_path.read_text(encoding="utf-8"))["mqtt_host"], "existing")
+            finally:
+                standalone_config.DATA_DIR = old_data_dir
+                standalone_config.OPTIONS_PATH = old_options_path
 
 
 class WarningNormalizationTests(unittest.TestCase):

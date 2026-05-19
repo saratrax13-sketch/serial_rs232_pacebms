@@ -17,6 +17,7 @@ pip-wheel-metadata/
 # Local config / secrets
 .env
 .env.*
+!.env.example
 secrets.yaml
 options.json
 config.local.yaml

@@ -1,3 +1,16 @@
+## 2.7.0 - 2026-05-19
+
+### Added
+- Added standalone Docker support as a secondary deployment path while keeping Home Assistant add-on mode as the primary path.
+- Added a Docker configuration bootstrap that creates `/data/options.json` from `config.yaml` defaults plus `PACEBMS_` environment variables when no options file exists.
+- Added a standalone-friendly `docker-compose.yaml` with persistent `/data`, web UI port mapping, serial device mapping, restart policy, log rotation and healthcheck.
+- Added `.env.example` and standalone Docker documentation.
+
+### Notes
+- Existing `/data/options.json` files are never overwritten by the Docker bootstrap.
+- MQTT topics, Home Assistant discovery identifiers and monitor polling behavior were not changed.
+- No BMS write/control commands were added.
+
 ## 2.6.102 - 2026-05-19
 
 ### Changed

@@ -1,28 +1,44 @@
-version: '3.8'
-
 services:
-  bmspace:
+  pacebms:
     build:
       context: .
+    container_name: pacebms-rs232-monitor
     restart: unless-stopped
-    privileged: true        # needed for serial/USB device access
 
     volumes:
-      - ./config.yaml:/workdir/config.yaml:ro   # read-only — container should not modify config
-      - /dev:/dev
+      - ./data:/data
 
-    # Optional: override config values without rebuilding the image.
-    # Uncomment and populate if you prefer env vars over config.yaml.
-    # env_file:
-    #   - .env
+    devices:
+      - "${PACEBMS_SERIAL_DEVICE:-/dev/ttyUSB0}:${PACEBMS_SERIAL_DEVICE:-/dev/ttyUSB0}"
 
-    # Health check — restarts container if BMS monitor stops responding
+    ports:
+      - "${PACEBMS_WEB_PORT:-8099}:8099"
+
+    environment:
+      PACEBMS_BMS_SERIAL: "${PACEBMS_BMS_SERIAL:-/dev/ttyUSB0}"
+      PACEBMS_BMS_BAUDRATE: "${PACEBMS_BMS_BAUDRATE:-9600}"
+      PACEBMS_SCAN_INTERVAL: "${PACEBMS_SCAN_INTERVAL:-5}"
+      PACEBMS_MQTT_HOST: "${PACEBMS_MQTT_HOST:-192.168.1.10}"
+      PACEBMS_MQTT_PORT: "${PACEBMS_MQTT_PORT:-1883}"
+      PACEBMS_MQTT_USER: "${PACEBMS_MQTT_USER:-YOUR_MQTT_USER}"
+      PACEBMS_MQTT_PASSWORD: "${PACEBMS_MQTT_PASSWORD:-YOUR_MQTT_PASSWORD}"
+      PACEBMS_MQTT_BASE_TOPIC: "${PACEBMS_MQTT_BASE_TOPIC:-pacebms}"
+      PACEBMS_TELEGRAM_BOT_TOKEN: "${PACEBMS_TELEGRAM_BOT_TOKEN:-YOUR_TELEGRAM_BOT_TOKEN}"
+      PACEBMS_TELEGRAM_CHAT_ID: "${PACEBMS_TELEGRAM_CHAT_ID:-YOUR_TELEGRAM_CHAT_ID}"
+      PACEBMS_NOTIFY_ENABLED: "${PACEBMS_NOTIFY_ENABLED:-true}"
+      PACEBMS_DEBUG_OUTPUT: "${PACEBMS_DEBUG_OUTPUT:-0}"
+      PACEBMS_BATTERY_PROFILE: "${PACEBMS_BATTERY_PROFILE:-auto}"
+
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -f bms_monitor.py || exit 1"]
+      test:
+        - CMD-SHELL
+        - >-
+          python -c "import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8099/health', timeout=5)"
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 15s
+      start_period: 20s
 
     logging:
       driver: "json-file"

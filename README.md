@@ -27,7 +27,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.102"
+version: "2.7.0"
 ```
 
 ---
@@ -360,6 +360,43 @@ https://github.com/saratrax13-sketch/serial_rs232_pacebms
 6. Install the add-on.
 7. Configure the add-on.
 8. Start the add-on.
+
+---
+
+## Standalone Docker Mode
+
+Home Assistant add-on mode remains the primary deployment path, but the project can also run as a standalone Docker container.
+
+Standalone Docker uses the same read-only monitor and the same `/data/options.json` runtime configuration file. On first start, `standalone_config.py` creates `/data/options.json` from `config.yaml` defaults plus `PACEBMS_` environment variables. Existing `/data/options.json` files are never overwritten.
+
+Basic standalone flow:
+
+```powershell
+copy .env.example .env
+docker compose up -d --build
+```
+
+Then open:
+
+```text
+http://localhost:8099
+```
+
+Minimum `.env` values to review:
+
+- `PACEBMS_SERIAL_DEVICE`
+- `PACEBMS_BMS_SERIAL`
+- `PACEBMS_MQTT_HOST`
+- `PACEBMS_MQTT_USER`
+- `PACEBMS_MQTT_PASSWORD`
+- `PACEBMS_TELEGRAM_BOT_TOKEN`
+- `PACEBMS_TELEGRAM_CHAT_ID`
+
+Standalone Docker stores runtime files in `./data`, which is ignored by Git.
+
+Full standalone instructions are in [`docs/STANDALONE_DOCKER.md`](docs/STANDALONE_DOCKER.md).
+
+Safety is unchanged: standalone Docker does not add BMS write/control commands, does not control FETs and does not write BMS thresholds.
 
 ---
 
