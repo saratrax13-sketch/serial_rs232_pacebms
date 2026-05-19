@@ -1145,45 +1145,63 @@
 
     .pack-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-      gap: 14px;
-      margin: 10px 0 16px;
+      grid-template-columns: repeat(auto-fit, minmax(430px, 1fr));
+      gap: 10px;
+      margin: 10px 0 12px;
     }
 
     .pack-card {
-      background: rgba(15, 23, 42, 0.72);
-      border: 1px solid rgba(148, 163, 184, 0.18);
-      border-radius: 18px;
-      padding: 16px;
+      background: rgba(15, 23, 42, 0.68);
+      border: 1px solid rgba(148, 163, 184, 0.20);
+      border-radius: 16px;
+      padding: 12px;
     }
 
     .pack-header {
       display: flex;
       justify-content: space-between;
       gap: 12px;
-      align-items: center;
-      margin-bottom: 14px;
+      align-items: flex-start;
+      margin-bottom: 12px;
     }
 
     .pack-title {
       color: #f8fafc;
-      font-size: 20px;
-      font-weight: 900;
+      font-size: 17px;
+      font-weight: 650;
     }
 
     .pack-quick-strip {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 8px;
-      margin: 10px 0 4px;
+      gap: 10px;
+      margin: 0 0 12px;
     }
 
     .pack-quick-item {
-      background: rgba(15, 23, 42, 0.66);
-      border: 1px solid rgba(148, 163, 184, 0.14);
-      border-radius: 12px;
-      padding: 8px 9px;
+      position: relative;
+      min-height: 72px;
+      background: rgba(30, 41, 59, 0.58);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 14px;
+      padding: 10px 34px 10px 12px;
       min-width: 0;
+    }
+
+    .pack-quick-icon {
+      position: absolute;
+      right: 9px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #bfdbfe;
+      background: rgba(148, 163, 184, 0.13);
+      font-size: 12px;
     }
 
     .pack-quick-label {
@@ -1196,11 +1214,12 @@
 
     .pack-quick-value {
       color: #f8fafc;
-      font-size: 14px;
-      font-weight: 950;
+      font-size: 18px;
+      font-weight: 650;
+      line-height: 1.18;
       overflow: hidden;
       text-overflow: ellipsis;
-      white-space: nowrap;
+      overflow-wrap: anywhere;
     }
 
     .metric-grid {
@@ -1962,16 +1981,16 @@
   
     .warning-intel-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 14px;
-      margin: 14px 0 18px;
+      grid-template-columns: repeat(auto-fit, minmax(430px, 1fr));
+      gap: 10px;
+      margin: 10px 0 12px;
     }
 
     .warning-intel-card {
-      background: rgba(15, 23, 42, 0.74);
-      border: 1px solid rgba(148, 163, 184, 0.18);
-      border-radius: 18px;
-      padding: 16px;
+      background: rgba(15, 23, 42, 0.68);
+      border: 1px solid rgba(148, 163, 184, 0.20);
+      border-radius: 16px;
+      padding: 12px;
     }
 
     .warning-intel-card.review {
@@ -1989,9 +2008,9 @@
 
     .warning-intel-title {
       color: #f8fafc;
-      font-size: 19px;
-      font-weight: 950;
-      letter-spacing: -0.02em;
+      font-size: 17px;
+      font-weight: 650;
+      letter-spacing: 0;
     }
 
     .warning-intel-subtitle {
@@ -2038,7 +2057,7 @@
 
     .warning-intel-metrics {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 8px;
       margin-bottom: 12px;
     }
@@ -2048,10 +2067,10 @@
     }
 
     .warning-intel-metric {
-      background: rgba(30, 41, 59, 0.70);
-      border: 1px solid rgba(148, 163, 184, 0.12);
-      border-radius: 12px;
-      padding: 9px;
+      background: rgba(30, 41, 59, 0.58);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 14px;
+      padding: 9px 10px;
     }
 
     .warning-intel-label {
@@ -2065,13 +2084,16 @@
     .warning-intel-value {
       color: #f8fafc;
       font-size: 14px;
-      font-weight: 950;
+      font-weight: 650;
+      overflow-wrap: anywhere;
     }
 
     .warning-intel-section {
-      margin-top: 10px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(148, 163, 184, 0.14);
       color: #dbeafe;
-      line-height: 1.45;
+      line-height: 1.35;
       font-size: 13px;
     }
 
@@ -3264,11 +3286,19 @@
 
         <div class="pack-grid">
           {% for pack in live.packs %}
+          {% set pack_role = pack.role if pack.role else ('Master' if pack.id == '01' or pack.id == '1' else 'Slave') %}
+          {% set pack_voltage = pack.voltage|default(0)|float %}
+          {% set pack_current = pack.current|default(0)|float %}
+          {% set pack_remaining = pack.remaining_capacity_ah|default(0)|float %}
+          {% set pack_full = pack.full_capacity_ah|default(0)|float %}
+          {% set pack_power = (pack_voltage * pack_current) / 1000 %}
+          {% set runtime_hours = (pack_voltage * pack_remaining / 1000) / (-pack_power) if pack_power < -0.05 and pack_remaining > 0 else none %}
+          {% set charge_hours = (pack_voltage * (pack_full - pack_remaining) / 1000) / pack_power if pack_power > 0.05 and pack_full > pack_remaining else none %}
           <article class="pack-card">
             <div class="pack-header">
               <div>
                 <div class="pack-title">Pack {{ pack.id }}</div>
-                <div class="summary-meta">{{ pack.cell_count }} cells detected</div>
+                <div class="summary-meta">{{ pack_role }} · {{ pack.cell_count }} cells detected</div>
               </div>
               <span class="pill {{ pack.severity_class }}">{{ pack.severity_label }}</span>
             </div>
@@ -3277,121 +3307,102 @@
               <div class="pack-quick-item">
                 <div class="pack-quick-label">SOC</div>
                 <div class="pack-quick-value">{{ pack.soc }}%</div>
+                <span class="pack-quick-icon">↻</span>
               </div>
               <div class="pack-quick-item">
                 <div class="pack-quick-label">SOH</div>
                 <div class="pack-quick-value">{{ pack.soh }}%</div>
+                <span class="pack-quick-icon">◇</span>
               </div>
               <div class="pack-quick-item">
-                <div class="pack-quick-label">Cycles</div>
-                <div class="pack-quick-value">{{ pack.cycles }}</div>
+                <div class="pack-quick-label">Voltage</div>
+                <div class="pack-quick-value">{{ pack.voltage }} V</div>
+                <span class="pack-quick-icon">⚡</span>
               </div>
               <div class="pack-quick-item">
-                <div class="pack-quick-label">Delta</div>
-                <div class="pack-quick-value">{{ pack.delta }} mV</div>
+                <div class="pack-quick-label">Current</div>
+                <div class="pack-quick-value">{{ pack.current }} A</div>
+                <span class="pack-quick-icon">⌁</span>
               </div>
             </div>
 
-            <div class="metric-section">
-              <div class="metric-section-title">Identity</div>
-              <div class="metric-grid">
-                <div class="metric">
-                  <div class="metric-label">Role</div>
-                  <div class="metric-value">{% if pack.role %}{{ pack.role }}{% elif pack.id == '01' %}Master{% else %}Slave{% endif %}</div>
+            <div class="pack-detail-rows">
+              <div class="pack-detail-row">
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Role</span>
+                  <span class="pack-detail-value">{{ pack_role }}</span>
                 </div>
-                <div class="metric">
-                  <div class="metric-label">Serial</div>
-                  <div class="metric-value">{{ pack.serial|default('Not reported') }}</div>
-                </div>
-                <div class="metric">
-                  <div class="metric-label">Cells</div>
-                  <div class="metric-value">{{ pack.cell_count }}</div>
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Serial</span>
+                  <span class="pack-detail-value">{{ pack.serial|default('N/A') }}</span>
                 </div>
               </div>
-            </div>
-
-            <div class="metric-section">
-              <div class="metric-section-title">Energy & Health</div>
-              <div class="metric-grid">
-                <div class="metric">
-                  <div class="metric-label">SOC</div>
-                  <div class="metric-value">{{ pack.soc }}%</div>
+              <div class="pack-detail-row">
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Cells</span>
+                  <span class="pack-detail-value">{{ pack.cell_count }}</span>
                 </div>
-                <div class="metric">
-                  <div class="metric-label">SOH</div>
-                  <div class="metric-value">{{ pack.soh }}%</div>
-                </div>
-                <div class="metric">
-                  <div class="metric-label">Cycles</div>
-                  <div class="metric-value">{{ pack.cycles }}</div>
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Power</span>
+                  <span class="pack-detail-value">{{ pack.power_kw|default('Unknown') }} kW</span>
                 </div>
               </div>
-            </div>
-
-            <div class="metric-section">
-              <div class="metric-section-title">Capacity</div>
-              <div class="metric-grid">
-                <div class="metric">
-                  <div class="metric-label">Remaining</div>
-                  <div class="metric-value">{{ pack.remaining_capacity_ah }} Ah</div>
+              <div class="pack-detail-row">
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Remaining Capacity</span>
+                  <span class="pack-detail-value">{{ pack.remaining_capacity_ah }} Ah</span>
                 </div>
-                <div class="metric">
-                  <div class="metric-label">Full</div>
-                  <div class="metric-value">{{ pack.full_capacity_ah }} Ah</div>
-                </div>
-                <div class="metric">
-                  <div class="metric-label">Design</div>
-                  <div class="metric-value">{{ pack.design_capacity_ah }} Ah</div>
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Full Capacity</span>
+                  <span class="pack-detail-value">{{ pack.full_capacity_ah }} Ah</span>
                 </div>
               </div>
-            </div>
-
-            <div class="metric-section">
-              <div class="metric-section-title">Electrical</div>
-              <div class="metric-grid">
-                <div class="metric">
-                  <div class="metric-label">Pack Voltage</div>
-                  <div class="metric-value">{{ pack.voltage }} V</div>
+              <div class="pack-detail-row">
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Design Capacity</span>
+                  <span class="pack-detail-value">{{ pack.design_capacity_ah }} Ah</span>
                 </div>
-                <div class="metric">
-                  <div class="metric-label">Current</div>
-                  <div class="metric-value">{{ pack.current }} A</div>
-                </div>
-                <div class="metric">
-                  <div class="metric-label">Power</div>
-                  <div class="metric-value">{{ pack.power_kw|default('Unknown') }} kW</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="metric-section">
-              <div class="metric-section-title">Cell Balance</div>
-              <div class="metric-grid">
-                <div class="metric">
-                  <div class="metric-label">Highest Cell</div>
-                  <div class="metric-value">Cell {{ pack.highest_cell.number }} = {{ pack.highest_cell.voltage }} V</div>
-                </div>
-                <div class="metric">
-                  <div class="metric-label">Lowest Cell</div>
-                  <div class="metric-value">Cell {{ pack.lowest_cell.number }} = {{ pack.lowest_cell.voltage }} V</div>
-                </div>
-                <div class="metric">
-                  <div class="metric-label">Cell Delta</div>
-                  <div class="metric-value">{{ pack.delta }} mV</div>
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Projected Runtime</span>
+                  <span class="pack-detail-value">
+                    {% if runtime_hours is not none %}
+                      {{ ((runtime_hours * 60)|round(0, 'floor') // 60)|int }}h {{ ((runtime_hours * 60)|round(0, 'floor') % 60)|int }}m
+                    {% elif charge_hours is not none %}
+                      Charge {{ ((charge_hours * 60)|round(0, 'floor') // 60)|int }}h {{ ((charge_hours * 60)|round(0, 'floor') % 60)|int }}m
+                    {% else %}
+                      Idle
+                    {% endif %}
+                  </span>
                 </div>
               </div>
-            </div>
-
-            <div class="metric-section">
-              <div class="metric-section-title">Reference Limits</div>
-              <div class="metric-grid">
-                <div class="metric">
-                  <div class="metric-label">Cell High Ref</div>
-                  <div class="metric-value">{{ pack.cell_high_ref }} V</div>
+              <div class="pack-detail-row">
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Highest Cell</span>
+                  <span class="pack-detail-value">C{{ pack.highest_cell.number }} · {{ pack.highest_cell.voltage }} V</span>
                 </div>
-                <div class="metric">
-                  <div class="metric-label">Pack High Ref</div>
-                  <div class="metric-value">{{ pack.pack_high_ref }} V</div>
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Lowest Cell</span>
+                  <span class="pack-detail-value">C{{ pack.lowest_cell.number }} · {{ pack.lowest_cell.voltage }} V</span>
+                </div>
+              </div>
+              <div class="pack-detail-row">
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Cycles</span>
+                  <span class="pack-detail-value">{{ pack.cycles }}</span>
+                </div>
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Cell Delta</span>
+                  <span class="pack-detail-value">{{ pack.delta }} mV</span>
+                </div>
+              </div>
+              <div class="pack-detail-row">
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Cell High Ref</span>
+                  <span class="pack-detail-value">{{ pack.cell_high_ref }} V</span>
+                </div>
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Pack High Ref</span>
+                  <span class="pack-detail-value">{{ pack.pack_high_ref }} V</span>
                 </div>
               </div>
             </div>
@@ -3604,7 +3615,7 @@
           <div class="user-dashboard-tile">
             <div class="user-dashboard-label">Last Updated</div>
             <div id="user-last-updated" class="user-dashboard-value">{{ live.user_summary.last_updated }}</div>
-            <div class="user-dashboard-detail">Auto-refresh runs every 30 seconds.</div>
+            <div class="user-dashboard-detail">Auto-refresh runs every 15 seconds.</div>
           </div>
         </div>
       </section>

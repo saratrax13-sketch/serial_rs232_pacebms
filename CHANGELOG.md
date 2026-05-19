@@ -1,3 +1,22 @@
+## 2.6.92 - 2026-05-19
+
+### Changed
+- Reworked Tech Status pack cards to match the compact Dashboard pack-card style while keeping identity, capacity, electrical, cell, reference and FET details visible.
+- Polished Warning Intelligence cards to use the same compact card styling and metric tiles as the Dashboard and Tech Status pack cards.
+
+### Notes
+- UI layout only; no MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
+## 2.6.91 - 2026-05-19
+
+### Fixed
+- Corrected the Dashboard Last Updated tile text to say the page auto-refreshes every 15 seconds, matching the actual refresh timer.
+
+### Notes
+- Text-only UI fix; no MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
 ## 2.6.90 - 2026-05-19
 
 ### Changed
