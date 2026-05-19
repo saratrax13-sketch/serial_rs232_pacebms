@@ -3077,6 +3077,242 @@
       padding-bottom: 4px;
     }
 
+    /* Classic UI consistency pass: make support/admin tabs match Dashboard and Tech Status. */
+    .status-tile,
+    .diagnostic-card,
+    .setup-check-item,
+    .log-metric,
+    .config-card,
+    .event-item,
+    .backup-item,
+    .cell-summary-tile {
+      background: rgba(15, 23, 42, 0.68);
+      border: 1px solid rgba(148, 163, 184, 0.20);
+      border-radius: 16px;
+      box-shadow: none;
+    }
+
+    .status-tile,
+    .diagnostic-card,
+    .setup-check-item,
+    .log-metric,
+    .cell-summary-tile {
+      min-height: 68px;
+      padding: 10px;
+    }
+
+    .tile-label,
+    .diagnostic-title,
+    .setup-check-title,
+    .log-metric-label,
+    .cell-summary-label,
+    .config-action-label,
+    .backup-meta,
+    .event-detail {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      line-height: 1.3;
+    }
+
+    .tile-label,
+    .diagnostic-title,
+    .log-metric-label,
+    .cell-summary-label,
+    .config-action-label {
+      text-transform: uppercase;
+    }
+
+    .tile-value,
+    .diagnostic-status,
+    .setup-check-title,
+    .log-metric-value,
+    .cell-summary-value,
+    .backup-name,
+    .event-title {
+      color: #f8fafc;
+      font-size: 17px;
+      font-weight: 650;
+      line-height: 1.2;
+      letter-spacing: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .diagnostic-status {
+      margin-bottom: 5px;
+    }
+
+    .setup-check-top {
+      margin-bottom: 6px;
+    }
+
+    .setup-check-status,
+    .event-level,
+    .backup-type,
+    .log-pill,
+    .topology-role,
+    .cell-role-badge,
+    .cell-label,
+    .compact-pill,
+    .section-badge,
+    .reference-pill {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0;
+      border-radius: 999px;
+      padding: 4px 8px;
+    }
+
+    .log-controls {
+      grid-template-columns: minmax(180px, 0.34fr) minmax(280px, 1fr);
+      gap: 10px;
+      margin: 10px 0;
+    }
+
+    .log-control select,
+    .log-control input,
+    .config-input {
+      background: rgba(15, 23, 42, 0.70);
+      border: 1px solid rgba(148, 163, 184, 0.20);
+      border-radius: 11px;
+      color: #f8fafc;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .compact-config-header,
+    .config-action-group,
+    .config-mode-panel,
+    .compact-help,
+    .helper-note,
+    .normal-box,
+    .reference-box,
+    .warning-box,
+    .alert,
+    .view-note {
+      border-radius: 14px;
+    }
+
+    .config-card {
+      background: rgba(30, 41, 59, 0.72);
+    }
+
+    .config-card-header {
+      align-items: flex-start;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+      padding-bottom: 8px;
+    }
+
+    .config-card-title,
+    .config-card-header h2,
+    .log-section-title,
+    .chart-title {
+      color: #93c5fd;
+      font-size: 17px;
+      font-weight: 650;
+      letter-spacing: 0;
+      line-height: 1.2;
+    }
+
+    .row {
+      border-bottom-color: rgba(148, 163, 184, 0.11);
+    }
+
+    .row label,
+    .metric-label,
+    .reference-title {
+      color: #cbd5e1;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.3;
+    }
+
+    .value,
+    .metric-value,
+    .reference-value,
+    .warning-detail-label,
+    .warning-detail-title,
+    .warning-detail-status {
+      font-size: 13px;
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+
+    .backup-table,
+    .topology-table,
+    .cell-table,
+    .log-table,
+    .reference-table {
+      border-spacing: 0 6px;
+    }
+
+    .backup-table th,
+    .topology-table th,
+    .cell-table th,
+    .log-table th,
+    .reference-table th {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .backup-table td,
+    .topology-table td,
+    .cell-table td,
+    .log-table td,
+    .reference-table td {
+      background: rgba(15, 23, 42, 0.62);
+      border-top: 1px solid rgba(148, 163, 184, 0.12);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+      color: #e5e7eb;
+      font-size: 12px;
+      line-height: 1.3;
+    }
+
+    .backup-table td:first-child,
+    .topology-table td:first-child,
+    .cell-table td:first-child,
+    .log-table td:first-child,
+    .reference-table td:first-child {
+      border-left: 1px solid rgba(148, 163, 184, 0.12);
+      border-radius: 12px 0 0 12px;
+    }
+
+    .backup-table td:last-child,
+    .topology-table td:last-child,
+    .cell-table td:last-child,
+    .log-table td:last-child,
+    .reference-table td:last-child {
+      border-right: 1px solid rgba(148, 163, 184, 0.12);
+      border-radius: 0 12px 12px 0;
+    }
+
+    .events-list,
+    .backup-list {
+      gap: 8px;
+    }
+
+    .actions {
+      gap: 7px;
+      margin-top: 10px;
+    }
+
+    .cell-pack-card {
+      background: rgba(15, 23, 42, 0.68);
+    }
+
+    .cell-table .cell-voltage {
+      font-weight: 650;
+    }
+
+    .help-modal {
+      border-radius: 16px;
+      border-color: rgba(148, 163, 184, 0.22);
+    }
+
   </style>
 </head>
 <body>

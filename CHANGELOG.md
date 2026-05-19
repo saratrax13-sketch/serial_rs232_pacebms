@@ -1,3 +1,13 @@
+## 2.6.93 - 2026-05-19
+
+### Changed
+- Extended the Dashboard and Tech Status compact card language across Diagnostics, Setup, Config, Events, Backups and Logs.
+- Normalized support/admin tab typography, card borders, table rows, inputs, badges and action spacing for a more consistent classic UI.
+
+### Notes
+- Styling only; no MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
 ## 2.6.92 - 2026-05-19
 
 ### Changed
