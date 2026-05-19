@@ -1,3 +1,16 @@
+## 2.9.4 - 2026-05-19
+
+### Fixed
+- Bumped the Home Assistant add-on version so the Dashboard graph layout hotfix is visible as an update.
+- Changed Dashboard Live Trends to a stable two-by-two layout.
+- Reduced Dashboard graph title and axis font weight for a cleaner UI.
+- Added metric-specific graph axis ranges so small SOC, voltage, power and cell-delta changes are not visually exaggerated.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.3 - 2026-05-19
 
 ### Fixed

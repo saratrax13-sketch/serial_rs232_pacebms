@@ -625,8 +625,12 @@
     .chart-title {
       color: #93c5fd;
       font-size: 18px;
-      font-weight: 900;
+      font-weight: 650;
       margin-bottom: 8px;
+    }
+
+    .live-trends-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .chart-status {
@@ -3115,6 +3119,10 @@
       grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
     }
 
+    .live-trends-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .config-grid {
       gap: 12px;
     }
@@ -4091,7 +4099,7 @@
       <section class="card wide-card">
         <h2>Live Trends</h2>
         <p>Compact history from the local serial snapshot database. Graphs refresh every 10 seconds while this tab is open.</p>
-        <div class="chart-grid">
+        <div class="chart-grid live-trends-grid">
           <article class="chart-card">
             <div class="chart-title">Bank SOC</div>
             <canvas id="chart-bank-soc" height="120" aria-label="Bank SOC history"></canvas>
@@ -6107,10 +6115,26 @@ Restart the add-on afterwards for runtime changes to apply.`);
     }
 
     function ensureLiveTrendCharts() {
-      createLiveTrendChart("chart-bank-soc", "SOC", "#60a5fa", "%");
-      createLiveTrendChart("chart-bank-power", "Power", "#fbbf24", " kW");
-      createLiveTrendChart("chart-bank-voltage", "Voltage", "#34d399", " V");
-      createLiveTrendChart("chart-bank-delta", "Cell delta", "#f59e0b", " mV");
+      createLiveTrendChart("chart-bank-soc", "SOC", "#60a5fa", "%", {
+        min: 0,
+        max: 100,
+        decimals: 0,
+      });
+      createLiveTrendChart("chart-bank-power", "Power", "#fbbf24", " kW", {
+        suggestedMin: -1,
+        suggestedMax: 1,
+        decimals: 2,
+      });
+      createLiveTrendChart("chart-bank-voltage", "Voltage", "#34d399", " V", {
+        suggestedMin: 40,
+        suggestedMax: 60,
+        decimals: 1,
+      });
+      createLiveTrendChart("chart-bank-delta", "Cell delta", "#f59e0b", " mV", {
+        min: 0,
+        suggestedMax: 100,
+        decimals: 0,
+      });
       return Object.keys(liveTrendCharts).length > 0;
     }
 
@@ -6158,10 +6182,27 @@ Restart the add-on afterwards for runtime changes to apply.`);
       return byTs;
     }
 
-    function createLiveTrendChart(canvasId, label, color, unit) {
+    function createLiveTrendChart(canvasId, label, color, unit, axisConfig = {}) {
       const canvas = document.getElementById(canvasId);
       if (!canvas || !window.Chart) return null;
       if (liveTrendCharts[canvasId]) return liveTrendCharts[canvasId];
+      const yScale = {
+        ticks: {
+          color: "#9fb7d5",
+          font: { size: 11, weight: "400" },
+          callback: function (value) {
+            const number = Number(value);
+            if (!Number.isFinite(number)) return value;
+            return number.toFixed(axisConfig.decimals ?? 1);
+          },
+        },
+        grid: { color: "rgba(148, 163, 184, 0.10)" },
+      };
+      ["min", "max", "suggestedMin", "suggestedMax"].forEach(function (key) {
+        if (Object.prototype.hasOwnProperty.call(axisConfig, key)) {
+          yScale[key] = axisConfig[key];
+        }
+      });
       const chart = new Chart(canvas, {
         type: "line",
         data: {
@@ -6193,8 +6234,15 @@ Restart the add-on afterwards for runtime changes to apply.`);
             },
           },
           scales: {
-            x: { ticks: { color: "#9fb7d5", maxTicksLimit: 5 }, grid: { color: "rgba(148, 163, 184, 0.10)" } },
-            y: { ticks: { color: "#9fb7d5" }, grid: { color: "rgba(148, 163, 184, 0.10)" } },
+            x: {
+              ticks: {
+                color: "#9fb7d5",
+                maxTicksLimit: 5,
+                font: { size: 11, weight: "400" },
+              },
+              grid: { color: "rgba(148, 163, 184, 0.10)" },
+            },
+            y: yScale,
           },
         },
       });
