@@ -1,3 +1,21 @@
+## 2.6.72 - 2026-05-19
+
+### Added
+- Added a BMS warning Telegram policy for Battery Profile & Alert References:
+  - alert on all BMS warnings,
+  - alert on user reference exceeded plus BMS critical/protection,
+  - or alert only when user reference is exceeded.
+- Added per-reference Telegram alert switches for high/low cell voltage, cell delta, pack high/low voltage and high/low temperature.
+- Added pack high and pack low calculated reference rows to the Battery Profile & Alert References table.
+
+### Changed
+- Telegram BMS warning notifications can now be filtered without hiding active BMS warnings in the web UI or MQTT state.
+- Default BMS warning Telegram behavior now favors user reference crossings while still allowing critical/protection-level BMS warnings through.
+
+### Notes
+- No MQTT topics, Home Assistant discovery entities, monitor polling behavior or BMS commands changed.
+- No BMS write/control commands were added.
+
 ## 2.6.71 - 2026-05-19
 
 ### Added

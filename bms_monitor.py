@@ -1133,6 +1133,181 @@ def warning_repeat_seconds_for_severity(config: dict, severity: str) -> float:
     return max(60, float(config.get(keys.get(severity, ""), fallback)))
 
 
+WARNING_TELEGRAM_POLICIES = {
+    "all_bms_warnings",
+    "user_reference_or_critical",
+    "user_reference_only",
+}
+
+
+def warning_telegram_policy(config: dict) -> str:
+    policy = str(config.get("notify_bms_warning_policy", "user_reference_or_critical") or "").strip()
+    return policy if policy in WARNING_TELEGRAM_POLICIES else "user_reference_or_critical"
+
+
+def _config_bool(config: dict, key: str, default: bool = True) -> bool:
+    value = config.get(key, default)
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() not in {"0", "false", "off", "no", ""}
+
+
+def _warning_text_matches(text: str, *needles: str) -> bool:
+    low = str(text or "").lower()
+    return any(needle in low for needle in needles)
+
+
+def _pack_warning_measurements(pack_detail, config: dict) -> dict:
+    if pack_detail is None:
+        return {}
+
+    cells_v = []
+    for raw in (getattr(pack_detail, "v_cells", []) or []):
+        try:
+            value = float(raw)
+        except Exception:
+            continue
+        if value > 0:
+            cells_v.append(value / 1000.0)
+
+    temps = []
+    for raw in (getattr(pack_detail, "t_cells", []) or []):
+        try:
+            temps.append(float(raw))
+        except Exception:
+            continue
+    cell_count = int(getattr(pack_detail, "cells", len(cells_v)) or len(cells_v))
+    refs = effective_warning_references(config, cell_count)
+    return {
+        "cells_v": cells_v,
+        "temps": temps,
+        "cell_count": cell_count,
+        "refs": refs,
+        "pack_v": float(getattr(pack_detail, "v_pack", 0.0) or 0.0),
+        "delta_mv": float(getattr(pack_detail, "cell_max_diff", 0.0) or 0.0),
+    }
+
+
+def warning_reference_alert_matches(config: dict, warnings: str, pack_detail) -> tuple[bool, list[str]]:
+    """Return whether measured values cross enabled user Telegram references.
+
+    This is Telegram policy only. It does not clear, hide, or alter BMS warning
+    state, and it never writes settings to the BMS.
+    """
+    data = _pack_warning_measurements(pack_detail, config)
+    if not data:
+        return False, []
+
+    text = str(warnings or "")
+    refs = data["refs"]
+    cells_v = data["cells_v"]
+    temps = data["temps"]
+    pack_v = data["pack_v"]
+    delta_mv = data["delta_mv"]
+    matches = []
+
+    if cells_v:
+        highest = max(cells_v)
+        lowest = min(cells_v)
+        if (
+            _config_bool(config, "notify_alert_cell_high_voltage", True)
+            and _warning_text_matches(text, "above cell", "above upper limit")
+            and highest >= refs["cell_high"]
+        ):
+            matches.append(f"high cell {highest:.3f} V >= {refs['cell_high']:.2f} V")
+        if (
+            _config_bool(config, "notify_alert_cell_low_voltage", True)
+            and _warning_text_matches(text, "lower cell", "low cell", "below lower limit")
+            and lowest <= refs["cell_low"]
+        ):
+            matches.append(f"low cell {lowest:.3f} V <= {refs['cell_low']:.2f} V")
+
+    if (
+        _config_bool(config, "notify_alert_cell_delta", True)
+        and delta_mv >= float(refs["delta_mv"])
+    ):
+        matches.append(f"cell delta {delta_mv:.0f} mV >= {float(refs['delta_mv']):.0f} mV")
+
+    pack_high = refs.get("pack_high")
+    pack_low = refs.get("pack_low")
+    if (
+        pack_high is not None
+        and _config_bool(config, "notify_alert_pack_high_voltage", True)
+        and _warning_text_matches(text, "above total", "total voltage above", "pack voltage above")
+        and pack_v >= float(pack_high)
+    ):
+        matches.append(f"pack voltage {pack_v:.3f} V >= {float(pack_high):.2f} V")
+    if (
+        pack_low is not None
+        and _config_bool(config, "notify_alert_pack_low_voltage", True)
+        and _warning_text_matches(text, "lower total", "low total", "total voltage below", "pack voltage below")
+        and pack_v > 0
+        and pack_v <= float(pack_low)
+    ):
+        matches.append(f"pack voltage {pack_v:.3f} V <= {float(pack_low):.2f} V")
+
+    if temps and _warning_text_matches(text, "temp"):
+        high_temp = max(temps)
+        low_temp = min(temps)
+        if _config_bool(config, "notify_alert_temp_high", True) and high_temp >= float(refs["temp_high"]):
+            matches.append(f"temperature {high_temp:.1f} C >= {float(refs['temp_high']):.0f} C")
+        if _config_bool(config, "notify_alert_temp_low", True) and low_temp <= float(refs["temp_low"]):
+            matches.append(f"temperature {low_temp:.1f} C <= {float(refs['temp_low']):.0f} C")
+
+    return bool(matches), matches
+
+
+def warning_has_bms_critical_text(warnings: str) -> bool:
+    low = str(warnings or "").lower()
+    return (
+        "protect" in low
+        or "short circuit" in low
+        or ("fault state" in low and "undefined" not in low)
+        or "current protect" in low
+    )
+
+
+def warning_text_has_enabled_reference_alert(config: dict, warnings: str) -> bool:
+    """Return True when warning text maps to at least one enabled reference row."""
+    text = str(warnings or "")
+    checks = []
+    if _warning_text_matches(text, "above cell", "above upper limit"):
+        checks.append(_config_bool(config, "notify_alert_cell_high_voltage", True))
+    if _warning_text_matches(text, "lower cell", "low cell", "below lower limit"):
+        checks.append(_config_bool(config, "notify_alert_cell_low_voltage", True))
+    if _warning_text_matches(text, "above total", "total voltage above", "pack voltage above"):
+        checks.append(_config_bool(config, "notify_alert_pack_high_voltage", True))
+    if _warning_text_matches(text, "lower total", "low total", "total voltage below", "pack voltage below"):
+        checks.append(_config_bool(config, "notify_alert_pack_low_voltage", True))
+    if _warning_text_matches(text, "delta", "diff"):
+        checks.append(_config_bool(config, "notify_alert_cell_delta", True))
+    if _warning_text_matches(text, "temp"):
+        checks.append(
+            _config_bool(config, "notify_alert_temp_high", True)
+            or _config_bool(config, "notify_alert_temp_low", True)
+        )
+    return any(checks) if checks else True
+
+
+def warning_telegram_allowed(config: dict, warnings: str, pack_detail, severity: str) -> tuple[bool, str]:
+    """Decide whether an active BMS warning should send Telegram."""
+    policy = warning_telegram_policy(config)
+    reference_match, match_reasons = warning_reference_alert_matches(config, warnings, pack_detail)
+
+    if policy == "all_bms_warnings":
+        if warning_text_has_enabled_reference_alert(config, warnings):
+            return True, "all BMS warnings policy"
+        return False, "all BMS warnings policy: matching reference alert row is disabled"
+
+    if reference_match:
+        return True, "; ".join(match_reasons)
+
+    if policy == "user_reference_or_critical" and str(severity or "").lower() == "critical" and warning_has_bms_critical_text(warnings):
+        return True, "BMS critical/protection warning"
+
+    return False, f"policy {policy}: no enabled user reference exceeded"
+
+
 def load_warning_notify_state() -> dict:
     try:
         if not os.path.exists(WARNING_NOTIFY_STATE_PATH):
@@ -1988,18 +2163,25 @@ def main():
                         "active": False,
                         "last_sent": 0.0,
                         "severity": "normal",
+                        "telegram_sent_active": False,
                     })
 
                     warning_now = time.time()
                     if warning_family == "Normal":
                         if previous_warning_state.get("active"):
-                            call_warning_notify(notify, p, "Normal", pack_detail)
+                            previous_sent = bool(previous_warning_state.get(
+                                "telegram_sent_active",
+                                float(previous_warning_state.get("last_sent", 0.0) or 0.0) > 0,
+                            ))
+                            if previous_sent:
+                                call_warning_notify(notify, p, "Normal", pack_detail)
                             log.info("BMS warning cleared for Pack %02d (previous family: %s)", p, previous_warning_state.get("family", "Unknown"))
                         warning_notify_state[state_key] = {
                             "family": "Normal",
                             "active": False,
                             "last_sent": previous_warning_state.get("last_sent", 0.0),
                             "severity": "normal",
+                            "telegram_sent_active": False,
                         }
                         save_warning_notify_state(warning_notify_state)
                     else:
@@ -2009,11 +2191,43 @@ def main():
                         )
                         elapsed = warning_now - float(previous_warning_state.get("last_sent", 0.0) or 0.0)
                         previous_severity = str(previous_warning_state.get("severity", "normal"))
+                        previous_sent = bool(previous_warning_state.get(
+                            "telegram_sent_active",
+                            float(previous_warning_state.get("last_sent", 0.0) or 0.0) > 0,
+                        ))
                         escalated = warning_severity_rank(severity) > warning_severity_rank(previous_severity)
                         repeat_seconds = warning_repeat_seconds_for_severity(config, severity)
+                        telegram_allowed, telegram_policy_reason = warning_telegram_allowed(config, pack_warn.warnings, pack_detail, severity)
 
-                        if (not same_family) or escalated or elapsed >= repeat_seconds:
-                            repeat = same_family and not escalated and elapsed >= repeat_seconds
+                        if not telegram_allowed:
+                            warning_notify_state[state_key] = {
+                                "family": warning_family,
+                                "active": True,
+                                "last_sent": previous_warning_state.get("last_sent", 0.0),
+                                "severity": severity,
+                                "reasons": severity_reasons,
+                                "telegram_sent_active": previous_sent,
+                                "telegram_suppressed_reason": telegram_policy_reason,
+                            }
+                            save_warning_notify_state(warning_notify_state)
+                            if (not same_family) or escalated:
+                                log.info(
+                                    "BMS %s warning Telegram suppressed for Pack %02d by policy: %s (%s)",
+                                    severity,
+                                    p,
+                                    telegram_policy_reason,
+                                    warning_family,
+                                )
+                            elif int(config.get("debug_output", 0) or 0) >= 2:
+                                log.debug(
+                                    "BMS %s warning Telegram still suppressed for Pack %02d by policy: %s (%s)",
+                                    severity,
+                                    p,
+                                    telegram_policy_reason,
+                                    warning_family,
+                                )
+                        elif (not same_family) or (not previous_sent) or escalated or elapsed >= repeat_seconds:
+                            repeat = previous_sent and same_family and not escalated and elapsed >= repeat_seconds
                             call_warning_notify(
                                 notify,
                                 p,
@@ -2029,6 +2243,8 @@ def main():
                                 "last_sent": warning_now,
                                 "severity": severity,
                                 "reasons": severity_reasons,
+                                "telegram_sent_active": True,
+                                "telegram_policy_reason": telegram_policy_reason,
                             }
                             save_warning_notify_state(warning_notify_state)
                             if repeat:
@@ -2061,6 +2277,8 @@ def main():
                                 "last_sent": previous_warning_state.get("last_sent", warning_now),
                                 "severity": previous_severity,
                                 "reasons": previous_warning_state.get("reasons", severity_reasons),
+                                "telegram_sent_active": previous_sent,
+                                "telegram_policy_reason": previous_warning_state.get("telegram_policy_reason", telegram_policy_reason),
                             }
                             save_warning_notify_state(warning_notify_state)
                             if int(config.get("debug_output", 0) or 0) >= 2:

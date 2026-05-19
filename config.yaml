@@ -1,6 +1,6 @@
 name: "Pace BMS RS232 Monitor"
 description: "Read-only Pace BMS RS232 to MQTT bridge with Home Assistant discovery and Telegram notifications"
-version: "2.6.71"
+version: "2.6.72"
 slug: "pace_bms_rs232"
 url: "https://github.com/saratrax13-sketch/serial_rs232_pacebms"
 init: false
@@ -82,11 +82,19 @@ options:
 
   # Full Monitoring - read-only warning reference values
   battery_profile: "auto"
+  notify_bms_warning_policy: "user_reference_or_critical"
   notify_cell_high_warn_voltage: 4.20
   notify_cell_low_warn_voltage: 3.00
   notify_cell_delta_warn_mv: 100
   notify_temp_high_warn_c: 55
   notify_temp_low_warn_c: 0
+  notify_alert_cell_high_voltage: true
+  notify_alert_cell_low_voltage: true
+  notify_alert_cell_delta: true
+  notify_alert_pack_high_voltage: true
+  notify_alert_pack_low_voltage: true
+  notify_alert_temp_high: true
+  notify_alert_temp_low: true
 
   # Full Monitoring - warning message detail
   notify_include_all_cells_above_threshold: true
@@ -159,11 +167,19 @@ schema:
   notify_warning_repeat_critical_seconds: int
 
   battery_profile: list(auto|p13s_hubble_am2|p16s_eenovance_mana|custom)
+  notify_bms_warning_policy: list(all_bms_warnings|user_reference_or_critical|user_reference_only)
   notify_cell_high_warn_voltage: float
   notify_cell_low_warn_voltage: float
   notify_cell_delta_warn_mv: int
   notify_temp_high_warn_c: int
   notify_temp_low_warn_c: int
+  notify_alert_cell_high_voltage: bool
+  notify_alert_cell_low_voltage: bool
+  notify_alert_cell_delta: bool
+  notify_alert_pack_high_voltage: bool
+  notify_alert_pack_low_voltage: bool
+  notify_alert_temp_high: bool
+  notify_alert_temp_low: bool
 
   notify_include_all_cells_above_threshold: bool
   notify_include_all_cells_below_threshold: bool

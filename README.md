@@ -19,6 +19,7 @@ The add-on includes:
 - Remaining Ah and estimated remaining kWh
 - Estimated runtime remaining while discharging
 - Estimated charge time remaining while charging
+- Profile-based BMS warning Telegram filtering
 - Read-only BMS communication
 
 ---
@@ -26,7 +27,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.6.71"
+version: "2.6.72"
 ```
 
 ---

@@ -3056,7 +3056,7 @@
             <article class="card config-card" data-config-group="{{ group_name }}" data-config-tier="{{ config_section_tiers.get(group_name, 'advanced') }}">
               <div class="config-card-header">
                 <div class="config-card-title">
-                  <h2>{{ group_name }}</h2>
+                  <h2>{% if group_name == 'Battery Profile & References' %}Battery Profile & Alert References{% else %}{{ group_name }}{% endif %}</h2>
                   {% set section_badge = config_section_badges.get(group_name, 'Optional') %}
                   {% if section_badge == 'Required' %}
                   <span class="section-badge required">{{ section_badge }}</span>
@@ -3083,8 +3083,18 @@
                     </select>
                   </div>
                 </div>
-
                 {% if battery_reference_table %}
+                <div class="reference-profile-bar">
+                  <label class="key" for="cfg_notify_bms_warning_policy">notify_bms_warning_policy</label>
+                  <div class="value">
+                    <select id="cfg_notify_bms_warning_policy" class="config-input config-field" name="notify_bms_warning_policy" data-group="{{ group_name }}" data-original="{{ battery_reference_table.policy }}">
+                      {% for choice_value, choice_label in battery_reference_table.policy_choices.items() %}
+                        <option value="{{ choice_value }}" {% if battery_reference_table.policy == choice_value %}selected{% endif %}>{{ choice_label }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+
                 <div class="reference-meta">
                   <span class="reference-pill">Detected cells: {{ battery_reference_table.detected_cell_count }}</span>
                   <span class="reference-pill" id="profile-reference-label">{{ battery_reference_table.profile_label }}</span>
@@ -3098,7 +3108,8 @@
                         <th>Profile reference</th>
                         <th>Measured</th>
                         <th>User defined</th>
-                        <th>Related option</th>
+                        <th>Telegram alert</th>
+                        <th>Message detail</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -3108,7 +3119,17 @@
                         <td class="profile-reference-value" data-reference-key="{{ row.key }}">{{ row.reference }}</td>
                         <td>{{ row.measured }}</td>
                         <td>
+                          {% if row.user_key %}
                           <input id="cfg_{{ row.user_key }}" class="config-input config-field" type="number" step="{{ row.step }}" name="{{ row.user_key }}" value="{{ row.user_value }}" data-group="{{ group_name }}" data-original="{{ row.user_value }}">
+                          {% else %}
+                          <span class="reference-pill">{{ row.user_value }}</span>
+                          {% endif %}
+                        </td>
+                        <td>
+                          <label class="reference-checkbox-label">
+                            <input id="cfg_{{ row.alert_key }}" class="config-checkbox config-field" type="checkbox" name="{{ row.alert_key }}" data-group="{{ group_name }}" data-original="{% if row.alert_value %}true{% else %}false{% endif %}" {% if row.alert_value %}checked{% endif %}>
+                            Enabled
+                          </label>
                         </td>
                         <td>
                           {% if row.checkbox_key %}
@@ -3126,7 +3147,7 @@
                   </table>
                 </div>
                 <div class="helper-note">
-                  Profile references are used for UI and Telegram explanation only. User-defined values are saved as add-on options and are never written to the BMS.
+                  Profile references are used for UI and Telegram explanation only. User-defined values and Telegram alert switches are saved as add-on options and are never written to the BMS. BMS warnings remain visible in the UI even when Telegram is filtered.
                 </div>
                 {% endif %}
                 {% endif %}
@@ -4216,8 +4237,17 @@ Restart the add-on afterwards for runtime changes to apply.`);
             <li><strong>Profile reference</strong> changes when you select a battery profile.</li>
             <li><strong>Measured</strong> is the latest retained MQTT value from the BMS.</li>
             <li><strong>User defined</strong> is the editable add-on option that can override the profile when you use <code>custom</code>.</li>
-            <li><strong>Related option</strong> controls whether that detail is included or reported.</li>
+            <li><strong>Telegram alert</strong> controls whether that reference line can send Telegram when the warning policy allows it.</li>
+            <li><strong>Message detail</strong> controls extra context included in warning messages.</li>
           </ul>
+
+          <h3>BMS warning Telegram policy</h3>
+          <ul>
+            <li><code>all_bms_warnings</code> sends Telegram for every BMS warning allowed by the row alert switch.</li>
+            <li><code>user_reference_or_critical</code> sends Telegram only when a user reference is exceeded, or when the BMS warning is critical/protection-level.</li>
+            <li><code>user_reference_only</code> sends Telegram only when a user reference is exceeded.</li>
+          </ul>
+          <p>The web UI still shows active BMS warnings even when Telegram is filtered.</p>
 
           <h3>Profiles</h3>
           <ul>
@@ -4567,6 +4597,13 @@ Restart the add-on afterwards for runtime changes to apply.`);
       setReferenceCell("notify_cell_high_warn_voltage", `${reference.high.toFixed(2)} V`);
       setReferenceCell("notify_cell_low_warn_voltage", `${reference.low.toFixed(2)} V`);
       setReferenceCell("notify_cell_delta_warn_mv", `${reference.delta.toFixed(0)} mV`);
+      if (Number.isFinite(detectedCells) && detectedCells > 0) {
+        setReferenceCell("notify_pack_high_reference", `${(reference.high * detectedCells).toFixed(2)} V`);
+        setReferenceCell("notify_pack_low_reference", `${(reference.low * detectedCells).toFixed(2)} V`);
+      } else {
+        setReferenceCell("notify_pack_high_reference", "Unknown");
+        setReferenceCell("notify_pack_low_reference", "Unknown");
+      }
       setReferenceCell("notify_temp_high_warn_c", `${reference.tempHigh.toFixed(0)} C`);
       setReferenceCell("notify_temp_low_warn_c", `${reference.tempLow.toFixed(0)} C`);
 

@@ -152,11 +152,19 @@ GROUPS = {
     ],
     "Battery Profile & References": [
         "battery_profile",
+        "notify_bms_warning_policy",
         "notify_cell_high_warn_voltage",
         "notify_cell_low_warn_voltage",
         "notify_cell_delta_warn_mv",
         "notify_temp_high_warn_c",
         "notify_temp_low_warn_c",
+        "notify_alert_cell_high_voltage",
+        "notify_alert_cell_low_voltage",
+        "notify_alert_cell_delta",
+        "notify_alert_pack_high_voltage",
+        "notify_alert_pack_low_voltage",
+        "notify_alert_temp_high",
+        "notify_alert_temp_low",
         "notify_include_all_cells_above_threshold",
         "notify_include_all_cells_below_threshold",
         "notify_delta_report",
@@ -216,11 +224,19 @@ DEFAULT_OPTION_VALUES = {
     "notify_warning_repeat_warning_seconds": 3600,
     "notify_warning_repeat_critical_seconds": 900,
     "battery_profile": "auto",
+    "notify_bms_warning_policy": "user_reference_or_critical",
     "notify_cell_high_warn_voltage": 4.20,
     "notify_cell_low_warn_voltage": 3.00,
     "notify_cell_delta_warn_mv": 100,
     "notify_temp_high_warn_c": 55,
     "notify_temp_low_warn_c": 0,
+    "notify_alert_cell_high_voltage": True,
+    "notify_alert_cell_low_voltage": True,
+    "notify_alert_cell_delta": True,
+    "notify_alert_pack_high_voltage": True,
+    "notify_alert_pack_low_voltage": True,
+    "notify_alert_temp_high": True,
+    "notify_alert_temp_low": True,
     "notify_include_all_cells_above_threshold": True,
     "notify_include_all_cells_below_threshold": True,
     "notify_include_highest_and_lowest_cell": True,
@@ -1720,7 +1736,7 @@ def get_page_live_snapshot(options):
 
 
 def input_type_for_value(key, value):
-    if key == "battery_profile":
+    if key in ("battery_profile", "notify_bms_warning_policy"):
         return "select"
     if isinstance(value, bool):
         return "checkbox"
@@ -2024,7 +2040,7 @@ It does not send BMS control commands.
 
 
 CARD_HELP = {
-    "Battery Profile & References": "Shows measured battery values beside profile/default references and user-configured references. The profile dropdown changes the reference column. The editable values are Home Assistant add-on options only and never write to the BMS.",
+    "Battery Profile & References": "Shows measured battery values beside profile/default references and user-configured references. The BMS warning Telegram policy and row alert switches control Telegram noise only; active BMS warnings remain visible in the UI. The editable values are Home Assistant add-on options only and never write to the BMS.",
     "FET Notifications": "Controls charge/discharge FET notification behavior. These settings only decide when to alert; they do not control FETs.",
     "Notification Thresholds": "Controls SOC, SOH, stale-data and BMS warning repeat timing. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale and warning repeat values are in seconds. BMS warning repeats are severity-aware: caution repeats for low-risk ongoing warnings, warning repeats for near-limit conditions, and critical repeats for protection/fault or measured values outside configured references.",
     "Scheduled Reports": "Controls scheduled Telegram reports, daily summary timing, energy deadband and cell delta report window. These settings do not write to the BMS.",
@@ -2036,6 +2052,14 @@ FIELD_HELP = {
     "notify_warning_repeat_warning_seconds": "Repeat interval for ongoing warning-level BMS warnings. Recommended: 3600 seconds (1 hour).",
     "notify_warning_repeat_critical_seconds": "Repeat interval for ongoing critical BMS warnings. Recommended: 900 seconds (15 minutes).",
     "battery_profile": "Read-only reference profile used for warning explanations. Auto detect selects 13S or 16S defaults from detected cell count. Custom uses your configured reference voltages.",
+    "notify_bms_warning_policy": "Controls when BMS warning Telegram messages are sent: all warnings, user reference exceeded plus critical/protection, or user reference exceeded only.",
+    "notify_alert_cell_high_voltage": "Enables Telegram alerts for high-cell-voltage reference crossings.",
+    "notify_alert_cell_low_voltage": "Enables Telegram alerts for low-cell-voltage reference crossings.",
+    "notify_alert_cell_delta": "Enables Telegram alerts/reports for cell-delta reference crossings.",
+    "notify_alert_pack_high_voltage": "Enables Telegram alerts for pack high-voltage reference crossings.",
+    "notify_alert_pack_low_voltage": "Enables Telegram alerts for pack low-voltage reference crossings.",
+    "notify_alert_temp_high": "Enables Telegram alerts for high-temperature reference crossings.",
+    "notify_alert_temp_low": "Enables Telegram alerts for low-temperature reference crossings.",
     "notify_soc_low_thresholds": "Comma-separated SOC low alert thresholds. Use numbers only, no percent signs. Example: 75,50,25,15.",
     "notify_soc_high_threshold": "Single SOC high alert threshold. Example: 98 means alert when SOC is at or above 98%.",
     "notify_soc_high_reset": "High SOC reset point. Example: 95 means the high SOC alert can trigger again after SOC drops below 95%.",
@@ -2062,7 +2086,7 @@ def build_grouped_config(options):
                 "key": key,
                 "raw_value": raw_value,
                 "input_type": input_type_for_value(key, raw_value),
-                "choices": BATTERY_PROFILE_CHOICES if key == "battery_profile" else {},
+                "choices": BATTERY_PROFILE_CHOICES if key == "battery_profile" else WARNING_TELEGRAM_POLICY_CHOICES if key == "notify_bms_warning_policy" else {},
                 "is_bool": isinstance(raw_value, bool),
                 "is_sensitive": key in SENSITIVE_KEYS,
                 "value": safe_value(key, raw_value),
@@ -2137,6 +2161,9 @@ def parse_form_value(key, raw_value, current_value):
     """Parse web form values back to the expected option type."""
     if key == "battery_profile":
         return normalize_profile(raw_value)
+    if key == "notify_bms_warning_policy":
+        policy = str(raw_value or DEFAULT_OPTION_VALUES["notify_bms_warning_policy"]).strip()
+        return policy if policy in WARNING_TELEGRAM_POLICY_CHOICES else DEFAULT_OPTION_VALUES["notify_bms_warning_policy"]
 
     if isinstance(current_value, bool):
         return raw_value == "on"
@@ -2548,6 +2575,7 @@ def build_battery_reference_table(options, live):
     lowest_cells = []
     deltas = []
     temps = []
+    pack_voltages = []
 
     for pack in packs:
         try:
@@ -2557,12 +2585,15 @@ def build_battery_reference_table(options, live):
         high_v = _to_float((pack.get("highest_cell") or {}).get("voltage"))
         low_v = _to_float((pack.get("lowest_cell") or {}).get("voltage"))
         delta_v = _to_float(pack.get("delta"))
+        pack_v = _to_float(pack.get("voltage"))
         if high_v is not None:
             highest_cells.append(high_v)
         if low_v is not None:
             lowest_cells.append(low_v)
         if delta_v is not None:
             deltas.append(delta_v)
+        if pack_v is not None:
+            pack_voltages.append(pack_v)
         for temp in pack.get("temperatures", []) or []:
             temp_v = _to_float(temp)
             if temp_v is not None:
@@ -2584,6 +2615,8 @@ def build_battery_reference_table(options, live):
             "user_key": "notify_cell_high_warn_voltage",
             "user_value": opt("notify_cell_high_warn_voltage", 4.20),
             "step": "0.01",
+            "alert_key": "notify_alert_cell_high_voltage",
+            "alert_value": bool(opt("notify_alert_cell_high_voltage", True)),
             "checkbox_key": "notify_include_all_cells_above_threshold",
             "checkbox_label": "Include all high cells",
             "checkbox_value": bool(opt("notify_include_all_cells_above_threshold", True)),
@@ -2596,6 +2629,8 @@ def build_battery_reference_table(options, live):
             "user_key": "notify_cell_low_warn_voltage",
             "user_value": opt("notify_cell_low_warn_voltage", 3.00),
             "step": "0.01",
+            "alert_key": "notify_alert_cell_low_voltage",
+            "alert_value": bool(opt("notify_alert_cell_low_voltage", True)),
             "checkbox_key": "notify_include_all_cells_below_threshold",
             "checkbox_label": "Include all low cells",
             "checkbox_value": bool(opt("notify_include_all_cells_below_threshold", True)),
@@ -2608,9 +2643,39 @@ def build_battery_reference_table(options, live):
             "user_key": "notify_cell_delta_warn_mv",
             "user_value": opt("notify_cell_delta_warn_mv", 100),
             "step": "1",
+            "alert_key": "notify_alert_cell_delta",
+            "alert_value": bool(opt("notify_alert_cell_delta", True)),
             "checkbox_key": "notify_delta_report",
             "checkbox_label": "Delta report",
             "checkbox_value": bool(opt("notify_delta_report", True)),
+        },
+        {
+            "label": "Pack high voltage",
+            "key": "notify_pack_high_reference",
+            "reference": _fmt_reference_value(refs.get("pack_high"), " V", 2),
+            "measured": _fmt_reference_value(max(pack_voltages), " V", 3) if pack_voltages else "Waiting for data",
+            "user_key": None,
+            "user_value": "Auto calculated",
+            "step": None,
+            "alert_key": "notify_alert_pack_high_voltage",
+            "alert_value": bool(opt("notify_alert_pack_high_voltage", True)),
+            "checkbox_key": "notify_include_pack_voltage",
+            "checkbox_label": "Include pack voltage",
+            "checkbox_value": bool(opt("notify_include_pack_voltage", True)),
+        },
+        {
+            "label": "Pack low voltage",
+            "key": "notify_pack_low_reference",
+            "reference": _fmt_reference_value(refs.get("pack_low"), " V", 2),
+            "measured": _fmt_reference_value(min(pack_voltages), " V", 3) if pack_voltages else "Waiting for data",
+            "user_key": None,
+            "user_value": "Auto calculated",
+            "step": None,
+            "alert_key": "notify_alert_pack_low_voltage",
+            "alert_value": bool(opt("notify_alert_pack_low_voltage", True)),
+            "checkbox_key": None,
+            "checkbox_label": "Uses pack voltage detail",
+            "checkbox_value": bool(opt("notify_include_pack_voltage", True)),
         },
         {
             "label": "High temperature",
@@ -2620,6 +2685,8 @@ def build_battery_reference_table(options, live):
             "user_key": "notify_temp_high_warn_c",
             "user_value": opt("notify_temp_high_warn_c", 55),
             "step": "1",
+            "alert_key": "notify_alert_temp_high",
+            "alert_value": bool(opt("notify_alert_temp_high", True)),
             "checkbox_key": None,
             "checkbox_label": "Warnings enabled",
             "checkbox_value": bool(opt("notify_warnings", True)),
@@ -2632,6 +2699,8 @@ def build_battery_reference_table(options, live):
             "user_key": "notify_temp_low_warn_c",
             "user_value": opt("notify_temp_low_warn_c", 0),
             "step": "1",
+            "alert_key": "notify_alert_temp_low",
+            "alert_value": bool(opt("notify_alert_temp_low", True)),
             "checkbox_key": None,
             "checkbox_label": "Uses warnings enabled",
             "checkbox_value": bool(opt("notify_warnings", True)),
@@ -2640,6 +2709,8 @@ def build_battery_reference_table(options, live):
 
     return {
         "selected": selected,
+        "policy": opt("notify_bms_warning_policy", "user_reference_or_critical"),
+        "policy_choices": WARNING_TELEGRAM_POLICY_CHOICES,
         "detected_cell_count": detected_cell_count or "Unknown",
         "profile_label": refs.get("profile_label", "Unknown"),
         "reference_source": "battery profile defaults" if refs.get("source") == "profile" else "user custom settings",
@@ -3046,6 +3117,8 @@ def validate_config_options(options):
 
     if "battery_profile" in options and normalize_profile(options.get("battery_profile")) != str(options.get("battery_profile", "")).strip().lower():
         errors.append("battery_profile must be one of: auto, p13s_hubble_am2, p16s_eenovance_mana, custom.")
+    if str(options.get("notify_bms_warning_policy", "")).strip() not in WARNING_TELEGRAM_POLICY_CHOICES:
+        errors.append("notify_bms_warning_policy must be one of: all_bms_warnings, user_reference_or_critical, user_reference_only.")
 
     # Logical threshold check
     try:
@@ -3416,3 +3489,8 @@ if __name__ == "__main__":
     configure_web_logging(startup_options)
     ensure_live_snapshot_cache_worker()
     app.run(host="0.0.0.0", port=8099)
+WARNING_TELEGRAM_POLICY_CHOICES = {
+    "all_bms_warnings": "Alert on all BMS warnings",
+    "user_reference_or_critical": "Alert on user reference exceeded, plus BMS critical/protection",
+    "user_reference_only": "Alert only when user reference is exceeded",
+}

@@ -397,11 +397,11 @@ class NotifyState:
             return f"{abs(margin):.3f} V below ref", "Exceeded"
         return "0.000 V above ref", "At reference"
 
-    def _warning_detail_row(self, label: str, value: Optional[float], reference: Optional[float], direction: str) -> tuple[str, str]:
+    def _warning_detail_row(self, label: str, value: Optional[float], reference: Optional[float], direction: str, notify_key: str = None) -> tuple[str, str]:
         margin, status = self._reference_margin(value, reference, direction)
         value_text = f"{value:.3f} V" if value is not None else "Unknown"
         ref_text = f"{reference:.2f} V" if reference is not None else "Unknown"
-        notify_text = "On" if self._notify_enabled('notify_warnings') else "Off"
+        notify_text = "On" if self._notify_enabled('notify_warnings') and (not notify_key or self.config.get(notify_key, True)) else "Off"
         return f"- {label}: {value_text} | Ref: {ref_text} | Margin: {margin} | {status} | Notify: {notify_text}", status
 
     def _build_warning_detail(self, pack_num: int, cleaned: str, pack=None) -> str:
@@ -466,7 +466,7 @@ class NotifyState:
                         candidates = [high_idx]
                     lines.append("Above upper limit:")
                     for cell_num in candidates:
-                        row, status = self._warning_detail_row(f"Cell {cell_num:02d}", cell_map.get(cell_num), cell_high, "above")
+                        row, status = self._warning_detail_row(f"Cell {cell_num:02d}", cell_map.get(cell_num), cell_high, "above", "notify_alert_cell_high_voltage")
                         lines.append(row)
                         exceeded = exceeded or status == "Exceeded"
                     detail_added = True
@@ -477,7 +477,7 @@ class NotifyState:
                         candidates = [low_idx]
                     lines.append("Below lower limit:")
                     for cell_num in candidates:
-                        row, status = self._warning_detail_row(f"Cell {cell_num:02d}", cell_map.get(cell_num), cell_low, "below")
+                        row, status = self._warning_detail_row(f"Cell {cell_num:02d}", cell_map.get(cell_num), cell_low, "below", "notify_alert_cell_low_voltage")
                         lines.append(row)
                         exceeded = exceeded or status == "Exceeded"
                     detail_added = True
@@ -487,13 +487,13 @@ class NotifyState:
                 pack_low = cell_low * cell_count if cell_count else 0.0
                 if 'Above total volt warn' in cleaned or 'total voltage Above upper limit' in cleaned:
                     lines.extend(["", "Pack voltage:"])
-                    row, status = self._warning_detail_row("Pack", pack_v, pack_high, "above")
+                    row, status = self._warning_detail_row("Pack", pack_v, pack_high, "above", "notify_alert_pack_high_voltage")
                     lines.append(row)
                     exceeded = exceeded or status == "Exceeded"
                     detail_added = True
                 if 'Lower total volt warn' in cleaned or 'total voltage Below lower limit' in cleaned:
                     lines.extend(["", "Low pack voltage:"])
-                    row, status = self._warning_detail_row("Pack", pack_v, pack_low, "below")
+                    row, status = self._warning_detail_row("Pack", pack_v, pack_low, "below", "notify_alert_pack_low_voltage")
                     lines.append(row)
                     exceeded = exceeded or status == "Exceeded"
                     detail_added = True
