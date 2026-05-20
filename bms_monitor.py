@@ -2226,8 +2226,10 @@ def main():
                 log_analog_summary(analog_data)
 
                 # ── HA Discovery: publish only after first successful analog
-                # read so cell/pack counts are known; also guards the startup race
-                update_serial_live_snapshot(include_history=True)
+                # read so cell/pack counts are known; also guards the startup race.
+                # History writes are rate-limited by history_sample_seconds and
+                # history_cell_sample_seconds inside update_serial_live_snapshot().
+                update_serial_live_snapshot()
 
                 if mqtt_enabled and first_analog_ready and time.time() - last_discovery > DISCOVERY_TTL:
                     publish_ha_discovery(client, config, bms_sn, bms_version, analog_data)
@@ -2499,7 +2501,7 @@ def main():
                         'ON' if pack_warn.discharge_fet else 'OFF',
                         bool(pack_warn.fully))
                 log_warn_summary(result)
-                update_serial_live_snapshot(include_history=True)
+                update_serial_live_snapshot()
             else:
                 log.error("Warn info error: %s", result)
 

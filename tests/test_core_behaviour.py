@@ -2428,6 +2428,12 @@ class HealthEndpointTests(unittest.TestCase):
             source.index('if __name__ == "__main__":'),
         )
 
+    def test_monitor_history_writes_are_interval_limited(self):
+        source = Path("bms_monitor.py").read_text(encoding="utf-8")
+        self.assertNotIn("update_serial_live_snapshot(include_history=True)", source)
+        self.assertIn("history_sample_seconds", source)
+        self.assertIn("history_cell_sample_seconds", source)
+
     def test_root_defaults_to_user_dashboard(self):
         options = {
             "connection_type": "Serial",

@@ -1,3 +1,15 @@
+## 2.9.37 - 2026-05-20
+
+### Fixed
+- Aligned local SQLite pack/bank history writes with the configured `history_sample_seconds` interval instead of forcing a history row after every analog and warning phase.
+- Kept cell and temperature history writes governed by `history_cell_sample_seconds`.
+- Preserved live serial snapshot updates after analog, capacity and warning reads so the Web UI still receives fresh data as quickly as the monitor has it.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor serial polling cadence and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.36 - 2026-05-20
 
 ### Fixed
