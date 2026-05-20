@@ -1,3 +1,14 @@
+## 2.9.19 - 2026-05-20
+
+### Fixed
+- Fixed History chart lifecycle during soft tab navigation so charts recreate reliably when switching away and back to History.
+- Made History chart typography quieter and easier to read, with fewer crowded axis labels.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.18 - 2026-05-20
 
 ### Fixed

@@ -1729,6 +1729,7 @@ class HealthEndpointTests(unittest.TestCase):
                         self.assertIn(b'data-history-pack="02"', response.data)
                         self.assertIn(b"historyControlsInitialized", response.data)
                         self.assertIn(b'event.target.closest("[data-history-pack]")', response.data)
+                        self.assertIn(b"panelHasCharts(currentPanel) || panelHasCharts(nextPanel)", response.data)
 
     def test_all_main_tab_buttons_point_to_renderable_tabs(self):
         options = dict(web_config.DEFAULT_OPTION_VALUES)
