@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+env/
+ENV/
+
+# Build and test output
+dist/
+build/
+coverage/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+__pycache__/
+*.py[cod]
+
+# Local config, secrets and add-on runtime data
+.env
+.env.*
+!.env.example
+data/
+backups/
+logs/
+*.log
+*.sqlite
+*.sqlite3
+*.db
+
+# Archives and packages
+*.zip
+*.tar.gz
+*.tgz
+*.egg-info/
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/

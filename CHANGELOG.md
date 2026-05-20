@@ -1,3 +1,15 @@
+## 2.9.39 - 2026-05-20
+
+### Fixed
+- Restored `connection_type` to the BMS Connection config card as a fixed Serial option so every add-on option is represented in the web form.
+- Added regression coverage matching the config validation checklist for options, schema and web Config grouping alignment.
+- Added `.codexignore` so dependency folders, build output, local runtime data, logs, databases and archives stay out of Codex context.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+- Monitor polling behavior was not changed.
+
 ## 2.9.38 - 2026-05-20
 
 ### Fixed

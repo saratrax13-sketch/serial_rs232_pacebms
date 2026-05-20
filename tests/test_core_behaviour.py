@@ -1256,6 +1256,23 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertEqual(new_options["notify_soc_high_reset"], 96)
         self.assertEqual(new_options["notify_soh_threshold"], 94)
 
+    def test_config_yaml_options_schema_and_form_groups_stay_aligned(self):
+        with Path("config.yaml").open(encoding="utf-8") as handle:
+            config = web_config.yaml.safe_load(handle)
+
+        options = set((config.get("options") or {}).keys())
+        schema = set((config.get("schema") or {}).keys())
+        grouped = []
+        for keys in web_config.GROUPS.values():
+            grouped.extend(keys)
+        grouped_set = set(grouped)
+
+        self.assertEqual(sorted(options - schema), [])
+        self.assertEqual(sorted(schema - options), [])
+        self.assertEqual(sorted(options - grouped_set - web_config.DEPRECATED_OPTION_KEYS), [])
+        self.assertEqual(sorted(grouped_set - options), [])
+        self.assertEqual(sorted([key for key in grouped_set if grouped.count(key) > 1]), [])
+
     def test_all_config_fields_round_trip_from_form(self):
         current_options = dict(web_config.DEFAULT_OPTION_VALUES)
         sample_values = {

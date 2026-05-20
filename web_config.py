@@ -101,6 +101,7 @@ CONFIG_SECTION_TIERS = {
 GROUPS = {
     "BMS Connection": [
         "bms_connection_mode",
+        "connection_type",
         "bms_serial",
         "bms_baudrate",
         "scan_interval",
@@ -2356,7 +2357,7 @@ def get_page_live_snapshot(options):
 
 
 def input_type_for_value(key, value):
-    if key in ("battery_profile", "notify_bms_warning_policy", "debug_output", "bms_connection_mode", "ui_data_source"):
+    if key in ("battery_profile", "notify_bms_warning_policy", "debug_output", "bms_connection_mode", "connection_type", "ui_data_source"):
         return "select"
     if isinstance(value, bool):
         return "checkbox"
@@ -2916,7 +2917,7 @@ def build_grouped_config(options):
                     BATTERY_PROFILE_CHOICES if key == "battery_profile"
                     else WARNING_TELEGRAM_POLICY_CHOICES if key == "notify_bms_warning_policy"
                     else DEBUG_OUTPUT_CHOICES if key == "debug_output"
-                    else BMS_CONNECTION_MODE_CHOICES if key == "bms_connection_mode"
+                    else BMS_CONNECTION_MODE_CHOICES if key in ("bms_connection_mode", "connection_type")
                     else UI_DATA_SOURCE_CHOICES if key == "ui_data_source"
                     else {}
                 ),
@@ -2992,7 +2993,7 @@ def generate_config_yaml(options):
 
 def parse_form_value(key, raw_value, current_value):
     """Parse web form values back to the expected option type."""
-    if key == "bms_connection_mode":
+    if key in ("bms_connection_mode", "connection_type"):
         return "Serial"
     if key == "ui_data_source":
         value = str(raw_value or DEFAULT_OPTION_VALUES["ui_data_source"]).strip()
