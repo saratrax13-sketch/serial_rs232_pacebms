@@ -17,6 +17,7 @@ from logging.handlers import RotatingFileHandler
 from flask import Flask, Response, jsonify, render_template, request, send_file, redirect
 
 import paho.mqtt.client as mqtt
+import yaml
 from bms_notify import telegram_value_configured
 from battery_profiles import BATTERY_PROFILE_CHOICES, effective_warning_references, normalize_profile
 from bms_live import LIVE_SNAPSHOT_PATH, load_live_snapshot
@@ -51,8 +52,9 @@ _LIVE_SNAPSHOT_WORKER_STARTED = False
 
 def load_addon_version():
     try:
-        with open("config.yaml", "r", encoding="utf-8") as handle:
-            data = yaml.load(handle, Loader=yaml.FullLoader) or {}
+        config_path = Path(__file__).resolve().parent / "config.yaml"
+        with config_path.open("r", encoding="utf-8") as handle:
+            data = yaml.safe_load(handle) or {}
         return str(data.get("version") or "Unknown")
     except Exception:
         return "Unknown"

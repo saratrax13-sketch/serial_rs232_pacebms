@@ -1,3 +1,14 @@
+## 2.9.27 - 2026-05-20
+
+### Fixed
+- Fixed the header version pill so it reads the installed add-on version reliably from the project `config.yaml`.
+- Tightened the header badge layout so the version pill sits closer to the existing read-only and live source badges.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.26 - 2026-05-20
 
 ### Changed
