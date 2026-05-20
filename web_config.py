@@ -51,7 +51,7 @@ _LIVE_SNAPSHOT_WORKER_STARTED = False
 SECTION_HELP = {
     "History & Live Data": "Controls how the web UI reads live battery values and how local history is stored. Auto uses the monitor-owned live serial snapshot first and falls back to retained MQTT only when configured. Metrics are stored locally in SQLite under /data and never write to the BMS.",
     "Battery Profile & References": "Selects the read-only battery profile used for warning explanations. Auto detect uses detected cell count: 13S defaults suit Hubble AM2-style packs, and 16S defaults suit Eenovance MANA LFP-style packs. Custom references use your configured cell high/low values. These references affect UI and Telegram interpretation only; they never write to the BMS.",
-    "Notification Thresholds": "Controls SOC, SOH, stale-data and BMS warning repeat timing. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale and warning repeat values are in seconds. BMS warning repeats are severity-aware: caution repeats for low-risk ongoing warnings, warning repeats for near-limit conditions, and critical repeats for protection/fault or measured values outside configured references.",
+    "Notification Thresholds": "Controls SOC, SOH, stale-data and BMS warning repeat timing. notify_soc_low_thresholds must use comma-separated numbers only, for example 50,25,10. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale and warning repeat values are in seconds. BMS warning repeats are severity-aware: caution repeats for low-risk ongoing warnings, warning repeats for near-limit conditions, and critical repeats for protection/fault or measured values outside configured references.",
     "Scheduled Reports": "Controls scheduled Telegram report toggles, report times, delta report window and the daily energy current deadband. Use 24-hour HH:MM format, for example 19:00, 10:15 or 00:00.",
 }
 
@@ -245,7 +245,7 @@ DEFAULT_OPTION_VALUES = {
     "notify_fet": True,
     "notify_daily_summary": True,
     "notify_delta_report": True,
-    "notify_soc_low_thresholds": "75,50,25,10",
+    "notify_soc_low_thresholds": "50,25,10",
     "notify_soc_high_threshold": 98,
     "notify_soc_high_reset": 95,
     "notify_soh_threshold": 95,
@@ -255,7 +255,7 @@ DEFAULT_OPTION_VALUES = {
     "notify_warning_repeat_seconds": 1800,
     "notify_warning_repeat_caution_seconds": 21600,
     "notify_warning_repeat_warning_seconds": 3600,
-    "notify_warning_repeat_critical_seconds": 900,
+    "notify_warning_repeat_critical_seconds": 1800,
     "notify_warning_clear_confirm_reads": 2,
     "battery_profile": "auto",
     "notify_bms_warning_policy": "user_reference_or_critical",
@@ -278,7 +278,7 @@ DEFAULT_OPTION_VALUES = {
     "notify_include_soc_soh": True,
     "notify_ignore_charge_fet_off_when_full": True,
     "notify_alert_discharge_fet_off": True,
-    "notify_fet_repeat_seconds": 1800,
+    "notify_fet_repeat_seconds": 3600,
     "notify_daily_summary_time": "19:00",
     "daily_energy_current_deadband_a": 0.2,
     "notify_delta_report_time": "10:15",
@@ -2621,7 +2621,7 @@ CARD_HELP = {
     "History & Live Data": "Controls where the web UI reads display data from and whether local SQLite history is stored. This does not change how the BMS is polled. Live serial data reads the monitor-owned snapshot; fallback mode uses MQTT only if live serial data is unavailable and MQTT is enabled. History settings store local metrics for charts and never write to the BMS.",
     "Battery Profile & References": "Shows measured battery values beside profile/default references and user-configured references. This card also contains read-only expected layout checks and capacity fallback settings used only when BMS capacity is unavailable. The BMS warning Telegram policy and row alert switches control Telegram noise only; active BMS warnings remain visible in the UI. The editable values are Home Assistant add-on options only and never write to the BMS.",
     "FET Notifications": "Controls charge/discharge FET notification behavior. These settings only decide when to alert; they do not control FETs.",
-    "Notification Thresholds": "Controls SOC, SOH, stale-data and BMS warning repeat timing. notify_soc_low_thresholds must use comma-separated numbers only, for example 75,50,25,15. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale and warning repeat values are in seconds. BMS warning repeats are severity-aware: caution repeats for low-risk ongoing warnings, warning repeats for near-limit conditions, and critical repeats for protection/fault or measured values outside configured references.",
+    "Notification Thresholds": "Controls SOC, SOH, stale-data and BMS warning repeat timing. notify_soc_low_thresholds must use comma-separated numbers only, for example 50,25,10. Do not use percentage signs. SOC high and SOH thresholds use single percentage numbers. Stale and warning repeat values are in seconds. BMS warning repeats are severity-aware: caution repeats for low-risk ongoing warnings, warning repeats for near-limit conditions, and critical repeats for protection/fault or measured values outside configured references.",
     "Warning Detail": "Controls the extra context included in BMS warning explanations, such as highest/lowest cell, pack voltage and SOC/SOH. These settings only affect Telegram/UI message detail and never write to the BMS.",
     "Scheduled Reports": "Controls scheduled Telegram reports, daily summary timing, energy deadband and cell delta report window. These settings do not write to the BMS.",
 }
@@ -2638,7 +2638,7 @@ FIELD_HELP = {
     "notify_warning_repeat_seconds": "Repeat interval in seconds for the same active BMS warning Telegram notification. Example: 1800 means repeat at most every 30 minutes.",
     "notify_warning_repeat_caution_seconds": "Repeat interval for ongoing caution-level BMS warnings. Recommended: 21600 seconds (6 hours).",
     "notify_warning_repeat_warning_seconds": "Repeat interval for ongoing warning-level BMS warnings. Recommended: 3600 seconds (1 hour).",
-    "notify_warning_repeat_critical_seconds": "Repeat interval for ongoing critical BMS warnings. Recommended: 900 seconds (15 minutes).",
+    "notify_warning_repeat_critical_seconds": "Repeat interval for ongoing critical BMS warnings. Recommended: 1800 seconds (30 minutes).",
     "notify_warning_clear_confirm_reads": "Number of consecutive normal warning reads required before the app sends a warning-cleared message and allows the same warning to alert again. This reduces clear/re-alert flicker.",
     "battery_profile": "Read-only reference profile used for warning explanations. Auto detect selects 13S or 16S defaults from detected cell count. Custom uses your configured reference voltages.",
     "notify_bms_warning_policy": "Controls when BMS warning Telegram messages are sent: all warnings, user reference exceeded plus critical/protection, or user reference exceeded only.",
@@ -2649,7 +2649,7 @@ FIELD_HELP = {
     "notify_alert_pack_low_voltage": "Enables Telegram alerts for pack low-voltage reference crossings.",
     "notify_alert_temp_high": "Enables Telegram alerts for high-temperature reference crossings.",
     "notify_alert_temp_low": "Enables Telegram alerts for low-temperature reference crossings.",
-    "notify_soc_low_thresholds": "Comma-separated SOC low alert thresholds. Use numbers only, no percent signs. Example: 75,50,25,15.",
+    "notify_soc_low_thresholds": "Comma-separated SOC low alert thresholds. Use numbers only, no percent signs. Example: 50,25,10.",
     "notify_soc_high_threshold": "Single SOC high alert threshold. Example: 98 means alert when SOC is at or above 98%.",
     "notify_soc_high_reset": "High SOC reset point. Example: 95 means the high SOC alert can trigger again after SOC drops below 95%.",
     "notify_soh_threshold": "Single SOH threshold. Example: 95 means alert when SOH is below 95%.",
@@ -2658,7 +2658,7 @@ FIELD_HELP = {
     "notify_stale_data_repeat_seconds": "Repeat interval in seconds while stale data remains active. Example: 1800.",
     "notify_ignore_charge_fet_off_when_full": "When enabled, Charge FET OFF can be ignored if the pack is full. This helps avoid unnecessary alerts when the BMS disables charging at full SOC.",
     "notify_alert_discharge_fet_off": "When enabled, send an alert if the Discharge FET is OFF.",
-    "notify_fet_repeat_seconds": "Minimum seconds before the same FET OFF alert can be sent again after a noisy ON/OFF flicker. Recommended: 1800 seconds.",
+    "notify_fet_repeat_seconds": "Minimum seconds before the same FET OFF alert can be sent again after a noisy ON/OFF flicker. Recommended: 3600 seconds.",
     "notify_daily_summary_time": "Daily summary notification time. Use HH:MM 24-hour format. Example: 19:00.",
     "daily_energy_current_deadband_a": "Current below this value is ignored for daily charged/discharged kWh. Example: 0.2 ignores tiny zero-current noise.",
     "notify_delta_report_time": "Cell delta report notification time. Use HH:MM 24-hour format. Example: 10:15.",
@@ -3832,12 +3832,12 @@ def validate_config_options(options):
             continue
         text = str(options.get(key, "")).strip()
         if not text:
-            errors.append(f"{key} cannot be blank. Use comma-separated numbers, for example 75,50,25,15.")
+            errors.append(f"{key} cannot be blank. Use comma-separated numbers, for example 50,25,10.")
             continue
 
         parts = [part.strip() for part in text.split(",")]
         if any(part == "" for part in parts):
-            errors.append(f"{key} has an empty value. Use format like 75,50,25,15.")
+            errors.append(f"{key} has an empty value. Use format like 50,25,10.")
             continue
 
         parsed_values = []
@@ -3852,7 +3852,7 @@ def validate_config_options(options):
                 bad = True
 
         if bad:
-            errors.append(f"{key} must contain comma-separated numbers between {minimum} and {maximum}. Example: 75,50,25,15.")
+            errors.append(f"{key} must contain comma-separated numbers between {minimum} and {maximum}. Example: 50,25,10.")
 
     if options.get("connection_type") not in ("Serial", "serial"):
         errors.append("connection_type must be Serial. IP mode is not enabled in this add-on build.")

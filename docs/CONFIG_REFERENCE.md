@@ -115,7 +115,7 @@ The report schedule fields are shown in the final Config section:
 Use numbers only:
 
 ```text
-75,50,25,15
+50,25,10
 ```
 
 ### Time values

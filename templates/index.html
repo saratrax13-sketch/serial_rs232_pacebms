@@ -4370,6 +4370,11 @@
           <button class="history-range-button" type="button" data-history-range="21600">6 hours</button>
           <button class="history-range-button" type="button" data-history-range="86400">24 hours</button>
         </div>
+        <div class="history-controls" role="group" aria-label="History data view">
+          <button class="history-range-button active" type="button" data-history-pack="all">Bank</button>
+          <button class="history-range-button" type="button" data-history-pack="01">Pack 01</button>
+          <button class="history-range-button" type="button" data-history-pack="02">Pack 02</button>
+        </div>
         <div class="history-summary-grid">
           <div class="history-summary-tile">
             <div class="history-summary-label">Visible Samples</div>
@@ -4384,29 +4389,29 @@
             <div id="history-newest-sample" class="history-summary-value">No data</div>
           </div>
           <div class="history-summary-tile">
-            <div class="history-summary-label">Refresh</div>
-            <div class="history-summary-value">10 seconds</div>
+            <div class="history-summary-label">View</div>
+            <div id="history-selected-view" class="history-summary-value">Bank</div>
           </div>
         </div>
         <div id="history-refresh-message" class="dashboard-refresh-message">Waiting for history data.</div>
         <div class="chart-grid live-trends-grid">
           <article class="chart-card">
-            <div class="chart-title">Bank SOC</div>
+            <div id="history-title-soc" class="chart-title">Bank SOC</div>
             <canvas id="history-bank-soc" height="120" aria-label="Historical bank SOC"></canvas>
             <div class="chart-status" data-chart-status="history-bank-soc" data-chart-group="history"></div>
           </article>
           <article class="chart-card">
-            <div class="chart-title">Battery Power</div>
+            <div id="history-title-power" class="chart-title">Battery Power</div>
             <canvas id="history-bank-power" height="120" aria-label="Historical battery power"></canvas>
             <div class="chart-status" data-chart-status="history-bank-power" data-chart-group="history"></div>
           </article>
           <article class="chart-card">
-            <div class="chart-title">Average Pack Voltage</div>
+            <div id="history-title-voltage" class="chart-title">Average Pack Voltage</div>
             <canvas id="history-bank-voltage" height="120" aria-label="Historical average pack voltage"></canvas>
             <div class="chart-status" data-chart-status="history-bank-voltage" data-chart-group="history"></div>
           </article>
           <article class="chart-card">
-            <div class="chart-title">Worst Cell Delta</div>
+            <div id="history-title-delta" class="chart-title">Worst Cell Delta</div>
             <canvas id="history-bank-delta" height="120" aria-label="Historical worst cell delta"></canvas>
             <div class="chart-status" data-chart-status="history-bank-delta" data-chart-group="history"></div>
           </article>
@@ -4601,7 +4606,7 @@
             <summary>Format Help</summary>
             <div class="helper-note">
               <strong>Multiple threshold format:</strong> use comma-separated numbers only.
-              Example: <code>75,50,25,15</code>. Do not add percentage signs.
+              Example: <code>50,25,10</code>. Do not add percentage signs.
             </div>
             <div class="helper-note">
               <strong>Time format:</strong> use 24-hour <code>HH:MM</code> format.
@@ -6064,9 +6069,9 @@ Restart the add-on afterwards for runtime changes to apply.`);
           <h3>SOC low threshold list</h3>
           <ul>
             <li><code>notify_soc_low_thresholds</code> — the SOC levels where low battery notifications should trigger.</li>
-            <li>Use comma-separated numbers only. Example: <code>75,50,25,15</code>.</li>
+            <li>Use comma-separated numbers only. Example: <code>50,25,10</code>.</li>
             <li>Do not use percentage signs. Do not use words or spaces as separators.</li>
-            <li>Correct: <code>75,50,25,15</code></li>
+            <li>Correct: <code>50,25,10</code></li>
             <li>Incorrect: <code>75%, 50%, low</code></li>
           </ul>
 
@@ -6093,7 +6098,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
             <li><code>notify_warning_repeat_seconds</code> - legacy fallback repeat interval for repeated BMS warnings.</li>
             <li><code>notify_warning_repeat_caution_seconds</code> - repeat interval for ongoing caution warnings. Default: <code>21600</code> seconds, or 6 hours.</li>
             <li><code>notify_warning_repeat_warning_seconds</code> - repeat interval for ongoing warning-level conditions. Default: <code>3600</code> seconds, or 1 hour.</li>
-            <li><code>notify_warning_repeat_critical_seconds</code> - repeat interval for ongoing critical protection/fault or out-of-reference conditions. Default: <code>900</code> seconds, or 15 minutes.</li>
+            <li><code>notify_warning_repeat_critical_seconds</code> - repeat interval for ongoing critical protection/fault or out-of-reference conditions. Default: <code>1800</code> seconds, or 30 minutes.</li>
           </ul>
 
           <h3>Severity meaning</h3>
@@ -6631,7 +6636,8 @@ Restart the add-on afterwards for runtime changes to apply.`);
                 label: function (context) {
                   const value = Number(context.parsed.y);
                   const decimals = axisConfig.decimals ?? 1;
-                  return `${label}: ${Number.isFinite(value) ? value.toFixed(decimals) : "No data"}${unit}`;
+                  const activeLabel = context.dataset && context.dataset.label ? context.dataset.label : label;
+                  return `${activeLabel}: ${Number.isFinite(value) ? value.toFixed(decimals) : "No data"}${unit}`;
                 },
                 afterLabel: function () {
                   return "Local history sample";
@@ -6737,6 +6743,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
     }
 
     let activeHistoryRangeSeconds = 1800;
+    let activeHistoryPackId = "all";
 
     function setHistoryStatus(message) {
       setChartGroupStatus("history", message);
@@ -6784,15 +6791,48 @@ Restart the add-on afterwards for runtime changes to apply.`);
       return new Date(number * 1000).toLocaleString();
     }
 
-    function setHistorySummary(bankRows) {
-      const rows = bankRows || [];
+    function historyViewLabel() {
+      return activeHistoryPackId === "all" ? "Bank" : `Pack ${activeHistoryPackId}`;
+    }
+
+    function setHistoryTitles() {
+      const prefix = historyViewLabel();
+      const bankView = activeHistoryPackId === "all";
+      setText("history-selected-view", prefix);
+      setText("history-title-soc", bankView ? "Bank SOC" : `${prefix} SOC`);
+      setText("history-title-power", bankView ? "Battery Power" : `${prefix} Power`);
+      setText("history-title-voltage", bankView ? "Average Pack Voltage" : `${prefix} Voltage`);
+      setText("history-title-delta", bankView ? "Worst Cell Delta" : `${prefix} Cell Delta`);
+      updateChartDatasetLabel("history-bank-soc", bankView ? "Bank SOC" : `${prefix} SOC`);
+      updateChartDatasetLabel("history-bank-power", bankView ? "Battery power" : `${prefix} power`);
+      updateChartDatasetLabel("history-bank-voltage", bankView ? "Average pack voltage" : `${prefix} voltage`);
+      updateChartDatasetLabel("history-bank-delta", bankView ? "Worst cell delta" : `${prefix} cell delta`);
+    }
+
+    function updateChartDatasetLabel(canvasId, label) {
+      const chart = liveTrendCharts[canvasId];
+      if (chart && chart.data && chart.data.datasets && chart.data.datasets[0]) {
+        chart.data.datasets[0].label = label;
+      }
+    }
+
+    function setHistorySummary(rows) {
+      rows = rows || [];
       setText("history-visible-samples", String(rows.length));
       setText("history-oldest-sample", rows.length ? historySampleTime(rows[0].ts) : "No data");
       setText("history-newest-sample", rows.length ? historySampleTime(rows[rows.length - 1].ts) : "No data");
       const msg = document.getElementById("history-refresh-message");
       if (msg && rows.length) {
-        msg.textContent = "History refreshed at " + new Date().toLocaleTimeString();
+        msg.textContent = `${historyViewLabel()} history refreshed at ${new Date().toLocaleTimeString()}. Charts refresh every 10 seconds.`;
       }
+    }
+
+    function selectedPackRows(packRows) {
+      const selected = String(activeHistoryPackId || "all");
+      if (selected === "all") return [];
+      return (packRows || []).filter(function (row) {
+        return String(row.pack_id || "").padStart(2, "0") === selected;
+      });
     }
 
     async function refreshHistoryCharts(force = false) {
@@ -6806,22 +6846,32 @@ Restart the add-on afterwards for runtime changes to apply.`);
         return;
       }
       try {
+        setHistoryTitles();
         const response = await fetch("api/history?range_seconds=" + encodeURIComponent(activeHistoryRangeSeconds), { cache: "no-store" });
         if (!response.ok) throw new Error("HTTP " + response.status);
         const history = await response.json();
         const bankRows = history.bank || [];
-        setHistorySummary(bankRows);
-        if (!bankRows.length) {
-          setHistoryStatus("Waiting for local history samples.");
+        const packRows = history.packs || [];
+        const rows = activeHistoryPackId === "all" ? bankRows : selectedPackRows(packRows);
+        setHistorySummary(rows);
+        if (!rows.length) {
+          setHistoryStatus(`Waiting for ${historyViewLabel()} history samples.`);
           return;
         }
-        const labels = bankRows.map(row => historyTimeLabel(row.ts));
-        const deltaByTs = maxPackDeltaByTimestamp(history.packs || []);
+        const labels = rows.map(row => historyTimeLabel(row.ts));
         setChartGroupStatus("history", "");
-        updateLiveTrendChart("history-bank-soc", labels, bankRows.map(row => historyNumber(row.combined_soc)));
-        updateLiveTrendChart("history-bank-power", labels, bankRows.map(row => historyNumber(row.total_power_kw)));
-        updateLiveTrendChart("history-bank-voltage", labels, bankRows.map(row => historyNumber(row.avg_voltage)));
-        updateLiveTrendChart("history-bank-delta", labels, bankRows.map(row => historyNumber(deltaByTs[String(row.ts || "")])));
+        if (activeHistoryPackId === "all") {
+          const deltaByTs = maxPackDeltaByTimestamp(packRows);
+          updateLiveTrendChart("history-bank-soc", labels, rows.map(row => historyNumber(row.combined_soc)));
+          updateLiveTrendChart("history-bank-power", labels, rows.map(row => historyNumber(row.total_power_kw)));
+          updateLiveTrendChart("history-bank-voltage", labels, rows.map(row => historyNumber(row.avg_voltage)));
+          updateLiveTrendChart("history-bank-delta", labels, rows.map(row => historyNumber(deltaByTs[String(row.ts || "")])));
+        } else {
+          updateLiveTrendChart("history-bank-soc", labels, rows.map(row => historyNumber(row.soc)));
+          updateLiveTrendChart("history-bank-power", labels, rows.map(row => historyNumber(row.power_kw)));
+          updateLiveTrendChart("history-bank-voltage", labels, rows.map(row => historyNumber(row.voltage)));
+          updateLiveTrendChart("history-bank-delta", labels, rows.map(row => historyNumber(row.cell_delta_mv)));
+        }
       } catch (err) {
         setHistoryStatus("History refresh failed: " + err.message);
       }
@@ -6837,6 +6887,16 @@ Restart the add-on afterwards for runtime changes to apply.`);
           refreshHistoryCharts(true);
         });
       });
+      document.querySelectorAll("[data-history-pack]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          activeHistoryPackId = String(button.getAttribute("data-history-pack") || "all");
+          document.querySelectorAll("[data-history-pack]").forEach(function (item) {
+            item.classList.toggle("active", item === button);
+          });
+          refreshHistoryCharts(true);
+        });
+      });
+      setHistoryTitles();
     }
 
     async function refreshDashboard(quiet = false) {
@@ -7182,7 +7242,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
         const parts = text.split(",").map((p) => p.trim());
         const invalid = !text || parts.some((p) => p === "" || Number.isNaN(Number(p)) || Number(p) < 0 || Number(p) > 100);
         if (invalid) {
-          errors.push("notify_soc_low_thresholds must use comma-separated numbers between 0 and 100. Example: 75,50,25,15.");
+          errors.push("notify_soc_low_thresholds must use comma-separated numbers between 0 and 100. Example: 50,25,10.");
         }
       }
 

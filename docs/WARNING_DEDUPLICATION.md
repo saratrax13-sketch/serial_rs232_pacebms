@@ -58,7 +58,7 @@ The current configuration uses severity-aware repeat timing:
 notify_warning_repeat_seconds: 1800
 notify_warning_repeat_caution_seconds: 21600
 notify_warning_repeat_warning_seconds: 3600
-notify_warning_repeat_critical_seconds: 900
+notify_warning_repeat_critical_seconds: 1800
 ```
 
 Meaning:

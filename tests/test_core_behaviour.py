@@ -343,12 +343,12 @@ class WarningNormalizationTests(unittest.TestCase):
             "notify_warning_repeat_seconds": 1800,
             "notify_warning_repeat_caution_seconds": 21600,
             "notify_warning_repeat_warning_seconds": 3600,
-            "notify_warning_repeat_critical_seconds": 900,
+            "notify_warning_repeat_critical_seconds": 1800,
         }
 
         self.assertEqual(bms_monitor.warning_repeat_seconds_for_severity(config, "caution"), 21600)
         self.assertEqual(bms_monitor.warning_repeat_seconds_for_severity(config, "warning"), 3600)
-        self.assertEqual(bms_monitor.warning_repeat_seconds_for_severity(config, "critical"), 900)
+        self.assertEqual(bms_monitor.warning_repeat_seconds_for_severity(config, "critical"), 1800)
 
     def test_warning_telegram_policy_filters_bms_warning_below_reference(self):
         pack = bms_monitor.PackData(
@@ -589,7 +589,7 @@ class TelegramConfigTests(unittest.TestCase):
             "telegram_chat_id": "YOUR_TELEGRAM_CHAT_ID",
             "notify_warning_repeat_caution_seconds": 21600,
             "notify_warning_repeat_warning_seconds": 3600,
-            "notify_warning_repeat_critical_seconds": 900,
+            "notify_warning_repeat_critical_seconds": 1800,
         })
 
         self.assertFalse(checklist["telegram_configured"])
@@ -615,7 +615,7 @@ class TelegramConfigTests(unittest.TestCase):
             "notify_stale_data_repeat_seconds": 1800,
             "notify_warning_repeat_caution_seconds": 21600,
             "notify_warning_repeat_warning_seconds": 3600,
-            "notify_warning_repeat_critical_seconds": 900,
+            "notify_warning_repeat_critical_seconds": 1800,
             "state_force_republish_seconds": 300,
             "warn_force_republish_seconds": 300,
         }
@@ -799,7 +799,7 @@ class HealthEndpointTests(unittest.TestCase):
             "telegram_chat_id": "YOUR_TELEGRAM_CHAT_ID",
             "notify_warning_repeat_caution_seconds": 21600,
             "notify_warning_repeat_warning_seconds": 3600,
-            "notify_warning_repeat_critical_seconds": 900,
+            "notify_warning_repeat_critical_seconds": 1800,
         }
         live = {
             "ok": True,
@@ -1077,7 +1077,7 @@ class HealthEndpointTests(unittest.TestCase):
             "notify_enabled": False,
             "notify_warning_repeat_caution_seconds": 21600,
             "notify_warning_repeat_warning_seconds": 3600,
-            "notify_warning_repeat_critical_seconds": 900,
+            "notify_warning_repeat_critical_seconds": 1800,
         }
         live = {
             "ok": True,
@@ -1606,7 +1606,7 @@ class HealthEndpointTests(unittest.TestCase):
             "notify_stale_data_seconds": 120,
             "notify_warning_repeat_caution_seconds": 21600,
             "notify_warning_repeat_warning_seconds": 3600,
-            "notify_warning_repeat_critical_seconds": 900,
+            "notify_warning_repeat_critical_seconds": 1800,
         }
         live = {
             "ok": True,
@@ -1723,6 +1723,10 @@ class HealthEndpointTests(unittest.TestCase):
                 with self.subTest(tab=tab):
                     response = client.get(f"/?tab={tab}")
                     self.assertEqual(response.status_code, 200)
+                    if tab == "history":
+                        self.assertIn(b'data-history-pack="all"', response.data)
+                        self.assertIn(b'data-history-pack="01"', response.data)
+                        self.assertIn(b'data-history-pack="02"', response.data)
 
     def test_all_main_tab_buttons_point_to_renderable_tabs(self):
         options = dict(web_config.DEFAULT_OPTION_VALUES)
@@ -1970,7 +1974,7 @@ class HealthEndpointTests(unittest.TestCase):
             "notify_stale_data_seconds": 120,
             "notify_warning_repeat_caution_seconds": 21600,
             "notify_warning_repeat_warning_seconds": 3600,
-            "notify_warning_repeat_critical_seconds": 900,
+            "notify_warning_repeat_critical_seconds": 1800,
         }
         live = {
             "ok": True,
@@ -2044,7 +2048,7 @@ class HealthEndpointTests(unittest.TestCase):
             "notify_stale_data_seconds": 120,
             "notify_warning_repeat_caution_seconds": 21600,
             "notify_warning_repeat_warning_seconds": 3600,
-            "notify_warning_repeat_critical_seconds": 900,
+            "notify_warning_repeat_critical_seconds": 1800,
         }
         live = {
             "ok": True,

@@ -1,3 +1,15 @@
+## 2.9.17 - 2026-05-20
+
+### Changed
+- Added pack-specific History graph views so the History tab can switch between Bank, Pack 01 and Pack 02 trends.
+- Improved History graph titles, selected-view summary and refresh text so the current graph context is clearer.
+- Tuned default Telegram noise settings for normal use: low-SOC defaults now alert at 50/25/10%, FET repeat defaults to 3600 seconds and critical BMS warning reminders default to 1800 seconds.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.16 - 2026-05-20
 
 ### Changed

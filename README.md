@@ -30,7 +30,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.9.16"
+version: "2.9.17"
 ```
 
 ---
@@ -436,6 +436,13 @@ The **Tech Status** tab focuses on technician review after the add-on is running
 
 Tech Status refreshes silently while the tab is open. Use the **Setup** tab for first-run checks and Telegram/MQTT test buttons.
 
+The **History** tab reads the local SQLite history database and provides compact trend charts. It can switch between:
+
+- **Bank**: combined SOC, total power, average pack voltage and worst cell delta.
+- **Pack 01 / Pack 02**: per-pack SOC, power, voltage and cell delta.
+
+History graphs are read-only, refresh while the tab is open and do not publish MQTT or send BMS commands.
+
 ---
 
 ## Recommended Configuration
@@ -522,7 +529,7 @@ notify_disconnect: true
 notify_retry_count: 1
 
 notify_soc_low: true
-notify_soc_low_thresholds: "75,50,25,10"
+notify_soc_low_thresholds: "50,25,10"
 notify_soc_high: true
 notify_soc_high_threshold: 98
 notify_soc_high_reset: 95
@@ -545,7 +552,7 @@ notify_temp_low_warn_c: 0
 notify_fet: true
 notify_ignore_charge_fet_off_when_full: true
 notify_alert_discharge_fet_off: true
-notify_fet_repeat_seconds: 1800
+notify_fet_repeat_seconds: 3600
 
 notify_stale_data: true
 notify_stale_recovery: true
@@ -553,7 +560,7 @@ notify_stale_data_seconds: 120
 notify_stale_data_repeat_seconds: 1800
 notify_warning_repeat_caution_seconds: 21600
 notify_warning_repeat_warning_seconds: 3600
-notify_warning_repeat_critical_seconds: 900
+notify_warning_repeat_critical_seconds: 1800
 notify_warning_clear_confirm_reads: 2
 
 mqtt_retain_state: true
@@ -652,7 +659,7 @@ Default repeat intervals:
 ```yaml
 notify_warning_repeat_caution_seconds: 21600   # 6 hours
 notify_warning_repeat_warning_seconds: 3600    # 1 hour
-notify_warning_repeat_critical_seconds: 900    # 15 minutes
+notify_warning_repeat_critical_seconds: 1800   # 30 minutes
 ```
 
 New warning families and severity escalation send immediately. Ongoing repeats use shorter reminder messages, and the warning state is persisted across add-on restarts to avoid re-alerting the same active condition after a restart.

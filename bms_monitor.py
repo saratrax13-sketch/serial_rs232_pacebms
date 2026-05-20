@@ -1143,7 +1143,7 @@ def warning_repeat_seconds_for_severity(config: dict, severity: str) -> float:
     defaults = {
         "caution": 21600,
         "warning": 3600,
-        "critical": 900,
+        "critical": 1800,
     }
     keys = {
         "caution": "notify_warning_repeat_caution_seconds",
