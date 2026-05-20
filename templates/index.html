@@ -848,6 +848,18 @@
       white-space: nowrap;
     }
 
+    .setup-progress.healthy {
+      color: #bbf7d0;
+      border-color: rgba(34, 197, 94, 0.36);
+      background: rgba(34, 197, 94, 0.10);
+    }
+
+    .setup-progress.warning {
+      color: #fde68a;
+      border-color: rgba(245, 158, 11, 0.40);
+      background: rgba(245, 158, 11, 0.12);
+    }
+
     .setup-checklist-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
@@ -860,6 +872,15 @@
       background: rgba(15, 23, 42, 0.62);
       border-radius: 14px;
       padding: 12px;
+    }
+
+    .setup-check-item.healthy {
+      border-color: rgba(34, 197, 94, 0.20);
+    }
+
+    .setup-check-item.warning {
+      border-color: rgba(245, 158, 11, 0.42);
+      background: rgba(245, 158, 11, 0.08);
     }
 
     .setup-check-top {
@@ -4405,7 +4426,7 @@
             <p>{{ setup_checklist.summary }}</p>
           </div>
           <div class="setup-checklist-actions">
-            <span class="setup-progress">{{ setup_checklist.ready_count }} / {{ setup_checklist.total_count }} ready</span>
+            <span class="setup-progress {{ setup_checklist.summary_class }}">{{ setup_checklist.ready_count }} / {{ setup_checklist.total_count }} ready</span>
             <button class="icon-button" type="button" onclick="reloadTab('setup')" aria-label="Refresh setup" title="Refresh setup">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M21 12a9 9 0 0 1-15.5 6.2"></path>
@@ -4424,7 +4445,7 @@
 
         <div class="setup-checklist-grid">
           {% for item in setup_checklist["items"] %}
-          <article class="setup-check-item">
+          <article class="setup-check-item {{ item.class }}">
             <div class="setup-check-top">
               <div class="setup-check-title">{{ item.title }}</div>
               <span class="setup-check-status {{ item.class }}">{{ item.status }}</span>
@@ -4433,6 +4454,58 @@
           </article>
           {% endfor %}
         </div>
+      </section>
+      {% endif %}
+
+      {% if diagnostics %}
+      <section class="card wide-card">
+        <h2>Local History Storage</h2>
+        <p>SQLite metrics used for Dashboard and History graphs. This storage is local, read-only from the UI, and does not write to the BMS.</p>
+        <div class="status-grid">
+          <div class="status-tile">
+            <div class="tile-label">Store Local History</div>
+            <div class="tile-value {{ diagnostics.history_status.class }}">{{ diagnostics.history_status.enabled }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Latest Sample</div>
+            <div class="tile-value">{{ diagnostics.history_status.latest_sample }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Database Size</div>
+            <div class="tile-value">{{ diagnostics.history_status.db_size }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">WAL Size</div>
+            <div class="tile-value">{{ diagnostics.history_status.wal_size }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Bank Rows</div>
+            <div class="tile-value">{{ diagnostics.history_status.rows.bank }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Pack Rows</div>
+            <div class="tile-value">{{ diagnostics.history_status.rows.pack }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Cell Rows</div>
+            <div class="tile-value">{{ diagnostics.history_status.rows.cell }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Temperature Rows</div>
+            <div class="tile-value">{{ diagnostics.history_status.rows.temperature }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Warning Events</div>
+            <div class="tile-value">{{ diagnostics.history_status.rows.warnings }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Retention</div>
+            <div class="tile-value">{{ diagnostics.history_status.retention }}</div>
+          </div>
+        </div>
+        {% if diagnostics.history_status.error %}
+          <div class="alert warn">History database check failed: {{ diagnostics.history_status.error }}</div>
+        {% endif %}
       </section>
       {% endif %}
 
@@ -5082,56 +5155,6 @@ This cannot be undone.`);">
       </section>
 
       {% if diagnostics %}
-      <section class="card wide-card">
-        <h2>Local History Storage</h2>
-        <p>SQLite metrics used for Dashboard and History graphs. This storage is local, read-only from the UI, and does not write to the BMS.</p>
-        <div class="status-grid">
-          <div class="status-tile">
-            <div class="tile-label">Store Local History</div>
-            <div class="tile-value {{ diagnostics.history_status.class }}">{{ diagnostics.history_status.enabled }}</div>
-          </div>
-          <div class="status-tile">
-            <div class="tile-label">Latest Sample</div>
-            <div class="tile-value">{{ diagnostics.history_status.latest_sample }}</div>
-          </div>
-          <div class="status-tile">
-            <div class="tile-label">Database Size</div>
-            <div class="tile-value">{{ diagnostics.history_status.db_size }}</div>
-          </div>
-          <div class="status-tile">
-            <div class="tile-label">WAL Size</div>
-            <div class="tile-value">{{ diagnostics.history_status.wal_size }}</div>
-          </div>
-          <div class="status-tile">
-            <div class="tile-label">Bank Rows</div>
-            <div class="tile-value">{{ diagnostics.history_status.rows.bank }}</div>
-          </div>
-          <div class="status-tile">
-            <div class="tile-label">Pack Rows</div>
-            <div class="tile-value">{{ diagnostics.history_status.rows.pack }}</div>
-          </div>
-          <div class="status-tile">
-            <div class="tile-label">Cell Rows</div>
-            <div class="tile-value">{{ diagnostics.history_status.rows.cell }}</div>
-          </div>
-          <div class="status-tile">
-            <div class="tile-label">Temperature Rows</div>
-            <div class="tile-value">{{ diagnostics.history_status.rows.temperature }}</div>
-          </div>
-          <div class="status-tile">
-            <div class="tile-label">Warning Events</div>
-            <div class="tile-value">{{ diagnostics.history_status.rows.warnings }}</div>
-          </div>
-          <div class="status-tile">
-            <div class="tile-label">Retention</div>
-            <div class="tile-value">{{ diagnostics.history_status.retention }}</div>
-          </div>
-        </div>
-        {% if diagnostics.history_status.error %}
-          <div class="alert warn">History database check failed: {{ diagnostics.history_status.error }}</div>
-        {% endif %}
-      </section>
-
       <section class="card wide-card">
         <h2>Battery Configuration</h2>
         <p>Detected pack topology and identity details. Pack serials are shown only where the current BMS read exposes them.</p>

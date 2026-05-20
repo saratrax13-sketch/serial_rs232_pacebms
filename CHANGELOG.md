@@ -1,3 +1,14 @@
+## 2.9.14 - 2026-05-20
+
+### Changed
+- Moved Local History Storage from Diagnostics to Setup so storage configuration and health checks live with installer checks.
+- Updated Setup Checklist tiles so warning items use amber card styling instead of only a small warning pill.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.13 - 2026-05-20
 
 ### Changed
