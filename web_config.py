@@ -1629,6 +1629,7 @@ def build_warning_intelligence(
         reference_checks.append(f"Reference source: {reference_source}")
     if has_warning and not exceeded:
         reference_checks.append("BMS warning is active below configured reference.")
+        reference_checks.append("BMS internal threshold appears lower than the configured user reference.")
     elif exceeded:
         reference_checks.append("One or more measured values exceed a configured user reference.")
     else:

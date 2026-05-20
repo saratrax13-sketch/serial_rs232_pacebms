@@ -507,7 +507,7 @@ class NotifyState:
 
             exceeded = False
             detail_added = False
-            lines.extend(["", "BMS Warning Details"])
+            lines.extend(["", "BMS Reported Warning Details"])
             cell_map = {idx: value for idx, value in enumerate(cells_v, start=1)}
 
             if cells_v:

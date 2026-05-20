@@ -685,7 +685,7 @@ class TelegramConfigTests(unittest.TestCase):
         )
 
         self.assertIn("Quick Metrics", message)
-        self.assertIn("BMS Warning Details", message)
+        self.assertIn("BMS Reported Warning Details", message)
         self.assertIn("- Cell 02: 4.176 V | Ref: 4.20 V | Margin: 0.024 V below ref | Not exceeded | Notify: On", message)
         self.assertIn("- Cell 08: 4.200 V | Ref: 4.20 V | Margin: 0.000 V below ref | At reference | Notify: On", message)
         self.assertIn("- Pack: 54.377 V | Ref: 54.60 V | Margin: 0.223 V below ref | Not exceeded | Notify: On", message)
@@ -1262,6 +1262,7 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn("user_reference_rows", details)
         self.assertIn("Telegram filtered", details["telegram_decision"])
         self.assertIn("BMS warning is active below configured reference.", details["reference_checks"])
+        self.assertIn("BMS internal threshold appears lower than the configured user reference.", details["reference_checks"])
         self.assertIn("BMS warning is active even though", details["interpretation"])
 
     def test_warning_intelligence_explains_critical_bms_telegram_decision(self):

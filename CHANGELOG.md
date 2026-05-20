@@ -1,3 +1,14 @@
+## 2.9.22 - 2026-05-20
+
+### Changed
+- Renamed the warning explanation heading from BMS Warning Details to BMS Reported Warning Details in the web UI and Telegram messages.
+- Added a reference-check note when a BMS warning is active below configured user references, making it clear that the BMS internal threshold appears lower than the UI/Telegram reference.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.21 - 2026-05-20
 
 ### Changed
