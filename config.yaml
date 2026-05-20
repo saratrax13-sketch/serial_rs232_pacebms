@@ -1,6 +1,6 @@
 name: "Pace BMS RS232 Monitor"
 description: "Read-only Pace BMS serial monitor with live web UI, local history, optional MQTT/Home Assistant discovery and Telegram notifications"
-version: "2.9.34"
+version: "2.9.35"
 slug: "pace_bms_rs232"
 url: "https://github.com/saratrax13-sketch/serial_rs232_pacebms"
 init: false

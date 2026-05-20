@@ -1,3 +1,15 @@
+## 2.9.35 - 2026-05-20
+
+### Fixed
+- Changed warning reference calculations so Warning Intelligence, Telegram detail and Telegram filtering use edited user-defined alert reference values instead of silently falling back to profile defaults.
+- Kept battery profile defaults as guidance and as safe defaults when the reference fields are still untouched.
+- Updated the Config reference table to keep showing profile guidance separately from active user-defined alert values.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.34 - 2026-05-20
 
 ### Fixed

@@ -2107,7 +2107,7 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
             "pack_high_ref": f"{pack_high_ref:.2f}" if pack_high_ref is not None else "Unknown",
             "pack_low_ref": f"{pack_low_ref:.2f}" if pack_low_ref is not None else "Unknown",
             "battery_profile": refs["profile_label"],
-            "reference_source": "battery profile defaults" if refs.get("source") == "profile" else "user custom settings",
+            "reference_source": _reference_source_label(refs),
             "reference_checks": reference_checks,
             "charge_fet": messages.get(f"{pfx}/charge_fet", "Unknown"),
             "discharge_fet": messages.get(f"{pfx}/discharge_fet", "Unknown"),
@@ -2123,7 +2123,7 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
             pack_high_ref,
             pack_low_ref,
             refs["profile_label"],
-            "battery profile defaults" if refs.get("source") == "profile" else "user custom settings",
+            _reference_source_label(refs),
             bool(options.get("notify_enabled", True) and options.get("notify_warnings", True)),
             _to_float(options.get("notify_cell_delta_warn_mv"), 100),
             {
@@ -2758,7 +2758,7 @@ FIELD_HELP = {
     "notify_warning_repeat_warning_seconds": "Repeat interval for ongoing warning-level BMS warnings. Recommended: 3600 seconds (1 hour).",
     "notify_warning_repeat_critical_seconds": "Repeat interval for ongoing critical BMS warnings. Recommended: 1800 seconds (30 minutes).",
     "notify_warning_clear_confirm_reads": "Number of consecutive normal warning reads required before the app sends a warning-cleared message and allows the same warning to alert again. This reduces clear/re-alert flicker.",
-    "battery_profile": "Read-only reference profile used for warning explanations. Auto detect selects 13S or 16S defaults from detected cell count. Custom uses your configured reference voltages.",
+    "battery_profile": "Read-only reference profile used for warning context. Profile defaults apply until you edit the user-defined voltage, delta or temperature reference fields.",
     "notify_bms_warning_policy": "Controls when BMS warning Telegram messages are sent: all warnings, user reference exceeded plus critical/protection, or user reference exceeded only.",
     "notify_alert_cell_high_voltage": "Enables Telegram alerts for high-cell-voltage reference crossings.",
     "notify_alert_cell_low_voltage": "Enables Telegram alerts for low-cell-voltage reference crossings.",
@@ -3410,6 +3410,14 @@ def _fmt_reference_value(value, unit="", decimals=2):
     return f"{number:.{decimals}f}{unit}"
 
 
+def _reference_source_label(refs):
+    if isinstance(refs, dict) and refs.get("source") == "user_configured":
+        return "user-defined alert references"
+    if isinstance(refs, dict) and refs.get("source") == "profile":
+        return "battery profile defaults"
+    return "user custom settings"
+
+
 def build_battery_reference_table(options, live):
     """Build the Config-tab profile/reference table.
 
@@ -3458,7 +3466,7 @@ def build_battery_reference_table(options, live):
         {
             "label": "High cell voltage",
             "key": "notify_cell_high_warn_voltage",
-            "reference": _fmt_reference_value(refs.get("cell_high"), " V", 2),
+            "reference": _fmt_reference_value(refs.get("profile_cell_high"), " V", 2),
             "measured": _fmt_reference_value(max(highest_cells), " V", 3) if highest_cells else "Waiting for data",
             "user_key": "notify_cell_high_warn_voltage",
             "user_value": opt("notify_cell_high_warn_voltage", 4.20),
@@ -3472,7 +3480,7 @@ def build_battery_reference_table(options, live):
         {
             "label": "Low cell voltage",
             "key": "notify_cell_low_warn_voltage",
-            "reference": _fmt_reference_value(refs.get("cell_low"), " V", 2),
+            "reference": _fmt_reference_value(refs.get("profile_cell_low"), " V", 2),
             "measured": _fmt_reference_value(min(lowest_cells), " V", 3) if lowest_cells else "Waiting for data",
             "user_key": "notify_cell_low_warn_voltage",
             "user_value": opt("notify_cell_low_warn_voltage", 3.00),
@@ -3486,7 +3494,7 @@ def build_battery_reference_table(options, live):
         {
             "label": "Cell delta",
             "key": "notify_cell_delta_warn_mv",
-            "reference": _fmt_reference_value(refs.get("delta_mv"), " mV", 0),
+            "reference": _fmt_reference_value(refs.get("profile_delta_mv"), " mV", 0),
             "measured": _fmt_reference_value(max(deltas), " mV", 0) if deltas else "Waiting for data",
             "user_key": "notify_cell_delta_warn_mv",
             "user_value": opt("notify_cell_delta_warn_mv", 100),
@@ -3500,7 +3508,7 @@ def build_battery_reference_table(options, live):
         {
             "label": "Pack high voltage",
             "key": "notify_pack_high_reference",
-            "reference": _fmt_reference_value(refs.get("pack_high"), " V", 2),
+            "reference": _fmt_reference_value(refs.get("profile_pack_high"), " V", 2),
             "measured": _fmt_reference_value(max(pack_voltages), " V", 3) if pack_voltages else "Waiting for data",
             "user_key": None,
             "user_value": "Auto calculated",
@@ -3514,7 +3522,7 @@ def build_battery_reference_table(options, live):
         {
             "label": "Pack low voltage",
             "key": "notify_pack_low_reference",
-            "reference": _fmt_reference_value(refs.get("pack_low"), " V", 2),
+            "reference": _fmt_reference_value(refs.get("profile_pack_low"), " V", 2),
             "measured": _fmt_reference_value(min(pack_voltages), " V", 3) if pack_voltages else "Waiting for data",
             "user_key": None,
             "user_value": "Auto calculated",
@@ -3528,7 +3536,7 @@ def build_battery_reference_table(options, live):
         {
             "label": "High temperature",
             "key": "notify_temp_high_warn_c",
-            "reference": _fmt_reference_value(refs.get("temp_high"), " C", 0),
+            "reference": _fmt_reference_value(refs.get("profile_temp_high"), " C", 0),
             "measured": _fmt_reference_value(max(temps), " C", 1) if temps else "Waiting for data",
             "user_key": "notify_temp_high_warn_c",
             "user_value": opt("notify_temp_high_warn_c", 55),
@@ -3542,7 +3550,7 @@ def build_battery_reference_table(options, live):
         {
             "label": "Low temperature",
             "key": "notify_temp_low_warn_c",
-            "reference": _fmt_reference_value(refs.get("temp_low"), " C", 0),
+            "reference": _fmt_reference_value(refs.get("profile_temp_low"), " C", 0),
             "measured": _fmt_reference_value(min(temps), " C", 1) if temps else "Waiting for data",
             "user_key": "notify_temp_low_warn_c",
             "user_value": opt("notify_temp_low_warn_c", 0),
@@ -3561,7 +3569,7 @@ def build_battery_reference_table(options, live):
         "policy_choices": WARNING_TELEGRAM_POLICY_CHOICES,
         "detected_cell_count": detected_cell_count or "Unknown",
         "profile_label": refs.get("profile_label", "Unknown"),
-        "reference_source": "battery profile defaults" if refs.get("source") == "profile" else "user custom settings",
+        "reference_source": _reference_source_label(refs),
         "rows": rows,
     }
 

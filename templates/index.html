@@ -6044,9 +6044,9 @@ Restart the add-on afterwards for runtime changes to apply.`);
 
           <h3>How the table works</h3>
           <ul>
-            <li><strong>Profile reference</strong> changes when you select a battery profile.</li>
+            <li><strong>Profile reference</strong> changes when you select a battery profile and is shown as guidance.</li>
             <li><strong>Measured</strong> is the latest retained MQTT value from the BMS.</li>
-            <li><strong>User defined</strong> is the editable add-on option that can override the profile when you use <code>custom</code>.</li>
+            <li><strong>User defined</strong> is the editable add-on option used for Warning Intelligence, Telegram detail and Telegram filtering after you change it from the default.</li>
             <li><strong>Telegram alert</strong> controls whether that reference line can send Telegram when the warning policy allows it.</li>
             <li><strong>Message detail</strong> controls extra context included in warning messages.</li>
           </ul>
@@ -6068,10 +6068,10 @@ Restart the add-on afterwards for runtime changes to apply.`);
 
           <h3>Profiles</h3>
           <ul>
-            <li><code>auto</code> chooses a profile from the detected cell count.</li>
-            <li><code>p13s_hubble_am2</code> uses 13S / Hubble AM2-style references.</li>
-            <li><code>p16s_eenovance_mana</code> uses 16S LFP / Eenovance MANA-style references.</li>
-            <li><code>custom</code> uses the user-defined values in this table.</li>
+            <li><code>auto</code> chooses profile guidance from the detected cell count.</li>
+            <li><code>p13s_hubble_am2</code> shows 13S / Hubble AM2-style profile guidance.</li>
+            <li><code>p16s_eenovance_mana</code> shows 16S LFP / Eenovance MANA-style profile guidance.</li>
+            <li><code>custom</code> shows the user-defined values as both profile guidance and active alert references.</li>
           </ul>
 
           <h3>Safety note</h3>
@@ -6192,7 +6192,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
           <h3>Detail options</h3>
           <ul>
             <li><code>notify_include_highest_and_lowest_cell</code> — includes the highest and lowest cell numbers and voltages in warning detail messages.</li>
-            <li><code>notify_include_pack_voltage</code> — includes the pack voltage and calculated pack reference voltage. For example, a 13-cell pack with a 4.20 V high-cell reference gives a 54.60 V pack high reference.</li>
+            <li><code>notify_include_pack_voltage</code> — includes the pack voltage and calculated pack reference voltage. For example, a 13-cell pack with a user-defined 4.13 V high-cell reference gives a 53.69 V pack high reference.</li>
             <li><code>notify_include_soc_soh</code> — includes State of Charge and State of Health in detailed warning messages.</li>
           </ul>
 

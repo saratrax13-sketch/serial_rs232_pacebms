@@ -77,8 +77,11 @@ def _as_float(value, default):
 def effective_warning_references(config, cell_count=None):
     """Return read-only references for warning explanations.
 
-    Auto mode selects a known profile from detected cell count. Custom mode uses
-    the user-configured reference values directly.
+    Battery profiles provide recommended/profile reference values for context,
+    and active alert/reference math uses profile values until a user edits a
+    reference field. This keeps profile auto-detect useful for 16S LFP defaults
+    while ensuring user-defined values shown in Config are the values used by
+    Warning Intelligence and Telegram after restart.
     """
     config = config or {}
     requested = normalize_profile(config.get("battery_profile", PROFILE_AUTO))
@@ -93,21 +96,19 @@ def effective_warning_references(config, cell_count=None):
 
     if effective in BATTERY_PROFILE_DEFAULTS:
         profile = BATTERY_PROFILE_DEFAULTS[effective]
-        cell_high = float(profile["cell_high"])
-        cell_low = float(profile["cell_low"])
-        delta_mv = float(profile["delta_mv"])
-        temp_high = float(profile["temp_high"])
-        temp_low = float(profile["temp_low"])
-        source = "profile"
+        profile_cell_high = float(profile["cell_high"])
+        profile_cell_low = float(profile["cell_low"])
+        profile_delta_mv = float(profile["delta_mv"])
+        profile_temp_high = float(profile["temp_high"])
+        profile_temp_low = float(profile["temp_low"])
         label = str(profile["label"])
         note = str(profile["note"])
     else:
-        cell_high = configured_high
-        cell_low = configured_low
-        delta_mv = configured_delta
-        temp_high = configured_temp_high
-        temp_low = configured_temp_low
-        source = "custom"
+        profile_cell_high = configured_high
+        profile_cell_low = configured_low
+        profile_delta_mv = configured_delta
+        profile_temp_high = configured_temp_high
+        profile_temp_low = configured_temp_low
         label = BATTERY_PROFILE_CHOICES[PROFILE_CUSTOM]
         note = "Custom user-configured warning references."
 
@@ -116,12 +117,28 @@ def effective_warning_references(config, cell_count=None):
     except Exception:
         cells = 0
 
+    force_configured = effective == PROFILE_CUSTOM
+
+    def active_reference(configured, default, profile_value):
+        if force_configured:
+            return configured, True
+        if abs(float(configured) - float(default)) > 1e-9:
+            return configured, True
+        return profile_value, False
+
+    cell_high, high_is_user = active_reference(configured_high, 4.20, profile_cell_high)
+    cell_low, low_is_user = active_reference(configured_low, 3.00, profile_cell_low)
+    delta_mv, delta_is_user = active_reference(configured_delta, 100, profile_delta_mv)
+    temp_high, temp_high_is_user = active_reference(configured_temp_high, 55, profile_temp_high)
+    temp_low, temp_low_is_user = active_reference(configured_temp_low, 0, profile_temp_low)
+    uses_configured = any((high_is_user, low_is_user, delta_is_user, temp_high_is_user, temp_low_is_user))
+
     return {
         "requested_profile": requested,
         "detected_profile": detected,
         "effective_profile": effective,
         "profile_label": label,
-        "source": source,
+        "source": "user_configured" if uses_configured else "profile",
         "note": note,
         "cell_high": cell_high,
         "cell_low": cell_low,
@@ -130,6 +147,13 @@ def effective_warning_references(config, cell_count=None):
         "delta_mv": delta_mv,
         "temp_high": temp_high,
         "temp_low": temp_low,
+        "profile_cell_high": profile_cell_high,
+        "profile_cell_low": profile_cell_low,
+        "profile_pack_high": profile_cell_high * cells if cells else None,
+        "profile_pack_low": profile_cell_low * cells if cells else None,
+        "profile_delta_mv": profile_delta_mv,
+        "profile_temp_high": profile_temp_high,
+        "profile_temp_low": profile_temp_low,
         "cell_count": cells,
-        "uses_configured_values": source == "custom",
+        "uses_configured_values": uses_configured,
     }

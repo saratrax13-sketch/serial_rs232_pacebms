@@ -30,7 +30,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.9.34"
+version: "2.9.35"
 ```
 
 ---
@@ -485,7 +485,7 @@ Optional groups:
 - **Telegram**: bot token, chat ID, startup/disconnect/stale notification toggles.
 - **Notifications**: SOC, SOH, warning, FET, daily summary and delta report toggles.
 - **Notification Thresholds**: SOC/SOH/stale thresholds and severity-aware warning repeat intervals.
-- **Battery Profile & References**: read-only profile defaults and custom reference values used to explain BMS warnings.
+- **Battery Profile & References**: read-only profile guidance plus user-defined alert reference values used to explain BMS warnings.
 - **Warning Detail**: controls which measured values appear in warning explanations.
 - **Scheduled Reports**: daily summary timing, daily energy deadband and cell-delta report times.
 - **Battery Profile & Alert References**: optional layout checks, capacity fallback for estimates and alert reference rows. These do not force parsing and do not write to the BMS.
@@ -673,19 +673,19 @@ notify_cell_low_warn_voltage: 3.00
 notify_cell_delta_warn_mv: 100
 ```
 
-Use `battery_profile: "auto"` to apply known read-only reference defaults from the detected cell count:
+Use `battery_profile: "auto"` to show known read-only profile guidance from the detected cell count. The active alert reference uses profile values while the reference fields are still at their defaults, and switches to the user-defined `notify_cell_*`, cell-delta and temperature fields when you edit them. Pack high/low references are calculated from the active cell voltage references and the detected cell count.
 
 | Detected profile | Cell high reference | Pack high reference | Notes |
 |---|---:|---:|---|
 | P13S / Hubble AM2 51V | 4.20 V | 54.60 V | 13 x 4.20 V |
 | P16S / Eenovance MANA LFP 51.2V | 3.51 V | 56.16 V | Based on 44.8-56.16 V operating range |
 
-If `battery_profile` is set to `custom`, the add-on uses your configured cell high/low values. For example, a 13-cell pack with a 4.20 V high-cell reference gives `4.20 V x 13 cells = 54.60 V`.
+For example, a 13-cell pack with a user-defined 4.13 V high-cell reference gives `4.13 V x 13 cells = 53.69 V` for alert checks, even when the selected profile is auto-detected as P13S / Hubble AM2.
 
 The web UI and Telegram Warning Detail show measured values beside the active reference and notification state:
 
 ```text
-Cell 08: 4.160 V | Ref: 4.20 V | Margin: 0.040 V below ref | Not exceeded | Notify: On
+Cell 08: 4.160 V | Ref: 4.13 V | Margin: 0.030 V above ref | Exceeded | Notify: On
 ```
 
 These are display and notification reference values only. They do not configure the BMS.

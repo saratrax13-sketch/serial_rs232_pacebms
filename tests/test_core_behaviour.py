@@ -66,6 +66,7 @@ if importlib.util.find_spec("flask") is None:
 
 import bms_monitor
 import bms_notify
+import battery_profiles
 import standalone_config
 import web_config
 import bms_live
@@ -410,6 +411,26 @@ class WarningNormalizationTests(unittest.TestCase):
         self.assertFalse(allowed)
         self.assertIn("no enabled user reference exceeded", reason)
 
+    def test_effective_warning_references_use_user_values_in_auto_profile(self):
+        refs = battery_profiles.effective_warning_references(
+            {
+                "battery_profile": "auto",
+                "notify_cell_high_warn_voltage": 4.13,
+                "notify_cell_low_warn_voltage": 3.00,
+                "notify_cell_delta_warn_mv": 50,
+                "notify_temp_high_warn_c": 32,
+                "notify_temp_low_warn_c": 10,
+            },
+            13,
+        )
+
+        self.assertEqual(refs["profile_label"], "P13S / Hubble AM2 51V")
+        self.assertEqual(refs["source"], "user_configured")
+        self.assertAlmostEqual(refs["cell_high"], 4.13)
+        self.assertAlmostEqual(refs["pack_high"], 53.69)
+        self.assertAlmostEqual(refs["profile_cell_high"], 4.20)
+        self.assertAlmostEqual(refs["profile_pack_high"], 54.60)
+
     def test_warning_telegram_policy_allows_user_reference_crossing(self):
         pack = bms_monitor.PackData(
             pack_number=1,
@@ -433,6 +454,35 @@ class WarningNormalizationTests(unittest.TestCase):
             "Warning State 1: Above cell volt warn",
             pack,
             "critical",
+        )
+
+        self.assertTrue(allowed)
+        self.assertIn("high cell", reason)
+
+    def test_warning_telegram_policy_uses_user_high_reference_not_profile_default(self):
+        pack = bms_monitor.PackData(
+            pack_number=1,
+            cells=13,
+            temps=0,
+            v_cells=[4158] * 13,
+            v_pack=54.08,
+            soc=99.0,
+            soh=90.0,
+        )
+        config = {
+            "battery_profile": "auto",
+            "notify_bms_warning_policy": "user_reference_or_critical",
+            "notify_cell_high_warn_voltage": 4.13,
+            "notify_cell_low_warn_voltage": 3.00,
+            "notify_cell_delta_warn_mv": 100,
+            "notify_alert_cell_high_voltage": True,
+        }
+
+        allowed, reason = bms_monitor.warning_telegram_allowed(
+            config,
+            "Warning State 1: Above cell volt warn",
+            pack,
+            "warning",
         )
 
         self.assertTrue(allowed)

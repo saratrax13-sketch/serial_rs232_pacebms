@@ -250,7 +250,7 @@ def build_live_snapshot(
             "pack_high_ref": f"{pack_high_ref:.2f}" if pack_high_ref is not None else "Unknown",
             "pack_low_ref": f"{pack_low_ref:.2f}" if pack_low_ref is not None else "Unknown",
             "battery_profile": refs.get("profile_label", "Unknown"),
-            "reference_source": "battery profile defaults" if refs.get("source") == "profile" else "user custom settings",
+            "reference_source": "user-defined alert references" if refs.get("source") == "user_configured" else "user custom settings",
             "reference_checks": reference_checks,
             "charge_fet": _onoff(getattr(warn, "charge_fet", False)) if warn is not None else "Unknown",
             "discharge_fet": _onoff(getattr(warn, "discharge_fet", False)) if warn is not None else "Unknown",

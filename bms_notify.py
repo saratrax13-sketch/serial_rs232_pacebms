@@ -566,7 +566,7 @@ class NotifyState:
                 f"- Cell high reference: {cell_high:.2f} V",
                 f"- Pack high reference: {refs['pack_high']:.2f} V" if refs.get("pack_high") is not None else "- Pack high reference: Unknown",
                 f"- Battery profile: {refs['profile_label']}",
-                f"- Reference source: {'battery profile defaults' if refs.get('source') == 'profile' else 'user custom settings'}",
+                f"- Reference source: {'user-defined alert references' if refs.get('source') == 'user_configured' else 'user custom settings'}",
             ])
             if exceeded:
                 lines.append("- One or more measured values exceed the configured reference.")
