@@ -1,3 +1,14 @@
+## 2.9.23 - 2026-05-20
+
+### Fixed
+- Marked the current highest or lowest cell in Detailed Pack & Cell Data when the BMS reports a generic cell-voltage warning without naming the exact cell.
+- Kept BMS warning cell labels separate from user reference threshold labels so a cell can show BMS High Warning even when it is below the configured user reference.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.22 - 2026-05-20
 
 ### Changed

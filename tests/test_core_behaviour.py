@@ -1328,6 +1328,25 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertEqual(labels[7], ["BMS Low Warning"])
         self.assertEqual(labels[13], ["BMS Low Warning"])
 
+    def test_generic_bms_warning_labels_fallback_to_cell_extremes(self):
+        labels = web_config._warning_cell_label_map(
+            "Warning State 1: Above cell volt warn | Above total volt warn",
+            highest_cell_num=8,
+            lowest_cell_num=1,
+        )
+
+        self.assertEqual(labels[8], ["BMS High Warning"])
+        self.assertNotIn(1, labels)
+
+        labels = web_config._warning_cell_label_map(
+            "Low cell voltage | Low power warning",
+            highest_cell_num=8,
+            lowest_cell_num=7,
+        )
+
+        self.assertEqual(labels[7], ["BMS Low Warning"])
+        self.assertNotIn(8, labels)
+
     def test_log_classifier_keeps_web_access_noise_at_debug_level_3(self):
         level, category = web_config.classify_log_line(
             '172.30.32.2 - - [18/May/2026 18:47:33] "GET /api/status HTTP/1.1" 200 -',

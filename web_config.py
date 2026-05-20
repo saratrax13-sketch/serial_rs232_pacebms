@@ -1405,12 +1405,38 @@ def _extract_warning_cell_numbers(warnings, phrase):
     return sorted(set(numbers))
 
 
-def _warning_cell_label_map(warnings):
+def _has_bms_high_cell_warning(warnings):
+    low = str(warnings or "").lower()
+    return (
+        ("above cell" in low and "volt" in low)
+        or ("above upper limit" in low and "cell" in low)
+        or ("cell" in low and "volt protect" in low and "above" in low)
+    )
+
+
+def _has_bms_low_cell_warning(warnings):
+    low = str(warnings or "").lower()
+    return (
+        (("lower cell" in low or "low cell" in low or "below cell" in low) and "volt" in low)
+        or ("below lower limit" in low and "cell" in low)
+        or ("cell" in low and "volt protect" in low and ("lower" in low or "below" in low))
+    )
+
+
+def _warning_cell_label_map(warnings, highest_cell_num=None, lowest_cell_num=None):
     labels = {}
     for cell_num in _extract_warning_cell_numbers(warnings, "above upper limit"):
         labels.setdefault(cell_num, []).append("BMS High Warning")
     for cell_num in _extract_warning_cell_numbers(warnings, "below lower limit"):
         labels.setdefault(cell_num, []).append("BMS Low Warning")
+    if _has_bms_high_cell_warning(warnings) and highest_cell_num is not None:
+        labels.setdefault(highest_cell_num, [])
+        if "BMS High Warning" not in labels[highest_cell_num]:
+            labels[highest_cell_num].append("BMS High Warning")
+    if _has_bms_low_cell_warning(warnings) and lowest_cell_num is not None:
+        labels.setdefault(lowest_cell_num, [])
+        if "BMS Low Warning" not in labels[lowest_cell_num]:
+            labels[lowest_cell_num].append("BMS Low Warning")
     return labels
 
 
@@ -1896,7 +1922,7 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
             low_num, lowest_cell_v = min(cell_values, key=lambda item: item[1])
             highest_cell = {"number": f"{high_num:02d}", "voltage": f"{highest_cell_v:.3f}"}
             lowest_cell = {"number": f"{low_num:02d}", "voltage": f"{lowest_cell_v:.3f}"}
-            bms_cell_warning_labels = _warning_cell_label_map(warnings)
+            bms_cell_warning_labels = _warning_cell_label_map(warnings, high_num, low_num)
 
             for cell_num, cell_v in sorted(cell_values, key=lambda item: item[0]):
                 labels = []
