@@ -1,3 +1,13 @@
+## 2.9.26 - 2026-05-20
+
+### Changed
+- Added a header version pill showing the installed add-on version below the live data source badge.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.25 - 2026-05-20
 
 ### Changed

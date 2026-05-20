@@ -1918,6 +1918,8 @@ class HealthEndpointTests(unittest.TestCase):
             html = response.get_data(as_text=True)
             expected_tabs = ["dashboard", "status", "diagnostics", "history", "setup", "config", "events", "backups", "logs"]
 
+            self.assertIn(f"Version {web_config.ADDON_VERSION}", html)
+
             for tab in expected_tabs:
                 self.assertIn(f'href="?tab={tab}"', html)
 

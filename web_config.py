@@ -48,6 +48,18 @@ _LIVE_SNAPSHOT_CACHE = {
 }
 _LIVE_SNAPSHOT_WORKER_STARTED = False
 
+
+def load_addon_version():
+    try:
+        with open("config.yaml", "r", encoding="utf-8") as handle:
+            data = yaml.load(handle, Loader=yaml.FullLoader) or {}
+        return str(data.get("version") or "Unknown")
+    except Exception:
+        return "Unknown"
+
+
+ADDON_VERSION = load_addon_version()
+
 SECTION_HELP = {
     "History & Live Data": "Controls how the web UI reads live battery values and how local history is stored. Auto uses the monitor-owned live serial snapshot first and falls back to retained MQTT only when configured. Metrics are stored locally in SQLite under /data and never write to the BMS.",
     "Battery Profile & References": "Selects the read-only battery profile used for warning explanations. Auto detect uses detected cell count: 13S defaults suit Hubble AM2-style packs, and 16S defaults suit Eenovance MANA LFP-style packs. Custom references use your configured cell high/low values. These references affect UI and Telegram interpretation only; they never write to the BMS.",
@@ -3528,6 +3540,7 @@ def render_index(action_result="", action_message="", active_tab="dashboard", co
         field_help=FIELD_HELP,
         config_section_badges=CONFIG_SECTION_BADGES,
         config_section_tiers=CONFIG_SECTION_TIERS,
+        addon_version=ADDON_VERSION,
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     )
 

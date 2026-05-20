@@ -86,6 +86,14 @@
       justify-content: flex-end;
     }
 
+    .header-badges-main,
+    .header-badges-sub {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      width: 100%;
+    }
+
     .badge {
       border: 1px solid rgba(56, 189, 248, 0.7);
       background: rgba(14, 165, 233, 0.12);
@@ -124,6 +132,12 @@
       border-color: rgba(248, 113, 113, 0.7);
       background: rgba(248, 113, 113, 0.14);
       color: #fecaca;
+    }
+
+    .badge.version {
+      border-color: rgba(148, 163, 184, 0.45);
+      background: rgba(148, 163, 184, 0.10);
+      color: #cbd5e1;
     }
 
     .tabs {
@@ -2963,6 +2977,11 @@
       gap: 7px;
     }
 
+    .header-badges-main,
+    .header-badges-sub {
+      gap: 7px;
+    }
+
     .badge {
       padding: 5px 9px;
       font-size: 12px;
@@ -3603,23 +3622,28 @@
         </div>
       </div>
       <div class="header-badges">
-        <div class="badge safety">Read-only BMS</div>
-        {% set source_text = (live.data_source if live and live.data_source else 'No data') %}
-        {% set source_lower = source_text|lower %}
-        {% if 'mqtt' in source_lower %}
-          {% set source_label = 'MQTT Fallback' if 'fallback' in source_lower or active_tab != 'config' else 'MQTT' %}
-          {% set source_class = 'source-mqtt' %}
-        {% elif 'stale' in source_lower %}
-          {% set source_label = 'Stale' %}
-          {% set source_class = 'source-stale' %}
-        {% elif 'serial' in source_lower or 'live' in source_lower %}
-          {% set source_label = 'Live Serial' %}
-          {% set source_class = 'source-serial' %}
-        {% else %}
-          {% set source_label = 'No Live Data' %}
-          {% set source_class = 'source-none' %}
-        {% endif %}
-        <div class="badge {{ source_class }}" title="Web UI display source: {{ source_text }}">{{ source_label }}</div>
+        <div class="header-badges-main">
+          <div class="badge safety">Read-only BMS</div>
+          {% set source_text = (live.data_source if live and live.data_source else 'No data') %}
+          {% set source_lower = source_text|lower %}
+          {% if 'mqtt' in source_lower %}
+            {% set source_label = 'MQTT Fallback' if 'fallback' in source_lower or active_tab != 'config' else 'MQTT' %}
+            {% set source_class = 'source-mqtt' %}
+          {% elif 'stale' in source_lower %}
+            {% set source_label = 'Stale' %}
+            {% set source_class = 'source-stale' %}
+          {% elif 'serial' in source_lower or 'live' in source_lower %}
+            {% set source_label = 'Live Serial' %}
+            {% set source_class = 'source-serial' %}
+          {% else %}
+            {% set source_label = 'No Live Data' %}
+            {% set source_class = 'source-none' %}
+          {% endif %}
+          <div class="badge {{ source_class }}" title="Web UI display source: {{ source_text }}">{{ source_label }}</div>
+        </div>
+        <div class="header-badges-sub">
+          <div class="badge version" title="Installed add-on version">Version {{ addon_version }}</div>
+        </div>
       </div>
     </header>
 
