@@ -21,7 +21,8 @@ The monitor is intended to help users know whether the battery pack is healthy, 
 - Home Assistant add-on first.
 - Read-only BMS communication.
 - Current supported path is RS232 serial using Pace/UART ASCII frames.
-- RS485 and standalone Docker may be considered later, but do not change protocol assumptions without proof from logs and maintainer approval.
+- Standalone Docker is supported as a serial-first deployment target alongside Home Assistant add-on mode.
+- RS485 may be considered later, but do not change protocol assumptions without proof from logs and maintainer approval.
 - TCP/IP BMS connection code was intentionally removed.
 - Serial polling drives the Web UI through `/data/pacebms-live.json`.
 - MQTT retained state is optional output/fallback, not the primary UI source.
@@ -212,21 +213,30 @@ Telegram should not be assumed to be automatically enabled in Home Assistant. Th
 
 ### Standalone Docker Mode
 
-Standalone Docker is a possible future mode, not the current priority.
+Standalone Docker is supported for users who want to run the same read-only serial monitor outside Home Assistant.
 
-It may need:
+It uses:
 
 - `docker-compose.yml`
-- `.env` file
+- `.env.example` file
 - configurable serial port
 - configurable MQTT broker
 - configurable Telegram bot token and chat ID
-- persistent config volume
+- persistent `/data` volume
 - logs
 - restart policy
 - health check
 
-Do not refactor around standalone Docker unless the maintainer starts that sprint.
+Standalone Docker must remain aligned with Home Assistant add-on mode where practical:
+
+- same read-only BMS safety position
+- same `/data/options.json` runtime configuration model
+- same `/data/pacebms-live.json` live snapshot
+- same `/data/pacebms_metrics.db` local history database
+- MQTT optional, not required for startup
+- Telegram optional, direct through Telegram Bot API when configured
+
+Do not break Home Assistant add-on behavior while improving standalone Docker support.
 
 ## Versioning
 

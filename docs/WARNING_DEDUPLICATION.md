@@ -44,61 +44,66 @@ The add-on sends a Telegram message when:
 
 - a warning first appears
 - a different warning family appears
-- the same warning remains active and the repeat cooldown has passed
+- the same warning escalates in severity
+- the same warning remains active and the severity-aware repeat cooldown has passed
 - the warning clears
 
 Duplicate messages within the cooldown period are suppressed.
 
-## Default cooldown
+## Severity-aware cooldowns
 
-The default repeat cooldown is:
+The current configuration uses severity-aware repeat timing:
 
 ```yaml
 notify_warning_repeat_seconds: 1800
+notify_warning_repeat_caution_seconds: 21600
+notify_warning_repeat_warning_seconds: 3600
+notify_warning_repeat_critical_seconds: 900
 ```
 
-That is 30 minutes.
+Meaning:
 
-This option is optional. If it is not present in `config.yaml`, the app uses the default.
+- `notify_warning_repeat_seconds` is the legacy fallback repeat interval.
+- `notify_warning_repeat_caution_seconds` is for low-risk ongoing warnings.
+- `notify_warning_repeat_warning_seconds` is for warning-level conditions.
+- `notify_warning_repeat_critical_seconds` is for protection, fault or measured out-of-reference conditions.
 
-## Recommended future config.yaml option
+All values are seconds. The web Config tab validates these fields and recommends values of at least 60 seconds.
 
-To make the cooldown visible in the native Home Assistant add-on options screen, add:
+## Warning policy
 
-```yaml
-options:
-  notify_warning_repeat_seconds: 1800
+The Config tab includes `notify_bms_warning_policy`.
 
-schema:
-  notify_warning_repeat_seconds: int
+The default policy is:
+
+```text
+Alert on user reference exceeded, plus BMS critical/protection
 ```
+
+That means:
+
+- BMS warnings remain visible in the UI.
+- Telegram can ignore lower-severity BMS internal warnings when current measured values are still inside the configured user references.
+- Telegram still alerts when a user reference is exceeded.
+- Telegram still alerts for BMS protection or critical/fault conditions.
+- Telegram clear messages can still report when an active warning clears.
+
+This keeps the app honest about what the BMS reports while reducing noise from BMS internal thresholds that are lower than the user's configured alert references.
 
 ## Important note
 
 This does not hide the warning in the app or MQTT. It only reduces repeated Telegram messages for the same active condition.
 
-The Tech Status Warning Intelligence cards still show the BMS warning context, measured values, reference checks, interpretation and suggested action even when Telegram repeats are being suppressed.
+The Tech Status Warning Intelligence cards still show:
+
+- BMS-reported warning state
+- user alert reference checks
+- measured values
+- Telegram decision
+- interpretation
+- suggested action
+
+This remains visible even when Telegram repeats are suppressed or filtered by warning policy.
 
 No BMS protocol changes were made.
 No BMS write/control commands were added.
-
-
-## 2.6.25 update
-
-The cooldown is now visible/configurable in the web Config tab as:
-
-```yaml
-notify_warning_repeat_seconds
-```
-
-Recommended value:
-
-```yaml
-1800
-```
-
-Valid range:
-
-```text
-60 to 86400 seconds
-```
