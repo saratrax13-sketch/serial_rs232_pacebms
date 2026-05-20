@@ -1,3 +1,29 @@
+## 2.9.11 - 2026-05-20
+
+### Changed
+- Improved Tech Status Warning Intelligence so BMS-reported warnings and user-defined alert references are shown as separate sections.
+- Added per-reference Telegram alert state and warning-policy explanation to the Warning Intelligence cards.
+- Added app-side watch-condition handling when user references are exceeded but the BMS has not reported a warning.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
+## 2.9.10 - 2026-05-20
+
+### Fixed
+- Bumped the Home Assistant add-on version so the Telegram alert noise hotfix is visible as an update.
+- Suppressed startup replay of already-crossed low-SOC thresholds so a restart at very low SOC does not send 75/50/25/10 alerts in one burst.
+- Added a cooldown for repeated FET OFF alerts to reduce Telegram noise from noisy ON/OFF state flicker.
+- Added warning-clear confirmation reads so brief BMS warning flicker does not immediately clear and re-alert.
+- Kept low-power warning wording as message detail when it accompanies low-voltage warnings, instead of treating it as a new primary warning family.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.9 - 2026-05-20
 
 ### Changed

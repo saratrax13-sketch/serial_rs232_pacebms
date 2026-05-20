@@ -30,7 +30,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.9.9"
+version: "2.9.11"
 ```
 
 ---
@@ -545,6 +545,7 @@ notify_temp_low_warn_c: 0
 notify_fet: true
 notify_ignore_charge_fet_off_when_full: true
 notify_alert_discharge_fet_off: true
+notify_fet_repeat_seconds: 1800
 
 notify_stale_data: true
 notify_stale_recovery: true
@@ -553,6 +554,7 @@ notify_stale_data_repeat_seconds: 1800
 notify_warning_repeat_caution_seconds: 21600
 notify_warning_repeat_warning_seconds: 3600
 notify_warning_repeat_critical_seconds: 900
+notify_warning_clear_confirm_reads: 2
 
 mqtt_retain_state: true
 state_force_republish_seconds: 300

@@ -137,6 +137,7 @@ GROUPS = {
         "notify_fet",
         "notify_ignore_charge_fet_off_when_full",
         "notify_alert_discharge_fet_off",
+        "notify_fet_repeat_seconds",
     ],
     "Notification Thresholds": [
         "notify_soc_low_thresholds",
@@ -150,6 +151,7 @@ GROUPS = {
         "notify_warning_repeat_caution_seconds",
         "notify_warning_repeat_warning_seconds",
         "notify_warning_repeat_critical_seconds",
+        "notify_warning_clear_confirm_reads",
     ],
     "Warning Detail": [
         "notify_warning_detail_enabled",
@@ -254,6 +256,7 @@ DEFAULT_OPTION_VALUES = {
     "notify_warning_repeat_caution_seconds": 21600,
     "notify_warning_repeat_warning_seconds": 3600,
     "notify_warning_repeat_critical_seconds": 900,
+    "notify_warning_clear_confirm_reads": 2,
     "battery_profile": "auto",
     "notify_bms_warning_policy": "user_reference_or_critical",
     "notify_cell_high_warn_voltage": 4.20,
@@ -275,6 +278,7 @@ DEFAULT_OPTION_VALUES = {
     "notify_include_soc_soh": True,
     "notify_ignore_charge_fet_off_when_full": True,
     "notify_alert_discharge_fet_off": True,
+    "notify_fet_repeat_seconds": 1800,
     "notify_daily_summary_time": "19:00",
     "daily_energy_current_deadband_a": 0.2,
     "notify_delta_report_time": "10:15",
@@ -1292,6 +1296,15 @@ def normalize_live_snapshot_for_template(live):
                 pack.get("battery_profile", ""),
                 pack.get("reference_source", ""),
                 bool(DEFAULT_OPTION_VALUES.get("notify_enabled", True)),
+                _to_float(DEFAULT_OPTION_VALUES.get("notify_cell_delta_warn_mv"), 100),
+                {
+                    "notify_alert_cell_high_voltage": bool(DEFAULT_OPTION_VALUES.get("notify_alert_cell_high_voltage", True)),
+                    "notify_alert_cell_low_voltage": bool(DEFAULT_OPTION_VALUES.get("notify_alert_cell_low_voltage", True)),
+                    "notify_alert_cell_delta": bool(DEFAULT_OPTION_VALUES.get("notify_alert_cell_delta", True)),
+                    "notify_alert_pack_high_voltage": bool(DEFAULT_OPTION_VALUES.get("notify_alert_pack_high_voltage", True)),
+                    "notify_alert_pack_low_voltage": bool(DEFAULT_OPTION_VALUES.get("notify_alert_pack_low_voltage", True)),
+                },
+                DEFAULT_OPTION_VALUES.get("notify_bms_warning_policy", "user_reference_or_critical"),
             )
         packs.append(pack)
 
@@ -1374,37 +1387,98 @@ def _extract_warning_cell_numbers(warnings, phrase):
     return sorted(set(numbers))
 
 
-def build_warning_intelligence(pack, warnings, cell_values, pack_v, cell_high_ref, cell_low_ref, pack_high_ref, pack_low_ref, profile_label="", reference_source="", notify_enabled=True):
+def _margin_text_for_unit(value, ref, direction, unit, precision=1):
+    if value is None or ref is None:
+        return "Unknown", "Unknown"
+    if direction == "above":
+        margin = ref - value
+        if margin > 0.0005:
+            return f"{margin:.{precision}f} {unit} below ref", "Not exceeded"
+        if margin < -0.0005:
+            return f"{abs(margin):.{precision}f} {unit} above ref", "Exceeded"
+        return f"{0:.{precision}f} {unit} below ref", "At reference"
+    margin = value - ref
+    if margin > 0.0005:
+        return f"{margin:.{precision}f} {unit} above ref", "Not exceeded"
+    if margin < -0.0005:
+        return f"{abs(margin):.{precision}f} {unit} below ref", "Exceeded"
+    return f"{0:.{precision}f} {unit} above ref", "At reference"
+
+
+def _warning_status_class(status):
+    return "critical" if status == "Exceeded" else ("warning" if status == "At reference" else "healthy")
+
+
+def build_warning_intelligence(
+    pack,
+    warnings,
+    cell_values,
+    pack_v,
+    cell_high_ref,
+    cell_low_ref,
+    pack_high_ref,
+    pack_low_ref,
+    profile_label="",
+    reference_source="",
+    notify_enabled=True,
+    cell_delta_ref=None,
+    alert_toggles=None,
+    telegram_policy="user_reference_or_critical",
+):
     warning_text = str(warnings or "Normal")
     lower_warning = warning_text.lower()
     cell_map = {num: value for num, value in cell_values}
+    alert_toggles = alert_toggles or {}
 
-    def cell_row(cell_num, direction, ref):
+    def notify_state(key):
+        enabled = bool(notify_enabled and alert_toggles.get(key, True))
+        return {
+            "notify": "On" if enabled else "Off",
+            "notify_class": "healthy" if enabled else "warning",
+            "notify_enabled": enabled,
+        }
+
+    def cell_row(cell_num, direction, ref, notify_key):
         value = cell_map.get(cell_num)
         margin, status = _margin_text(value, ref, direction)
-        return {
+        row = {
             "label": f"Cell {cell_num:02d}",
             "value": f"{value:.3f} V" if value is not None else "Unknown",
             "ref": f"{ref:.2f} V" if ref is not None else "Unknown",
             "margin": margin,
             "status": status,
-            "class": "critical" if status == "Exceeded" else ("warning" if status == "At reference" else "healthy"),
-            "notify": "On" if notify_enabled else "Off",
-            "notify_class": "healthy" if notify_enabled else "warning",
+            "class": _warning_status_class(status),
         }
+        row.update(notify_state(notify_key))
+        return row
 
-    def pack_row(direction, ref):
+    def pack_row(direction, ref, notify_key):
         margin, status = _margin_text(pack_v, ref, direction)
-        return {
+        row = {
             "label": "Pack",
             "value": f"{pack_v:.3f} V" if pack_v is not None else "Unknown",
             "ref": f"{ref:.2f} V" if ref is not None else "Unknown",
             "margin": margin,
             "status": status,
-            "class": "critical" if status == "Exceeded" else ("warning" if status == "At reference" else "healthy"),
-            "notify": "On" if notify_enabled else "Off",
-            "notify_class": "healthy" if notify_enabled else "warning",
         }
+        row.update(notify_state(notify_key))
+        row["class"] = _warning_status_class(status)
+        return row
+
+    def reference_row(label, value, ref, direction, unit, notify_key, value_precision=3, ref_precision=2, margin_precision=3):
+        margin, status = _margin_text_for_unit(value, ref, direction, unit, margin_precision)
+        value_text = f"{value:.{value_precision}f} {unit}" if value is not None else "Unknown"
+        ref_text = f"{ref:.{ref_precision}f} {unit}" if ref is not None else "Unknown"
+        row = {
+            "label": label,
+            "value": value_text,
+            "ref": ref_text,
+            "margin": margin,
+            "status": status,
+            "class": _warning_status_class(status),
+        }
+        row.update(notify_state(notify_key))
+        return row
 
     high_cells = _extract_warning_cell_numbers(warning_text, "above upper limit")
     low_cells = _extract_warning_cell_numbers(warning_text, "below lower limit")
@@ -1418,25 +1492,82 @@ def build_warning_intelligence(pack, warnings, cell_values, pack_v, cell_high_re
     if high_cells or "above cell volt" in lower_warning:
         groups.append({
             "title": "Above upper limit",
-            "rows": [cell_row(cell_num, "above", cell_high_ref) for cell_num in high_cells],
+            "rows": [cell_row(cell_num, "above", cell_high_ref, "notify_alert_cell_high_voltage") for cell_num in high_cells],
         })
     if low_cells or "lower cell volt" in lower_warning:
         groups.append({
             "title": "Below lower limit",
-            "rows": [cell_row(cell_num, "below", cell_low_ref) for cell_num in low_cells],
+            "rows": [cell_row(cell_num, "below", cell_low_ref, "notify_alert_cell_low_voltage") for cell_num in low_cells],
         })
     if "above total volt" in lower_warning or "total voltage above upper limit" in lower_warning:
         groups.append({
             "title": "Pack voltage",
-            "rows": [pack_row("above", pack_high_ref)],
+            "rows": [pack_row("above", pack_high_ref, "notify_alert_pack_high_voltage")],
         })
     if "lower total volt" in lower_warning or "total voltage below lower limit" in lower_warning:
         groups.append({
             "title": "Low pack voltage",
-            "rows": [pack_row("below", pack_low_ref)],
+            "rows": [pack_row("below", pack_low_ref, "notify_alert_pack_low_voltage")],
         })
 
-    exceeded = any(row["status"] == "Exceeded" for group in groups for row in group["rows"])
+    highest_cell = pack.get("highest_cell", {}) if isinstance(pack, dict) else {}
+    lowest_cell = pack.get("lowest_cell", {}) if isinstance(pack, dict) else {}
+    highest_num = highest_cell.get("number")
+    lowest_num = lowest_cell.get("number")
+    highest_v = _to_float(highest_cell.get("voltage"))
+    lowest_v = _to_float(lowest_cell.get("voltage"))
+    cell_delta = _to_float(pack.get("delta") if isinstance(pack, dict) else None)
+
+    user_reference_rows = [
+        reference_row(
+            f"High cell voltage ({'Cell ' + str(highest_num) if highest_num not in (None, 'Unknown') else 'highest cell'})",
+            highest_v,
+            cell_high_ref,
+            "above",
+            "V",
+            "notify_alert_cell_high_voltage",
+        ),
+        reference_row(
+            f"Low cell voltage ({'Cell ' + str(lowest_num) if lowest_num not in (None, 'Unknown') else 'lowest cell'})",
+            lowest_v,
+            cell_low_ref,
+            "below",
+            "V",
+            "notify_alert_cell_low_voltage",
+        ),
+        reference_row(
+            "Cell delta",
+            cell_delta,
+            cell_delta_ref,
+            "above",
+            "mV",
+            "notify_alert_cell_delta",
+            value_precision=0,
+            ref_precision=0,
+            margin_precision=0,
+        ),
+        reference_row(
+            "Pack high voltage",
+            pack_v,
+            pack_high_ref,
+            "above",
+            "V",
+            "notify_alert_pack_high_voltage",
+        ),
+        reference_row(
+            "Pack low voltage",
+            pack_v,
+            pack_low_ref,
+            "below",
+            "V",
+            "notify_alert_pack_low_voltage",
+        ),
+    ]
+
+    bms_exceeded = any(row["status"] == "Exceeded" for group in groups for row in group["rows"])
+    user_exceeded_rows = [row for row in user_reference_rows if row["status"] == "Exceeded"]
+    notify_exceeded_rows = [row for row in user_exceeded_rows if row.get("notify_enabled")]
+    exceeded = bool(bms_exceeded or user_exceeded_rows)
     has_warning = warning_text != "Normal"
 
     reference_checks = [
@@ -1450,23 +1581,60 @@ def build_warning_intelligence(pack, warnings, cell_values, pack_v, cell_high_re
     if has_warning and not exceeded:
         reference_checks.append("BMS warning is active below configured reference.")
     elif exceeded:
-        reference_checks.append("One or more measured values exceed the configured reference.")
+        reference_checks.append("One or more measured values exceed a configured user reference.")
     else:
-        reference_checks.append("No active BMS warning.")
+        reference_checks.append("No active BMS warning and no user reference is exceeded.")
 
-    if not has_warning:
+    policy_labels = {
+        "all_bms_warnings": "All BMS warnings",
+        "user_reference_or_critical": "User reference exceeded, plus BMS critical/protection",
+        "user_reference_only": "User reference exceeded only",
+    }
+    policy_label = policy_labels.get(str(telegram_policy or ""), str(telegram_policy or "Default policy"))
+
+    if not notify_enabled:
+        telegram_decision = "Telegram BMS warning alerts are disabled."
+        telegram_decision_class = "warning"
+    elif notify_exceeded_rows and has_warning:
+        telegram_decision = "Telegram alert allowed: BMS warning is active and an enabled user reference is exceeded."
+        telegram_decision_class = "critical"
+    elif notify_exceeded_rows:
+        telegram_decision = "No BMS warning is active. The UI shows the user reference crossing as a watch condition; Telegram waits for the configured warning policy."
+        telegram_decision_class = "warning"
+    elif has_warning:
+        if str(telegram_policy) == "all_bms_warnings":
+            telegram_decision = "Telegram alert allowed by policy because any BMS warning may be sent."
+            telegram_decision_class = "warning"
+        elif str(telegram_policy) == "user_reference_only":
+            telegram_decision = "Telegram filtered: BMS warning is active, but no enabled user reference is exceeded."
+            telegram_decision_class = "healthy"
+        else:
+            telegram_decision = "Telegram depends on severity: BMS critical/protection warnings may still send, but normal BMS warnings below user references are filtered."
+            telegram_decision_class = "warning"
+    else:
+        telegram_decision = "No Telegram warning is due: no BMS warning is active and no enabled user reference is exceeded."
+        telegram_decision_class = "healthy"
+
+    if not has_warning and user_exceeded_rows:
+        interpretation = "No BMS warning is active, but one or more user-defined references are exceeded. Treat this as an app-side watch condition."
+        suggested_action = "Watch the trend and confirm the configured references match the battery profile and your preferred alert policy."
+    elif not has_warning:
         interpretation = "No active BMS warning is reported for this pack."
         suggested_action = "Continue normal monitoring."
     elif exceeded:
-        interpretation = "BMS warning is active and at least one current measured value exceeds the configured reference."
+        interpretation = "BMS warning is active and at least one current measured value exceeds a configured user reference."
         suggested_action = "Review immediately and compare against the battery manufacturer limits."
     else:
-        interpretation = "BMS warning is active even though the configured reference has not been exceeded. This usually means the BMS internal threshold is lower than the dashboard reference, or the warning was triggered briefly before the latest retained reading."
-        suggested_action = "Watch top-of-charge and verify the BMS internal high-cell and pack-voltage thresholds against the configured references."
+        interpretation = "BMS warning is active even though the configured user references have not been exceeded. This usually means the BMS internal threshold is different from the app reference, or the warning was triggered briefly before the latest retained reading."
+        suggested_action = "Keep watching the trend and verify the BMS internal thresholds against the configured user references."
 
     return {
         "groups": groups,
+        "user_reference_rows": user_reference_rows,
         "reference_checks": reference_checks,
+        "telegram_policy": policy_label,
+        "telegram_decision": telegram_decision,
+        "telegram_decision_class": telegram_decision_class,
         "interpretation": interpretation,
         "suggested_action": suggested_action,
     }
@@ -1802,6 +1970,15 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
             refs["profile_label"],
             "battery profile defaults" if refs.get("source") == "profile" else "user custom settings",
             bool(options.get("notify_enabled", True) and options.get("notify_warnings", True)),
+            _to_float(options.get("notify_cell_delta_warn_mv"), 100),
+            {
+                "notify_alert_cell_high_voltage": bool(options.get("notify_alert_cell_high_voltage", True)),
+                "notify_alert_cell_low_voltage": bool(options.get("notify_alert_cell_low_voltage", True)),
+                "notify_alert_cell_delta": bool(options.get("notify_alert_cell_delta", True)),
+                "notify_alert_pack_high_voltage": bool(options.get("notify_alert_pack_high_voltage", True)),
+                "notify_alert_pack_low_voltage": bool(options.get("notify_alert_pack_low_voltage", True)),
+            },
+            options.get("notify_bms_warning_policy", "user_reference_or_critical"),
         )
         packs.append(pack_data)
 
@@ -2425,6 +2602,7 @@ FIELD_HELP = {
     "notify_warning_repeat_caution_seconds": "Repeat interval for ongoing caution-level BMS warnings. Recommended: 21600 seconds (6 hours).",
     "notify_warning_repeat_warning_seconds": "Repeat interval for ongoing warning-level BMS warnings. Recommended: 3600 seconds (1 hour).",
     "notify_warning_repeat_critical_seconds": "Repeat interval for ongoing critical BMS warnings. Recommended: 900 seconds (15 minutes).",
+    "notify_warning_clear_confirm_reads": "Number of consecutive normal warning reads required before the app sends a warning-cleared message and allows the same warning to alert again. This reduces clear/re-alert flicker.",
     "battery_profile": "Read-only reference profile used for warning explanations. Auto detect selects 13S or 16S defaults from detected cell count. Custom uses your configured reference voltages.",
     "notify_bms_warning_policy": "Controls when BMS warning Telegram messages are sent: all warnings, user reference exceeded plus critical/protection, or user reference exceeded only.",
     "notify_alert_cell_high_voltage": "Enables Telegram alerts for high-cell-voltage reference crossings.",
@@ -2443,6 +2621,7 @@ FIELD_HELP = {
     "notify_stale_data_repeat_seconds": "Repeat interval in seconds while stale data remains active. Example: 1800.",
     "notify_ignore_charge_fet_off_when_full": "When enabled, Charge FET OFF can be ignored if the pack is full. This helps avoid unnecessary alerts when the BMS disables charging at full SOC.",
     "notify_alert_discharge_fet_off": "When enabled, send an alert if the Discharge FET is OFF.",
+    "notify_fet_repeat_seconds": "Minimum seconds before the same FET OFF alert can be sent again after a noisy ON/OFF flicker. Recommended: 1800 seconds.",
     "notify_daily_summary_time": "Daily summary notification time. Use HH:MM 24-hour format. Example: 19:00.",
     "daily_energy_current_deadband_a": "Current below this value is ignored for daily charged/discharged kWh. Example: 0.2 ignores tiny zero-current noise.",
     "notify_delta_report_time": "Cell delta report notification time. Use HH:MM 24-hour format. Example: 10:15.",
@@ -2500,6 +2679,7 @@ FIELD_LABELS = {
     "notify_fet": "FET state alerts",
     "notify_ignore_charge_fet_off_when_full": "Ignore Charge FET OFF when full",
     "notify_alert_discharge_fet_off": "Discharge FET OFF alert",
+    "notify_fet_repeat_seconds": "FET alert repeat interval",
     "notify_soc_low_thresholds": "Low SOC thresholds",
     "notify_soc_high_threshold": "High SOC threshold",
     "notify_soc_high_reset": "High SOC reset point",
@@ -2511,6 +2691,7 @@ FIELD_LABELS = {
     "notify_warning_repeat_caution_seconds": "Caution repeat interval",
     "notify_warning_repeat_warning_seconds": "Warning repeat interval",
     "notify_warning_repeat_critical_seconds": "Critical repeat interval",
+    "notify_warning_clear_confirm_reads": "Warning clear confirmation reads",
     "notify_warning_detail_enabled": "Detailed warning messages",
     "notify_include_highest_and_lowest_cell": "Include highest/lowest cells",
     "notify_include_pack_voltage": "Include pack voltage",
@@ -3486,6 +3667,8 @@ INTEGER_FIELDS = {
     "notify_warning_repeat_caution_seconds": (60, 86400),
     "notify_warning_repeat_warning_seconds": (60, 86400),
     "notify_warning_repeat_critical_seconds": (60, 86400),
+    "notify_warning_clear_confirm_reads": (1, 10),
+    "notify_fet_repeat_seconds": (60, 86400),
 }
 
 FLOAT_FIELDS = {

@@ -1,6 +1,6 @@
 name: "Pace BMS RS232 Monitor"
 description: "Read-only Pace BMS serial monitor with live web UI, local history, optional MQTT/Home Assistant discovery and Telegram notifications"
-version: "2.9.9"
+version: "2.9.11"
 slug: "pace_bms_rs232"
 url: "https://github.com/saratrax13-sketch/serial_rs232_pacebms"
 init: false
@@ -95,6 +95,7 @@ options:
   notify_warning_repeat_caution_seconds: 21600
   notify_warning_repeat_warning_seconds: 3600
   notify_warning_repeat_critical_seconds: 900
+  notify_warning_clear_confirm_reads: 2
 
   # Full Monitoring - read-only warning reference values
   battery_profile: "auto"
@@ -122,6 +123,7 @@ options:
   # Full Monitoring - FET handling
   notify_ignore_charge_fet_off_when_full: true
   notify_alert_discharge_fet_off: true
+  notify_fet_repeat_seconds: 1800
 
   # Full Monitoring - scheduled reports
   notify_daily_summary_time: "19:00"
@@ -194,6 +196,7 @@ schema:
   notify_warning_repeat_caution_seconds: int
   notify_warning_repeat_warning_seconds: int
   notify_warning_repeat_critical_seconds: int
+  notify_warning_clear_confirm_reads: int
 
   battery_profile: list(auto|p13s_hubble_am2|p16s_eenovance_mana|custom)
   notify_bms_warning_policy: list(all_bms_warnings|user_reference_or_critical|user_reference_only)
@@ -218,6 +221,7 @@ schema:
 
   notify_ignore_charge_fet_off_when_full: bool
   notify_alert_discharge_fet_off: bool
+  notify_fet_repeat_seconds: int
 
   notify_daily_summary_time: str
   daily_energy_current_deadband_a: float

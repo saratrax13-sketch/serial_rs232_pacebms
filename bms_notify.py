@@ -72,6 +72,7 @@ class NotifyState:
 
         # SOC threshold tracking — per pack, per threshold
         self.soc_thresholds_hit   = {}   # {pack_num: set of thresholds already notified}
+        self.soc_low_initialized  = {}   # {pack_num: bool} suppresses startup-only low SOC replay
         self.soc_high_notified    = {}   # {pack_num: bool}
         self.soc_high_reset_ready = {}   # {pack_num: bool} — True once SOC drops below reset level
 
@@ -82,6 +83,7 @@ class NotifyState:
         self.last_charge_fet      = {}   # {pack_num: str} ON/OFF
         self.last_discharge_fet   = {}   # {pack_num: str} ON/OFF
         self.fet_notified         = {}   # {pack_num: bool} — suppresses repeat FET alerts
+        self.last_fet_alert_sent  = {}   # {(pack_num, fet_name): epoch seconds}
 
         # SOH tracking — per pack
         self.soh_notified         = {}   # {pack_num: bool}
@@ -303,6 +305,22 @@ class NotifyState:
 
         if pack_num not in self.soc_thresholds_hit:
             self.soc_thresholds_hit[pack_num] = set()
+
+        # Low-SOC startup suppression. If the monitor starts/restarts while a
+        # pack is already below one or more low-SOC thresholds, mark those
+        # thresholds as handled so Telegram does not replay 75/50/25/10 in one
+        # burst. New lower thresholds can still alert later as SOC falls.
+        if pack_num not in self.soc_low_initialized:
+            self.soc_low_initialized[pack_num] = True
+            already_below = {thr for thr in thresholds if soc <= thr}
+            if already_below:
+                self.soc_thresholds_hit[pack_num].update(already_below)
+                log.info(
+                    "Low SOC startup alert suppressed for Pack %02d: SOC %.1f%% already below threshold(s) %s",
+                    pack_num,
+                    soc,
+                    ",".join(str(thr) for thr in sorted(already_below, reverse=True)),
+                )
 
         # High-SOC startup suppression. If the monitor starts while the battery
         # is already full, mark it as already notified instead of sending a
@@ -644,15 +662,41 @@ class NotifyState:
         alerts = []
         ignore_charge_when_full = bool(self.config.get('notify_ignore_charge_fet_off_when_full', True))
         alert_discharge_off = bool(self.config.get('notify_alert_discharge_fet_off', True))
+        try:
+            repeat_seconds = max(60.0, float(self.config.get('notify_fet_repeat_seconds', 1800)))
+        except Exception:
+            repeat_seconds = 1800.0
+
+        def allow_fet_alert(fet_name: str) -> bool:
+            key = (pack_num, fet_name)
+            now = time.time()
+            last_sent = self.last_fet_alert_sent.get(key)
+            if last_sent is None:
+                self.last_fet_alert_sent[key] = now
+                return True
+            elapsed = now - float(last_sent or 0.0)
+            if elapsed < repeat_seconds:
+                log.info(
+                    "%s FET OFF alert suppressed for Pack %02d: %.0fs since last send, cooldown %.0fs",
+                    fet_name,
+                    pack_num,
+                    elapsed,
+                    repeat_seconds,
+                )
+                return False
+            self.last_fet_alert_sent[key] = now
+            return True
 
         if prev_chg == 'ON' and charge_fet == 'OFF':
             if not (ignore_charge_when_full and fully):
-                alerts.append('Charge FET turned OFF unexpectedly')
+                if allow_fet_alert('Charge'):
+                    alerts.append('Charge FET turned OFF unexpectedly')
             else:
                 log.info("Charge FET OFF ignored for Pack %02d because pack is fully charged", pack_num)
 
         if alert_discharge_off and prev_dchg == 'ON' and discharge_fet == 'OFF':
-            alerts.append('Discharge FET turned OFF unexpectedly')
+            if allow_fet_alert('Discharge'):
+                alerts.append('Discharge FET turned OFF unexpectedly')
 
         if alerts:
             telegram_send(self.config,

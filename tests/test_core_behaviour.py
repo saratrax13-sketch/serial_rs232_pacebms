@@ -310,6 +310,14 @@ class WarningNormalizationTests(unittest.TestCase):
             "High cell voltage",
         )
 
+    def test_low_power_detail_does_not_create_new_low_voltage_family(self):
+        self.assertEqual(
+            bms_monitor.normalize_warning_family(
+                "cell 4 Below lower limit, Low cell voltage, Low power warning"
+            ),
+            "Low cell voltage",
+        )
+
     def test_protection_state_is_critical(self):
         pack = bms_monitor.PackData(
             pack_number=1,
@@ -500,6 +508,43 @@ class WarningNormalizationTests(unittest.TestCase):
 
         telegram.assert_called_once()
         self.assertIn("BMS Warning (Critical)", telegram.call_args.args[1])
+
+    def test_low_soc_startup_does_not_replay_already_crossed_thresholds(self):
+        notify = bms_notify.NotifyState({
+            "notify_enabled": True,
+            "notify_soc_low": True,
+            "notify_soc_high": False,
+            "notify_soc_low_thresholds": "75,50,25,10",
+        })
+
+        with patch("bms_notify.telegram_send") as telegram:
+            notify.on_soc_update(1, 60.0)
+            notify.on_soc_update(1, 49.0)
+
+        self.assertEqual(notify.soc_thresholds_hit[1], {75, 50})
+        telegram.assert_called_once()
+        self.assertIn("threshold: 50%", telegram.call_args.args[1])
+
+    def test_fet_alert_cooldown_suppresses_noisy_off_flicker(self):
+        notify = bms_notify.NotifyState({
+            "notify_enabled": True,
+            "notify_fet": True,
+            "notify_alert_discharge_fet_off": True,
+            "notify_fet_repeat_seconds": 1800,
+        })
+
+        with (
+            patch("bms_notify.time.time", side_effect=[1000.0, 1100.0, 3001.0]),
+            patch("bms_notify.telegram_send") as telegram,
+        ):
+            notify.on_fet_update(1, "ON", "ON")
+            notify.on_fet_update(1, "ON", "OFF")
+            notify.on_fet_update(1, "ON", "ON")
+            notify.on_fet_update(1, "ON", "OFF")
+            notify.on_fet_update(1, "ON", "ON")
+            notify.on_fet_update(1, "ON", "OFF")
+
+        self.assertEqual(telegram.call_count, 2)
 
 
 class TelegramConfigTests(unittest.TestCase):
@@ -1161,6 +1206,7 @@ class HealthEndpointTests(unittest.TestCase):
         pack = {
             "highest_cell": {"number": "08", "voltage": "4.200"},
             "lowest_cell": {"number": "01", "voltage": "4.163"},
+            "delta": "37",
         }
         details = web_config.build_warning_intelligence(
             pack,
@@ -1171,6 +1217,11 @@ class HealthEndpointTests(unittest.TestCase):
             3.00,
             54.60,
             39.00,
+            cell_delta_ref=100,
+            alert_toggles={
+                "notify_alert_cell_high_voltage": True,
+                "notify_alert_pack_high_voltage": True,
+            },
         )
 
         self.assertEqual(details["groups"][0]["title"], "Above upper limit")
@@ -1180,8 +1231,37 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertEqual(details["groups"][0]["rows"][1]["status"], "At reference")
         self.assertEqual(details["groups"][1]["title"], "Pack voltage")
         self.assertEqual(details["groups"][1]["rows"][0]["margin"], "0.223 V below ref")
+        self.assertIn("user_reference_rows", details)
+        self.assertIn("Telegram depends on severity", details["telegram_decision"])
         self.assertIn("BMS warning is active below configured reference.", details["reference_checks"])
         self.assertIn("BMS warning is active even though", details["interpretation"])
+
+    def test_warning_intelligence_shows_user_reference_without_bms_warning(self):
+        pack = {
+            "highest_cell": {"number": "06", "voltage": "3.649"},
+            "lowest_cell": {"number": "07", "voltage": "3.592"},
+            "delta": "57",
+        }
+
+        details = web_config.build_warning_intelligence(
+            pack,
+            "Normal",
+            [(6, 3.649), (7, 3.592)],
+            47.307,
+            4.20,
+            3.00,
+            54.60,
+            39.00,
+            cell_delta_ref=50,
+            alert_toggles={"notify_alert_cell_delta": True},
+            telegram_policy="user_reference_or_critical",
+        )
+
+        delta_row = next(row for row in details["user_reference_rows"] if row["label"] == "Cell delta")
+        self.assertEqual(delta_row["status"], "Exceeded")
+        self.assertEqual(delta_row["margin"], "7 mV above ref")
+        self.assertIn("No BMS warning is active", details["telegram_decision"])
+        self.assertIn("app-side watch condition", details["interpretation"])
 
     def test_log_classifier_keeps_web_access_noise_at_debug_level_3(self):
         level, category = web_config.classify_log_line(

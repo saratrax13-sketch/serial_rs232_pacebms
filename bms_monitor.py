@@ -1026,6 +1026,10 @@ def normalize_warning_family(warnings: str) -> str:
             family.add("Low pack voltage")
             continue
 
+        if "low power" in low:
+            family.add("Low power warning")
+            continue
+
         if "protection state" in low:
             family.add("BMS protection active")
             continue
@@ -1035,6 +1039,12 @@ def normalize_warning_family(warnings: str) -> str:
             continue
 
         family.add(re.sub(r"\s+", " ", part))
+
+    # Low power warning often appears/disappears alongside low cell/pack voltage
+    # on the same discharge event. Keep it in the Telegram body, but do not let
+    # it create a new primary dedupe family every time the BMS toggles wording.
+    if ("Low cell voltage" in family or "Low pack voltage" in family) and "Low power warning" in family:
+        family.remove("Low power warning")
 
     return " | ".join(sorted(family)) if family else "Normal"
 
@@ -2312,6 +2322,30 @@ def main():
                     warning_now = time.time()
                     if warning_family == "Normal":
                         if previous_warning_state.get("active"):
+                            try:
+                                clear_confirm_reads = max(1, int(config.get("notify_warning_clear_confirm_reads", 2)))
+                            except Exception:
+                                clear_confirm_reads = 2
+                            clear_reads = int(previous_warning_state.get("clear_reads", 0) or 0) + 1
+                            if clear_reads < clear_confirm_reads:
+                                warning_notify_state[state_key] = {
+                                    "family": previous_warning_state.get("family", "Normal"),
+                                    "active": True,
+                                    "last_sent": previous_warning_state.get("last_sent", 0.0),
+                                    "severity": previous_warning_state.get("severity", "normal"),
+                                    "reasons": previous_warning_state.get("reasons", []),
+                                    "telegram_sent_active": bool(previous_warning_state.get("telegram_sent_active", False)),
+                                    "telegram_policy_reason": previous_warning_state.get("telegram_policy_reason", ""),
+                                    "clear_reads": clear_reads,
+                                }
+                                save_warning_notify_state(warning_notify_state)
+                                log.info(
+                                    "BMS warning clear pending for Pack %02d: %d/%d normal reads",
+                                    p,
+                                    clear_reads,
+                                    clear_confirm_reads,
+                                )
+                                continue
                             previous_sent = bool(previous_warning_state.get(
                                 "telegram_sent_active",
                                 float(previous_warning_state.get("last_sent", 0.0) or 0.0) > 0,
@@ -2352,6 +2386,7 @@ def main():
                                 "reasons": severity_reasons,
                                 "telegram_sent_active": previous_sent,
                                 "telegram_suppressed_reason": telegram_policy_reason,
+                                "clear_reads": 0,
                             }
                             save_warning_notify_state(warning_notify_state)
                             if (not same_family) or escalated:
@@ -2390,6 +2425,7 @@ def main():
                                 "reasons": severity_reasons,
                                 "telegram_sent_active": True,
                                 "telegram_policy_reason": telegram_policy_reason,
+                                "clear_reads": 0,
                             }
                             save_warning_notify_state(warning_notify_state)
                             if repeat:
@@ -2427,6 +2463,7 @@ def main():
                                 "reasons": previous_warning_state.get("reasons", severity_reasons),
                                 "telegram_sent_active": previous_sent,
                                 "telegram_policy_reason": previous_warning_state.get("telegram_policy_reason", telegram_policy_reason),
+                                "clear_reads": 0,
                             }
                             save_warning_notify_state(warning_notify_state)
                             if get_debug_output(config) >= 2:

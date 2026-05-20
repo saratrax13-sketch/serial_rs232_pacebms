@@ -3727,9 +3727,36 @@
               </div>
 
               <div class="warning-intel-section">
-                <strong>BMS Warning Details</strong>
+                <strong>BMS Reported Warning</strong>
                 {% if pack.warnings == 'Normal' %}
                   <div class="warning-detail-empty">No active BMS warning reported for this pack.</div>
+                {% else %}
+                  <div class="warning-detail-empty">{{ pack.warnings }}</div>
+                {% endif %}
+              </div>
+
+              <div class="warning-intel-section">
+                <strong>User Alert Reference Check</strong>
+                {% if pack.warning_intelligence and pack.warning_intelligence.user_reference_rows %}
+                  <ul class="warning-intel-list detail-list">
+                    {% for row in pack.warning_intelligence.user_reference_rows %}
+                      <li>
+                        <span class="warning-detail-label">{{ row.label }}:</span>
+                        {{ row.value }} | Ref: {{ row.ref }} | Margin: {{ row.margin }} |
+                        <span class="warning-detail-status {{ row.class }}">{{ row.status }}</span> |
+                        Telegram: <span class="warning-detail-status {{ row.notify_class }}">{{ row.notify }}</span>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  <div class="warning-detail-empty">No user reference data is available for this pack.</div>
+                {% endif %}
+              </div>
+
+              <div class="warning-intel-section">
+                <strong>BMS Warning Details</strong>
+                {% if pack.warnings == 'Normal' %}
+                  <div class="warning-detail-empty">No BMS warning rows to compare.</div>
                 {% else %}
                   {% if pack.warning_intelligence and pack.warning_intelligence.groups %}
                     {% for group in pack.warning_intelligence.groups %}
@@ -3748,7 +3775,7 @@
                       </div>
                     {% endfor %}
                   {% else %}
-                    <div class="warning-detail-empty">{{ pack.warnings }}</div>
+                    <div class="warning-detail-empty">No configured reference comparison matched this warning text.</div>
                   {% endif %}
                 {% endif %}
               </div>
@@ -3766,6 +3793,16 @@
                   {% endfor %}
                   {% endif %}
                 </ul>
+              </div>
+
+              <div class="warning-intel-section">
+                <strong>Telegram Decision</strong><br>
+                {% if pack.warning_intelligence %}
+                  <span class="warning-detail-status {{ pack.warning_intelligence.telegram_decision_class }}">{{ pack.warning_intelligence.telegram_decision }}</span><br>
+                  <span class="summary-meta">Policy: {{ pack.warning_intelligence.telegram_policy }}</span>
+                {% else %}
+                  Telegram decision data is unavailable.
+                {% endif %}
               </div>
 
               <div class="warning-intel-section">
