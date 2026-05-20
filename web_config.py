@@ -1119,7 +1119,7 @@ def _calculate_user_summary(options, live):
         runtime_remaining = "Idle"
         runtime_detail = "No meaningful discharge load detected."
 
-    severity_rank = {"Critical": 3, "Warning": 2, "Caution": 1}
+    severity_rank = {"Critical": 3, "Warning": 2, "BMS Caution": 1, "Caution": 1}
     highest_warning = None
     for pack in packs:
         if pack.get("warnings") == "Normal":
@@ -1131,7 +1131,12 @@ def _calculate_user_summary(options, live):
         warning_summary = f"{warning_count} active warning(s)"
         if highest_warning:
             warning_summary = f"{warning_summary} - highest severity: {highest_warning}"
-        warning_class = "warning" if highest_warning != "Critical" else "critical"
+        if highest_warning == "Critical":
+            warning_class = "critical"
+        elif highest_warning in ("BMS Caution", "Caution"):
+            warning_class = "caution"
+        else:
+            warning_class = "warning"
     else:
         warning_summary = "No active warnings"
         warning_class = "healthy"
@@ -1297,7 +1302,7 @@ def build_monitoring_health(options, live=None, heartbeat=None):
 
 def attach_monitoring_health(options, live):
     if isinstance(live, dict):
-        live = normalize_live_snapshot_for_template(live)
+        live = normalize_live_snapshot_for_template(live, options)
         live["monitoring_health"] = build_monitoring_health(options, live)
         live["user_summary"] = _calculate_user_summary(options, live)
     return live
@@ -1312,11 +1317,12 @@ def _safe_cell_extreme(value):
     }
 
 
-def normalize_live_snapshot_for_template(live):
+def normalize_live_snapshot_for_template(live, options=None):
     """Fill optional retained MQTT fields so partial snapshots do not break rendering."""
     if not isinstance(live, dict):
         return live
 
+    options = options or DEFAULT_OPTION_VALUES
     normalized = dict(live)
     raw_packs = normalized.get("packs") or []
     packs = []
@@ -1386,17 +1392,18 @@ def normalize_live_snapshot_for_template(live):
                 pack_low_ref,
                 pack.get("battery_profile", ""),
                 pack.get("reference_source", ""),
-                bool(DEFAULT_OPTION_VALUES.get("notify_enabled", True)),
-                _to_float(DEFAULT_OPTION_VALUES.get("notify_cell_delta_warn_mv"), 100),
+                bool(options.get("notify_enabled", DEFAULT_OPTION_VALUES.get("notify_enabled", True)) and options.get("notify_warnings", DEFAULT_OPTION_VALUES.get("notify_warnings", True))),
+                _to_float(options.get("notify_cell_delta_warn_mv", DEFAULT_OPTION_VALUES.get("notify_cell_delta_warn_mv")), 100),
                 {
-                    "notify_alert_cell_high_voltage": bool(DEFAULT_OPTION_VALUES.get("notify_alert_cell_high_voltage", True)),
-                    "notify_alert_cell_low_voltage": bool(DEFAULT_OPTION_VALUES.get("notify_alert_cell_low_voltage", True)),
-                    "notify_alert_cell_delta": bool(DEFAULT_OPTION_VALUES.get("notify_alert_cell_delta", True)),
-                    "notify_alert_pack_high_voltage": bool(DEFAULT_OPTION_VALUES.get("notify_alert_pack_high_voltage", True)),
-                    "notify_alert_pack_low_voltage": bool(DEFAULT_OPTION_VALUES.get("notify_alert_pack_low_voltage", True)),
+                    "notify_alert_cell_high_voltage": bool(options.get("notify_alert_cell_high_voltage", DEFAULT_OPTION_VALUES.get("notify_alert_cell_high_voltage", True))),
+                    "notify_alert_cell_low_voltage": bool(options.get("notify_alert_cell_low_voltage", DEFAULT_OPTION_VALUES.get("notify_alert_cell_low_voltage", True))),
+                    "notify_alert_cell_delta": bool(options.get("notify_alert_cell_delta", DEFAULT_OPTION_VALUES.get("notify_alert_cell_delta", True))),
+                    "notify_alert_pack_high_voltage": bool(options.get("notify_alert_pack_high_voltage", DEFAULT_OPTION_VALUES.get("notify_alert_pack_high_voltage", True))),
+                    "notify_alert_pack_low_voltage": bool(options.get("notify_alert_pack_low_voltage", DEFAULT_OPTION_VALUES.get("notify_alert_pack_low_voltage", True))),
                 },
-                DEFAULT_OPTION_VALUES.get("notify_bms_warning_policy", "user_reference_or_critical"),
+                options.get("notify_bms_warning_policy", DEFAULT_OPTION_VALUES.get("notify_bms_warning_policy", "user_reference_or_critical")),
             )
+        _apply_ui_warning_severity(pack)
         packs.append(pack)
 
     normalized["packs"] = packs
@@ -1553,6 +1560,37 @@ def _warning_has_critical_or_protection_text(warnings):
         "below cell volt protect",
     )
     return any(word in low for word in critical_words)
+
+
+def _apply_ui_warning_severity(pack):
+    if not isinstance(pack, dict):
+        return
+    warnings = str(pack.get("warnings") or "Normal")
+    if warnings == "Normal":
+        pack["severity_class"] = "healthy"
+        pack["severity_label"] = "Normal"
+        return
+    if str(pack.get("severity_class") or "").lower() in ("critical", "offline", "stale"):
+        return
+    if _warning_has_critical_or_protection_text(warnings):
+        pack["severity_class"] = "critical"
+        pack["severity_label"] = "Critical"
+        return
+
+    warning_intelligence = pack.get("warning_intelligence") or {}
+    rows = list(warning_intelligence.get("user_reference_rows") or [])
+    for group in warning_intelligence.get("groups") or []:
+        rows.extend(group.get("rows") or [])
+
+    if any(row.get("status") == "Exceeded" for row in rows):
+        pack["severity_class"] = "critical"
+        pack["severity_label"] = "Critical"
+    elif any(row.get("status") == "At reference" for row in rows):
+        pack["severity_class"] = "warning"
+        pack["severity_label"] = "Warning"
+    else:
+        pack["severity_class"] = "caution"
+        pack["severity_label"] = "BMS Caution"
 
 
 def build_warning_intelligence(
@@ -2035,12 +2073,14 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
                 if cell_v < cell_low_ref:
                     labels.append("Below low reference")
 
-                detailed_cells.append({
-                    "number": f"{cell_num:02d}",
-                    "voltage": f"{cell_v:.3f}",
-                    "labels": labels,
-                    "class": "cell-alert" if any(("reference" in label or label.startswith("BMS ")) for label in labels) else ("cell-highlow" if labels else "cell-normal"),
-                })
+            has_reference_label = any("reference" in label for label in labels)
+            has_bms_label = any(label.startswith("BMS ") for label in labels)
+            detailed_cells.append({
+                "number": f"{cell_num:02d}",
+                "voltage": f"{cell_v:.3f}",
+                "labels": labels,
+                "class": "cell-alert" if has_reference_label else ("cell-caution" if has_bms_label else ("cell-highlow" if labels else "cell-normal")),
+            })
 
         pack_v = _to_float(voltage)
         pack_current = _to_float(current)

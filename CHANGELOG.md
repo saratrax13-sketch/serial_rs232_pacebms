@@ -1,3 +1,16 @@
+## 2.9.43 - 2026-05-20
+
+### Fixed
+- Updated the Web UI so BMS-reported warnings below configured user references show as BMS Caution instead of Warning.
+- Toned down BMS-only cell badges in Diagnostics so they remain visible without looking like user-reference alarms.
+- Made live serial Warning Intelligence use the current add-on options for cell-delta references, alert toggles and BMS warning Telegram policy.
+- Renamed the Warning Intelligence Telegram section to BMS Warning Telegram Decision for clearer scope.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+- Monitor polling behavior was not changed.
+
 ## 2.9.42 - 2026-05-20
 
 ### Fixed

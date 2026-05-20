@@ -19,7 +19,14 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 
 ## Latest Sprint Outcome
 
-- Version `2.9.42` is prepared but uncommitted for Warning Intelligence and Telegram warning-detail row filtering.
+- Version `2.9.43` is prepared but uncommitted for Warning Intelligence UI severity polish.
+- Web UI now shows BMS-reported warnings below configured user references as BMS Caution instead of Warning.
+- Diagnostics cell badges now style BMS-only warning labels as caution, while reference crossings still use alert styling.
+- Live serial Warning Intelligence now uses current add-on options for cell-delta references, alert toggles and BMS warning Telegram policy.
+- The Warning Intelligence Telegram section is now labelled BMS Warning Telegram Decision to avoid confusion with SOC/SOH/FET Telegram alerts.
+- Added regression coverage for BMS-only below-reference UI caution handling and made history-report tests deterministic around day-boundary windows.
+- Validation passed: compile, full unit suite, config coverage and `git diff --check` with only Windows CRLF normalization warnings.
+- Version `2.9.42` prepared Warning Intelligence and Telegram warning-detail row filtering.
 - Warning Intelligence now hides user alert reference rows when the measured value is still safely inside the configured reference, while keeping active BMS warning context and explanation visible.
 - Detailed Telegram warning output now hides non-exceeded high-cell and pack-voltage comparison rows, but still shows rows at the reference boundary or beyond it.
 - Added regression coverage for hiding safe high-voltage, cell-delta and pack-voltage rows and for showing exceeded rows.
@@ -48,7 +55,7 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 - Daily summaries should keep using SQLite `pack_metrics` and `warning_events` for restart-safe energy movement and warnings.
 - Cell delta reports should keep using SQLite `pack_metrics`, including overnight windows and persisted pack IDs.
 - Warning Intelligence must separate BMS-reported warnings from user alert references.
-- Reference comparison rows should not be shown as warnings when the measured value is safely inside the configured reference; keep active BMS warning context visible separately.
+- Reference comparison rows should not be shown as warnings when the measured value is safely inside the configured reference; keep active BMS warning context visible separately as BMS Caution.
 - Home Assistant visible hotfixes require a version bump in `config.yaml`, README Current Version and `CHANGELOG.md`.
 - Do not rename MQTT discovery IDs, topics or Home Assistant entities without explicit migration approval.
 
@@ -67,4 +74,4 @@ ls -lh /data/pacebms-live.json
 ls -lh /data/pacebms_metrics.db*
 ```
 
-Next recommended step: after validation, install/update the Home Assistant add-on to `2.9.42` on the live Home Assistant host, confirm Warning Intelligence hides non-exceeded reference rows in ingress, and confirm Daily Summary and Cell Delta Report still use persisted SQLite history.
+Next recommended step: after validation, install/update the Home Assistant add-on to `2.9.43` on the live Home Assistant host, confirm Warning Intelligence shows Pack 01 as BMS Caution for BMS-only below-reference warnings, and confirm reference-exceeded cases still show as Warning/Critical.

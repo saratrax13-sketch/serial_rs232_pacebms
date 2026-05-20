@@ -437,6 +437,7 @@
     .user-dashboard-value.charging { color: #86efac; }
     .user-dashboard-value.discharging { color: #fbbf24; }
     .user-dashboard-value.idle { color: #cbd5e1; }
+    .user-dashboard-value.caution { color: var(--cyan); }
     .user-dashboard-value.warning,
     .user-dashboard-value.stale { color: var(--yellow); }
     .user-dashboard-value.critical { color: var(--red); }
@@ -545,8 +546,8 @@
     }
 
     .pack-metric-value.healthy { color: var(--green); }
-    .pack-metric-value.warning,
-    .pack-metric-value.caution { color: var(--yellow); }
+    .pack-metric-value.warning { color: var(--yellow); }
+    .pack-metric-value.caution { color: var(--cyan); }
     .pack-metric-value.critical,
     .pack-metric-value.offline { color: var(--red); }
 
@@ -1209,8 +1210,18 @@
       background: rgba(248, 113, 113, 0.12);
     }
 
+    .cell-label.caution {
+      color: #bae6fd;
+      border-color: rgba(56, 189, 248, 0.35);
+      background: rgba(14, 165, 233, 0.10);
+    }
+
     .cell-alert .cell-voltage {
       color: #fecaca;
+    }
+
+    .cell-caution .cell-voltage {
+      color: #bae6fd;
     }
 
     .cell-highlow .cell-voltage {
@@ -2190,9 +2201,19 @@
       padding: 12px;
     }
 
-    .warning-intel-card.review {
+    .warning-intel-card.warning {
       border-color: rgba(245, 158, 11, 0.42);
       background: rgba(245, 158, 11, 0.08);
+    }
+
+    .warning-intel-card.caution {
+      border-color: rgba(56, 189, 248, 0.35);
+      background: rgba(14, 165, 233, 0.07);
+    }
+
+    .warning-intel-card.critical {
+      border-color: rgba(248, 113, 113, 0.45);
+      background: rgba(248, 113, 113, 0.08);
     }
 
     .warning-intel-header {
@@ -3762,7 +3783,7 @@
 
           <div class="warning-intel-grid">
             {% for pack in live.packs %}
-            <article class="warning-intel-card {% if pack.warnings != 'Normal' %}review{% endif %}">
+            <article class="warning-intel-card {% if pack.warnings != 'Normal' %}{{ pack.severity_class }}{% endif %}">
               <div class="warning-intel-header">
                 <div>
                   <div class="warning-intel-title">Pack {{ pack.id }} — {% if pack.role %}{{ pack.role }}{% elif pack.id == '01' %}Master{% else %}Slave{% endif %}</div>
@@ -3879,7 +3900,7 @@
               </div>
 
               <div class="warning-intel-section">
-                <strong>Telegram Decision</strong><br>
+                <strong>BMS Warning Telegram Decision</strong><br>
                 {% if pack.warning_intelligence %}
                   <span class="warning-detail-status {{ pack.warning_intelligence.telegram_decision_class }}">{{ pack.warning_intelligence.telegram_decision }}</span><br>
                   <span class="summary-meta">Policy: {{ pack.warning_intelligence.telegram_policy }}</span>
@@ -5494,7 +5515,7 @@ This cannot be undone.`);">
                     {% if cell.labels %}
                     <div class="cell-labels">
                       {% for label in cell.labels %}
-                      <span class="cell-label {% if label.startswith('BMS ') or 'reference' in label %}alert{% else %}highlow{% endif %}">{{ label }}</span>
+                      <span class="cell-label {% if 'reference' in label %}alert{% elif label.startswith('BMS ') %}caution{% else %}highlow{% endif %}">{{ label }}</span>
                       {% endfor %}
                     </div>
                     {% else %}

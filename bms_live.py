@@ -194,11 +194,13 @@ def build_live_snapshot(
                 labels.append("Above high reference")
             if cell_low_ref is not None and cell_v < cell_low_ref:
                 labels.append("Below low reference")
+            has_reference_label = any("reference" in label for label in labels)
+            has_bms_label = any(label.startswith("BMS ") for label in labels)
             detailed_cells.append({
                 "number": f"{cell_num:02d}",
                 "voltage": f"{cell_v:.3f}",
                 "labels": labels,
-                "class": "cell-alert" if any(("reference" in label or label.startswith("BMS ")) for label in labels) else ("cell-highlow" if labels else "cell-normal"),
+                "class": "cell-alert" if has_reference_label else ("cell-caution" if has_bms_label else ("cell-highlow" if labels else "cell-normal")),
             })
 
         has_warning = warning_text != "Normal"

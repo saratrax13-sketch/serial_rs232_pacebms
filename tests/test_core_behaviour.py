@@ -937,7 +937,8 @@ class EnergyTrackingTests(unittest.TestCase):
             db_path = Path(tmpdir) / "pacebms_metrics.db"
             with patch("bms_notify.HISTORY_DB_PATH", db_path):
                 bms_notify.init_history_db(db_path)
-                now = int(time.time())
+                report_now = datetime(2026, 5, 20, 12, 0)
+                now = int(report_now.timestamp())
                 rows = [
                     (now - 20, 1, "01", 75.0, 50.0, -10.0, "cell 7 Below lower limit"),
                     (now - 10, 2, "01", 74.0, 49.5, -10.0, "cell 7 Below lower limit"),
@@ -968,8 +969,12 @@ class EnergyTrackingTests(unittest.TestCase):
                 finally:
                     con.close()
 
-                with patch("bms_notify.telegram_send") as send:
-                    state._send_daily_summary(2)
+                with patch("bms_notify.datetime") as dt_mock:
+                    dt_mock.now.return_value = report_now
+                    dt_mock.combine.side_effect = datetime.combine
+                    dt_mock.fromtimestamp.side_effect = datetime.fromtimestamp
+                    with patch("bms_notify.telegram_send") as send:
+                        state._send_daily_summary(2)
 
         message = send.call_args.args[1]
         self.assertIn("Pack 01:", message)
@@ -988,7 +993,8 @@ class EnergyTrackingTests(unittest.TestCase):
             db_path = Path(tmpdir) / "pacebms_metrics.db"
             with patch("bms_notify.HISTORY_DB_PATH", db_path):
                 bms_notify.init_history_db(db_path)
-                now = int(time.time())
+                report_now = datetime(2026, 5, 20, 12, 0)
+                now = int(report_now.timestamp())
                 con = sqlite3.connect(db_path)
                 try:
                     for snapshot_id, soc in [(1, 80.0), (2, 79.5)]:
@@ -1018,8 +1024,12 @@ class EnergyTrackingTests(unittest.TestCase):
                 finally:
                     con.close()
 
-                with patch("bms_notify.telegram_send") as send:
-                    state._send_daily_summary(1)
+                with patch("bms_notify.datetime") as dt_mock:
+                    dt_mock.now.return_value = report_now
+                    dt_mock.combine.side_effect = datetime.combine
+                    dt_mock.fromtimestamp.side_effect = datetime.fromtimestamp
+                    with patch("bms_notify.telegram_send") as send:
+                        state._send_daily_summary(1)
 
         message = send.call_args.args[1]
         self.assertIn("Pack 01:", message)
@@ -1032,7 +1042,8 @@ class EnergyTrackingTests(unittest.TestCase):
             db_path = Path(tmpdir) / "pacebms_metrics.db"
             with patch("bms_notify.HISTORY_DB_PATH", db_path):
                 bms_notify.init_history_db(db_path)
-                now = int(time.time())
+                report_now = datetime(2026, 5, 20, 12, 0)
+                now = int(report_now.timestamp())
                 con = sqlite3.connect(db_path)
                 try:
                     for ts, snapshot_id, power_kw in [
@@ -1052,8 +1063,12 @@ class EnergyTrackingTests(unittest.TestCase):
                 finally:
                     con.close()
 
-                with patch("bms_notify.telegram_send") as send:
-                    state._send_daily_summary(1)
+                with patch("bms_notify.datetime") as dt_mock:
+                    dt_mock.now.return_value = report_now
+                    dt_mock.combine.side_effect = datetime.combine
+                    dt_mock.fromtimestamp.side_effect = datetime.fromtimestamp
+                    with patch("bms_notify.telegram_send") as send:
+                        state._send_daily_summary(1)
 
         message = send.call_args.args[1]
         self.assertIn("Charged:    0.001 kWh", message)
@@ -1067,7 +1082,8 @@ class EnergyTrackingTests(unittest.TestCase):
             db_path = Path(tmpdir) / "pacebms_metrics.db"
             with patch("bms_notify.HISTORY_DB_PATH", db_path):
                 bms_notify.init_history_db(db_path)
-                now = int(time.time())
+                report_now = datetime(2026, 5, 20, 12, 0)
+                now = int(report_now.timestamp())
                 con = sqlite3.connect(db_path)
                 try:
                     con.execute(
@@ -1088,8 +1104,12 @@ class EnergyTrackingTests(unittest.TestCase):
                 finally:
                     con.close()
 
-                with patch("bms_notify.telegram_send") as send:
-                    state._send_daily_summary(1)
+                with patch("bms_notify.datetime") as dt_mock:
+                    dt_mock.now.return_value = report_now
+                    dt_mock.combine.side_effect = datetime.combine
+                    dt_mock.fromtimestamp.side_effect = datetime.fromtimestamp
+                    with patch("bms_notify.telegram_send") as send:
+                        state._send_daily_summary(1)
 
         message = send.call_args.args[1]
         self.assertIn("Pack 02:", message)
@@ -1104,7 +1124,8 @@ class EnergyTrackingTests(unittest.TestCase):
             db_path = Path(tmpdir) / "pacebms_metrics.db"
             with patch("bms_notify.HISTORY_DB_PATH", db_path):
                 bms_notify.init_history_db(db_path)
-                now = int(time.time())
+                report_now = datetime(2026, 5, 20, 12, 0)
+                now = int(report_now.timestamp())
                 con = sqlite3.connect(db_path)
                 try:
                     for pack_id, snapshot_id, delta, high_cell, high_v, low_cell, low_v in [
@@ -1125,8 +1146,12 @@ class EnergyTrackingTests(unittest.TestCase):
                 finally:
                     con.close()
 
-                with patch("bms_notify.telegram_send") as send:
-                    state._send_delta_report(2)
+                with patch("bms_notify.datetime") as dt_mock:
+                    dt_mock.now.return_value = report_now
+                    dt_mock.combine.side_effect = datetime.combine
+                    dt_mock.fromtimestamp.side_effect = datetime.fromtimestamp
+                    with patch("bms_notify.telegram_send") as send:
+                        state._send_delta_report(2)
 
         message = send.call_args.args[1]
         self.assertIn("Pack 01:", message)
@@ -1183,7 +1208,8 @@ class EnergyTrackingTests(unittest.TestCase):
             db_path = Path(tmpdir) / "pacebms_metrics.db"
             with patch("bms_notify.HISTORY_DB_PATH", db_path):
                 bms_notify.init_history_db(db_path)
-                now = int(time.time())
+                report_now = datetime(2026, 5, 20, 12, 0)
+                now = int(report_now.timestamp())
                 con = sqlite3.connect(db_path)
                 try:
                     con.execute(
@@ -1199,8 +1225,12 @@ class EnergyTrackingTests(unittest.TestCase):
                 finally:
                     con.close()
 
-                with patch("bms_notify.telegram_send") as send:
-                    state._send_delta_report(1)
+                with patch("bms_notify.datetime") as dt_mock:
+                    dt_mock.now.return_value = report_now
+                    dt_mock.combine.side_effect = datetime.combine
+                    dt_mock.fromtimestamp.side_effect = datetime.fromtimestamp
+                    with patch("bms_notify.telegram_send") as send:
+                        state._send_delta_report(1)
 
         message = send.call_args.args[1]
         self.assertIn("Pack 03:", message)
@@ -1991,8 +2021,63 @@ class HealthEndpointTests(unittest.TestCase):
 
         cells = snapshot["packs"][0]["cells"]
         self.assertIn("BMS High Warning", cells[2]["labels"])
-        self.assertEqual(cells[2]["class"], "cell-alert")
+        self.assertEqual(cells[2]["class"], "cell-caution")
         self.assertNotIn("BMS High Warning", cells[0]["labels"])
+
+    def test_live_ui_marks_bms_warning_below_references_as_caution(self):
+        options = dict(web_config.DEFAULT_OPTION_VALUES)
+        options.update({
+            "notify_cell_high_warn_voltage": 4.20,
+            "notify_cell_low_warn_voltage": 3.00,
+            "notify_cell_delta_warn_mv": 50,
+            "notify_bms_warning_policy": "user_reference_or_critical",
+        })
+        live = {
+            "ok": True,
+            "availability": "online",
+            "stale": "OFF",
+            "pack_count": 1,
+            "total_cells": 13,
+            "warning_count": 1,
+            "packs": [{
+                "id": "01",
+                "cell_count": 13,
+                "role": "Master",
+                "serial": "PACK01",
+                "soc": "99.37",
+                "soh": "88.54",
+                "cycles": "992",
+                "remaining_capacity_ah": "88",
+                "full_capacity_ah": "89",
+                "design_capacity_ah": "100",
+                "voltage": "53.825",
+                "current": "0.00",
+                "power_kw": "0.00",
+                "delta": "35",
+                "warnings": "Warning State 1: Above cell volt warn | Above total volt warn",
+                "severity_class": "warning",
+                "severity_label": "Warning",
+                "highest_cell": {"number": "08", "voltage": "4.157"},
+                "lowest_cell": {"number": "01", "voltage": "4.122"},
+                "cell_high_ref": "4.20",
+                "cell_low_ref": "3.00",
+                "pack_high_ref": "54.60",
+                "pack_low_ref": "39.00",
+                "cells": [
+                    {"number": "01", "voltage": "4.122", "labels": ["Lowest"], "class": "cell-highlow"},
+                    {"number": "08", "voltage": "4.157", "labels": ["Highest", "BMS High Warning"], "class": "cell-caution"},
+                ],
+            }],
+        }
+
+        normalized = web_config.attach_monitoring_health(options, live)
+        pack = normalized["packs"][0]
+
+        self.assertEqual(pack["severity_class"], "caution")
+        self.assertEqual(pack["severity_label"], "BMS Caution")
+        self.assertFalse(pack["warning_intelligence"]["user_reference_rows"])
+        self.assertEqual(normalized["user_summary"]["warning_class"], "caution")
+        self.assertIn("highest severity: BMS Caution", normalized["user_summary"]["warning_summary"])
 
     def test_log_classifier_keeps_web_access_noise_at_debug_level_3(self):
         level, category = web_config.classify_log_line(
