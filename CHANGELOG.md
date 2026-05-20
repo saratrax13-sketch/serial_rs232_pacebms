@@ -1,3 +1,14 @@
+## 2.9.46 - 2026-05-21
+
+### Fixed
+- Test build for Home Assistant: made Status and Diagnostics soft refresh reload their detailed warning sections when the live BMS warning state changes.
+- This prevents stale BMS warning badges and detailed cell warning labels from lingering after the BMS reports normal warning state again.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+- Monitor polling behavior was not changed.
+
 ## 2.9.45 - 2026-05-21
 
 ### Fixed

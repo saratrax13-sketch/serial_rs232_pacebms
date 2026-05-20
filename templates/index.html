@@ -3769,6 +3769,7 @@
         </button>
       </section>
       <div id="refresh-message" hidden></div>
+      <div id="status-warning-signature" data-warning-signature="{{ live.warning_signature|default('') }}" hidden></div>
 
       {% if live.error %}
         <div class="alert">{{ live.error }}</div>
@@ -5209,6 +5210,7 @@ This cannot be undone.`);">
         <div id="diagnostics-refresh-message" hidden></div>
 
         {% if diagnostics %}
+        <div id="diagnostics-warning-signature" data-warning-signature="{{ diagnostics.live.warning_signature|default('') }}" hidden></div>
         <div class="diagnostics-header-summary">
         <div class="status-hero">
           <div class="status-label">Overall Status</div>
@@ -5684,6 +5686,42 @@ This cannot be undone.`);">
       }
     }
 
+    function warningSignatureFromData(data) {
+      if (data && data.warning_signature !== undefined && data.warning_signature !== null) {
+        return String(data.warning_signature);
+      }
+      return (data?.packs || []).map((pack) => {
+        return `${pack.id || ""}:${pack.warnings || "Normal"}:${pack.severity_label || "Normal"}`;
+      }).join("||");
+    }
+
+    function reloadTabWhenWarningSignatureChanges(markerId, data, tabName) {
+      const marker = document.getElementById(markerId);
+      if (!marker) return false;
+      const previous = marker.dataset.warningSignature || "";
+      const next = warningSignatureFromData(data);
+      if (previous && next !== previous) {
+        reloadTab(tabName);
+        return true;
+      }
+      marker.dataset.warningSignature = next;
+      return false;
+    }
+
+    function highestWarningInfo(packs) {
+      const rank = { Critical: 3, Warning: 2, "BMS Caution": 1, Caution: 1 };
+      let highest = null;
+      (packs || []).forEach((pack) => {
+        if ((pack.warnings || "Normal") === "Normal") return;
+        const label = pack.severity_label || "Warning";
+        const className = pack.severity_class || "warning";
+        if (!highest || (rank[label] || 2) > (rank[highest.label] || 2)) {
+          highest = { label, className };
+        }
+      });
+      return highest;
+    }
+
     async function refreshStatus(quiet = false) {
       const msg = document.getElementById("refresh-message");
       if (msg && !quiet) {
@@ -5697,6 +5735,7 @@ This cannot be undone.`);">
         }
 
         const data = await response.json();
+        if (reloadTabWhenWarningSignatureChanges("status-warning-signature", data, "status")) return;
 
         setText("overall-status", data.overall_status);
         setClass("overall-status", "status-value", data.overall_class);
@@ -7228,6 +7267,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
         const response = await fetch("api/status", { cache: "no-store" });
         if (!response.ok) throw new Error("HTTP " + response.status);
         const data = await response.json();
+        if (reloadTabWhenWarningSignatureChanges("diagnostics-warning-signature", data, "diagnostics")) return;
 
         const warningCount = Number(data.warning_count || 0);
         const stale = String(data.stale || "Unknown").toUpperCase();
@@ -7271,8 +7311,8 @@ Restart the add-on afterwards for runtime changes to apply.`);
 
         updateDiagnosticCard(
           "Warnings",
-          warningCount ? "Active" : "Normal",
-          warningCount ? "warning" : "healthy",
+          warningCount ? (highestWarningInfo(data.packs)?.label || "Active") : "Normal",
+          warningCount ? (highestWarningInfo(data.packs)?.className || "warning") : "healthy",
           `${warningCount} pack(s) with active BMS warnings.`
         );
 

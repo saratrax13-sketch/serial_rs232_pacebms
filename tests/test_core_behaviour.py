@@ -2040,6 +2040,61 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertEqual(cells[2]["class"], "cell-caution")
         self.assertNotIn("BMS High Warning", cells[0]["labels"])
 
+    def test_live_snapshot_clears_bms_warning_after_normal_warn_read(self):
+        options = dict(web_config.DEFAULT_OPTION_VALUES)
+        pack = types.SimpleNamespace(
+            pack_number=1,
+            cells=3,
+            v_cells=[4059, 4078, 4092],
+            t_cells=[],
+            v_pack=52972,
+            i_pack=-1871,
+            i_remain_cap=84000,
+            i_full_cap=89000,
+            i_design_cap=100000,
+            cycles=992,
+            soc=94.96,
+            soh=88.54,
+            cell_max_diff=33,
+        )
+        analog_data = types.SimpleNamespace(pack_data=[pack])
+        warning = types.SimpleNamespace(
+            pack_number=1,
+            warnings="Warning State 1: Above cell volt warn | Above total volt warn",
+            charge_fet=1,
+            discharge_fet=1,
+            fully=0,
+        )
+        normal = types.SimpleNamespace(
+            pack_number=1,
+            warnings="",
+            charge_fet=1,
+            discharge_fet=1,
+            fully=0,
+        )
+
+        warning_snapshot = web_config.attach_monitoring_health(
+            options,
+            bms_live.build_live_snapshot(options, analog_data=analog_data, warn_list=[warning]),
+        )
+        cleared_snapshot = web_config.attach_monitoring_health(
+            options,
+            bms_live.build_live_snapshot(options, analog_data=analog_data, warn_list=[normal]),
+        )
+
+        self.assertEqual(warning_snapshot["warning_count"], 1)
+        self.assertNotEqual(warning_snapshot["warning_signature"], cleared_snapshot["warning_signature"])
+        self.assertEqual(cleared_snapshot["warning_count"], 0)
+        self.assertEqual(cleared_snapshot["overall_status"], "Healthy")
+        self.assertEqual(cleared_snapshot["user_summary"]["warning_summary"], "No active warnings")
+        pack_after_clear = cleared_snapshot["packs"][0]
+        self.assertEqual(pack_after_clear["warnings"], "Normal")
+        self.assertEqual(pack_after_clear["severity_label"], "Normal")
+        self.assertEqual(pack_after_clear["severity_class"], "healthy")
+        self.assertFalse(pack_after_clear["warning_intelligence"]["groups"])
+        for cell in pack_after_clear["cells"]:
+            self.assertNotIn("BMS High Warning", cell["labels"])
+
     def test_live_ui_marks_bms_warning_below_references_as_caution(self):
         options = dict(web_config.DEFAULT_OPTION_VALUES)
         options.update({

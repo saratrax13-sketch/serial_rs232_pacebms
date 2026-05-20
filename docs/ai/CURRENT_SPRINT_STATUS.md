@@ -19,6 +19,9 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 
 ## Latest Sprint Outcome
 
+- Version `2.9.46` is prepared but uncommitted for BMS warning clear UI refresh validation.
+- Backend/API validation confirms a normal BMS warning read clears warning count, pack severity, Warning Intelligence rows and BMS cell warning labels.
+- Status and Diagnostics soft refresh now reload their detailed warning sections when the live warning signature changes, so stale BMS warning badges do not linger after the BMS resets.
 - Version `2.9.45` is prepared but uncommitted for all-tabs BMS Caution UI alignment.
 - Overall status, dashboard operating state, monitoring health and warning health cards now use BMS Caution for BMS-reported warnings below configured user references.
 - Added regression coverage so below-reference BMS warnings remain visible as caution without top-level Warning labels.
@@ -79,4 +82,4 @@ ls -lh /data/pacebms-live.json
 ls -lh /data/pacebms_metrics.db*
 ```
 
-Next recommended step: after validation, install/update the Home Assistant add-on to `2.9.43` on the live Home Assistant host, confirm Warning Intelligence shows Pack 01 as BMS Caution for BMS-only below-reference warnings, and confirm reference-exceeded cases still show as Warning/Critical.
+Next recommended step: after validation, install/update the Home Assistant add-on to `2.9.46` on the live Home Assistant host, confirm Warning Intelligence shows Pack 01 as BMS Caution for BMS-only below-reference warnings, and confirm Status/Diagnostics clear warning badges after the BMS reports normal warning state again.

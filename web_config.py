@@ -1334,6 +1334,18 @@ def _highest_pack_warning(packs):
     return highest, _severity_label_class(highest) if highest else None
 
 
+def _warning_signature(packs):
+    parts = []
+    for index, pack in enumerate(packs or [], start=1):
+        if not isinstance(pack, dict):
+            continue
+        pack_id = str(pack.get("id") or f"{index:02d}")
+        warnings = str(pack.get("warnings") or "Normal")
+        severity_label = str(pack.get("severity_label") or "Normal")
+        parts.append(f"{pack_id}:{warnings}:{severity_label}")
+    return "||".join(parts)
+
+
 def _apply_overall_warning_status(live):
     if not isinstance(live, dict):
         return live
@@ -1451,6 +1463,7 @@ def normalize_live_snapshot_for_template(live, options=None):
         packs.append(pack)
 
     normalized["packs"] = packs
+    normalized["warning_signature"] = _warning_signature(packs)
     normalized["pack_count"] = normalized.get("pack_count") or len(packs)
     if not normalized.get("total_cells"):
         total_cells = 0
