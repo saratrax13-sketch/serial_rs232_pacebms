@@ -1636,20 +1636,29 @@ def build_warning_intelligence(
             "rows": [cell_row(cell_num, "above", cell_high_ref, "notify_alert_cell_high_voltage") for cell_num in high_cells],
         })
     if low_cells or "lower cell volt" in lower_warning:
-        groups.append({
-            "title": "Below lower limit",
-            "rows": [cell_row(cell_num, "below", cell_low_ref, "notify_alert_cell_low_voltage") for cell_num in low_cells],
-        })
+        low_rows = [
+            cell_row(cell_num, "below", cell_low_ref, "notify_alert_cell_low_voltage")
+            for cell_num in low_cells
+        ]
+        low_rows = [row for row in low_rows if row["status"] == "Exceeded"]
+        if low_rows:
+            groups.append({
+                "title": "Below lower limit",
+                "rows": low_rows,
+            })
     if "above total volt" in lower_warning or "total voltage above upper limit" in lower_warning:
         groups.append({
             "title": "Pack voltage",
             "rows": [pack_row("above", pack_high_ref, "notify_alert_pack_high_voltage")],
         })
     if "lower total volt" in lower_warning or "total voltage below lower limit" in lower_warning:
-        groups.append({
-            "title": "Low pack voltage",
-            "rows": [pack_row("below", pack_low_ref, "notify_alert_pack_low_voltage")],
-        })
+        low_pack_rows = [pack_row("below", pack_low_ref, "notify_alert_pack_low_voltage")]
+        low_pack_rows = [row for row in low_pack_rows if row["status"] == "Exceeded"]
+        if low_pack_rows:
+            groups.append({
+                "title": "Low pack voltage",
+                "rows": low_pack_rows,
+            })
 
     highest_cell = pack.get("highest_cell", {}) if isinstance(pack, dict) else {}
     lowest_cell = pack.get("lowest_cell", {}) if isinstance(pack, dict) else {}
@@ -1703,6 +1712,13 @@ def build_warning_intelligence(
             "V",
             "notify_alert_pack_low_voltage",
         ),
+    ]
+    user_reference_rows = [
+        row for row in user_reference_rows
+        if not (
+            (row["label"].startswith("Low cell voltage") or row["label"] == "Pack low voltage")
+            and row["status"] != "Exceeded"
+        )
     ]
 
     bms_exceeded = any(row["status"] == "Exceeded" for group in groups for row in group["rows"])

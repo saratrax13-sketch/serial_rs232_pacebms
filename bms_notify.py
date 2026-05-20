@@ -534,12 +534,16 @@ class NotifyState:
                     if not candidates and low_idx is not None:
                         candidates = [low_idx]
                     candidates = sorted(set(candidates))
-                    lines.append("Below lower limit:")
+                    low_rows = []
                     for cell_num in candidates:
                         row, status = self._warning_detail_row(f"Cell {cell_num:02d}", cell_map.get(cell_num), cell_low, "below", "notify_alert_cell_low_voltage")
-                        lines.append(row)
-                        exceeded = exceeded or status == "Exceeded"
-                    detail_added = True
+                        if status == "Exceeded":
+                            low_rows.append(row)
+                    if low_rows:
+                        lines.append("Below lower limit:")
+                        lines.extend(low_rows)
+                        exceeded = True
+                        detail_added = True
 
             if self.config.get('notify_include_pack_voltage', True):
                 pack_high = cell_high * cell_count if cell_count else 0.0
@@ -551,11 +555,12 @@ class NotifyState:
                     exceeded = exceeded or status == "Exceeded"
                     detail_added = True
                 if self._has_low_pack_warning(cleaned):
-                    lines.extend(["", "Low pack voltage:"])
                     row, status = self._warning_detail_row("Pack", pack_v, pack_low, "below", "notify_alert_pack_low_voltage")
-                    lines.append(row)
-                    exceeded = exceeded or status == "Exceeded"
-                    detail_added = True
+                    if status == "Exceeded":
+                        lines.extend(["", "Low pack voltage:"])
+                        lines.append(row)
+                        exceeded = True
+                        detail_added = True
 
             if not detail_added:
                 lines.append("No configured reference comparison matched this warning text.")

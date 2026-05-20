@@ -1,3 +1,15 @@
+## 2.9.36 - 2026-05-20
+
+### Fixed
+- Suppressed non-exceeded low-cell and low-pack reference rows from Warning Intelligence so safe low-voltage margins are not shown as warning detail.
+- Suppressed non-exceeded low-voltage rows from Telegram BMS warning detail while keeping exceeded low-voltage rows visible.
+- Kept BMS-reported warning text visible when the BMS is warning below the configured user reference.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.35 - 2026-05-20
 
 ### Fixed

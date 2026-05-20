@@ -806,6 +806,63 @@ class TelegramConfigTests(unittest.TestCase):
         self.assertIn("Battery profile: P16S / Eenovance MANA LFP 51.2V", message)
         self.assertIn("- Pack: 55.000 V | Ref: 56.16 V", message)
 
+    def test_warning_detail_hides_low_cell_rows_above_reference(self):
+        notify = bms_notify.NotifyState({
+            "notify_warning_detail_enabled": True,
+            "notify_warnings": True,
+            "notify_cell_low_warn_voltage": 3.00,
+            "notify_include_all_cells_below_threshold": True,
+            "notify_include_pack_voltage": True,
+        })
+        pack = types.SimpleNamespace(
+            v_cells=[4123, 4145, 4141, 4137, 4141, 4156, 4144, 4160],
+            t_cells=[],
+            v_pack=53.855,
+            soc=99.7,
+            soh=88.5,
+            cells=13,
+            cell_max_diff=36,
+            cycles=992,
+        )
+
+        message = notify._build_warning_detail(
+            1,
+            "cell 1 Below lower limit | Low cell voltage | Low power warning",
+            pack,
+        )
+
+        self.assertNotIn("Below lower limit:", message)
+        self.assertNotIn("- Cell 01: 4.123 V | Ref: 3.00 V", message)
+        self.assertIn("No configured reference comparison matched this warning text.", message)
+        self.assertIn("BMS warning is active below configured reference.", message)
+
+    def test_warning_detail_shows_low_cell_rows_below_reference(self):
+        notify = bms_notify.NotifyState({
+            "notify_warning_detail_enabled": True,
+            "notify_warnings": True,
+            "notify_cell_low_warn_voltage": 3.00,
+            "notify_include_all_cells_below_threshold": True,
+        })
+        pack = types.SimpleNamespace(
+            v_cells=[3493, 3480, 3475, 3465, 3440, 3492, 2984, 3488],
+            t_cells=[],
+            v_pack=44.474,
+            soc=1.0,
+            soh=88.4,
+            cells=13,
+            cell_max_diff=481,
+            cycles=990,
+        )
+
+        message = notify._build_warning_detail(
+            1,
+            "cell 7 Below lower limit | Low cell voltage | Low power warning",
+            pack,
+        )
+
+        self.assertIn("Below lower limit:", message)
+        self.assertIn("- Cell 07: 2.984 V | Ref: 3.00 V | Margin: 0.016 V below ref | Exceeded | Notify: On", message)
+
 
 class EnergyTrackingTests(unittest.TestCase):
     def test_energy_uses_elapsed_time_after_first_sample(self):
@@ -1512,6 +1569,59 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn("BMS warning is active below configured reference.", details["reference_checks"])
         self.assertIn("BMS internal threshold appears lower than the configured user reference.", details["reference_checks"])
         self.assertIn("BMS warning is active even though", details["interpretation"])
+
+    def test_warning_intelligence_hides_low_cell_ok_rows(self):
+        pack = {
+            "highest_cell": {"number": "08", "voltage": "4.160"},
+            "lowest_cell": {"number": "01", "voltage": "4.123"},
+            "delta": "36",
+        }
+        details = web_config.build_warning_intelligence(
+            pack,
+            "cell 1 Below lower limit | Low cell voltage | Low power warning",
+            [(1, 4.123), (8, 4.160)],
+            53.855,
+            4.20,
+            3.00,
+            54.60,
+            39.00,
+            cell_delta_ref=100,
+            alert_toggles={
+                "notify_alert_cell_low_voltage": True,
+                "notify_alert_pack_low_voltage": True,
+            },
+        )
+
+        self.assertNotIn("Below lower limit", [group["title"] for group in details["groups"]])
+        self.assertFalse(any(row["label"].startswith("Low cell voltage") for row in details["user_reference_rows"]))
+        self.assertFalse(any(row["label"] == "Pack low voltage" for row in details["user_reference_rows"]))
+        self.assertIn("BMS warning is active below configured reference.", details["reference_checks"])
+        self.assertIn("BMS warning is active even though", details["interpretation"])
+
+    def test_warning_intelligence_shows_low_cell_exceeded_rows(self):
+        pack = {
+            "highest_cell": {"number": "06", "voltage": "3.465"},
+            "lowest_cell": {"number": "07", "voltage": "2.984"},
+            "delta": "481",
+        }
+        details = web_config.build_warning_intelligence(
+            pack,
+            "cell 7 Below lower limit | Low cell voltage | Low power warning",
+            [(6, 3.465), (7, 2.984)],
+            44.474,
+            4.20,
+            3.00,
+            54.60,
+            39.00,
+            cell_delta_ref=100,
+            alert_toggles={"notify_alert_cell_low_voltage": True},
+        )
+
+        low_group = next(group for group in details["groups"] if group["title"] == "Below lower limit")
+        self.assertEqual(low_group["rows"][0]["label"], "Cell 07")
+        self.assertEqual(low_group["rows"][0]["status"], "Exceeded")
+        low_reference = next(row for row in details["user_reference_rows"] if row["label"].startswith("Low cell voltage"))
+        self.assertEqual(low_reference["status"], "Exceeded")
 
     def test_warning_intelligence_explains_critical_bms_telegram_decision(self):
         pack = {
