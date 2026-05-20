@@ -1371,6 +1371,29 @@ def warning_severity_rank(severity: str) -> int:
     return _WARNING_SEVERITY_RANK.get(str(severity or "").lower(), 0)
 
 
+def warning_previous_sent_for_family(previous_state: dict, warning_family: str) -> bool:
+    """Return True when this warning family has an active cooldown history."""
+    if not isinstance(previous_state, dict):
+        return False
+    if previous_state.get("family") != warning_family:
+        return False
+    if previous_state.get("telegram_sent_active"):
+        return True
+    try:
+        return float(previous_state.get("last_sent", 0.0) or 0.0) > 0
+    except Exception:
+        return False
+
+
+def warning_same_cooldown_family(previous_state: dict, warning_family: str) -> bool:
+    """Treat recent clear/reappear flicker as the same family for cooldown."""
+    if not isinstance(previous_state, dict):
+        return False
+    return previous_state.get("family") == warning_family and (
+        bool(previous_state.get("active")) or warning_previous_sent_for_family(previous_state, warning_family)
+    )
+
+
 def call_warning_notify(notify, pack_num: int, warnings: str, pack_detail=None, force: bool = False, severity: str = None, repeat: bool = False):
     """Call NotifyState warning handler with compatibility for older signatures."""
     if force and hasattr(notify, "last_warnings"):
@@ -2355,24 +2378,19 @@ def main():
                             log.info("BMS warning cleared for Pack %02d (previous family: %s)", p, previous_warning_state.get("family", "Unknown"))
                             history_writer.record_warning_event(None, f"{p:02d}", "normal", "BMS warning cleared", str(previous_warning_state.get("family", "Unknown")))
                         warning_notify_state[state_key] = {
-                            "family": "Normal",
+                            "family": previous_warning_state.get("family", "Normal"),
                             "active": False,
                             "last_sent": previous_warning_state.get("last_sent", 0.0),
                             "severity": "normal",
                             "telegram_sent_active": False,
+                            "clear_reads": 0,
                         }
                         save_warning_notify_state(warning_notify_state)
                     else:
-                        same_family = (
-                            previous_warning_state.get("active")
-                            and previous_warning_state.get("family") == warning_family
-                        )
+                        same_family = warning_same_cooldown_family(previous_warning_state, warning_family)
                         elapsed = warning_now - float(previous_warning_state.get("last_sent", 0.0) or 0.0)
                         previous_severity = str(previous_warning_state.get("severity", "normal"))
-                        previous_sent = bool(previous_warning_state.get(
-                            "telegram_sent_active",
-                            float(previous_warning_state.get("last_sent", 0.0) or 0.0) > 0,
-                        ))
+                        previous_sent = warning_previous_sent_for_family(previous_warning_state, warning_family)
                         escalated = warning_severity_rank(severity) > warning_severity_rank(previous_severity)
                         repeat_seconds = warning_repeat_seconds_for_severity(config, severity)
                         telegram_allowed, telegram_policy_reason = warning_telegram_allowed(config, pack_warn.warnings, pack_detail, severity)

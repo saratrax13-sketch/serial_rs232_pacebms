@@ -1436,6 +1436,22 @@ def _warning_status_class(status):
     return "critical" if status == "Exceeded" else ("warning" if status == "At reference" else "healthy")
 
 
+def _warning_has_critical_or_protection_text(warnings):
+    low = str(warnings or "").lower()
+    critical_words = (
+        "protection state",
+        "protect",
+        "fault state",
+        "short circuit",
+        "over current",
+        "overcurrent",
+        "lower cell volt protect",
+        "above cell volt protect",
+        "below cell volt protect",
+    )
+    return any(word in low for word in critical_words)
+
+
 def build_warning_intelligence(
     pack,
     warnings,
@@ -1641,9 +1657,12 @@ def build_warning_intelligence(
         elif str(telegram_policy) == "user_reference_only":
             telegram_decision = "Telegram filtered: BMS warning is active, but no enabled user reference is exceeded."
             telegram_decision_class = "healthy"
+        elif _warning_has_critical_or_protection_text(warning_text):
+            telegram_decision = "Telegram will send because this BMS warning includes critical/protection text. User reference values are not exceeded, but your policy allows critical BMS protection warnings."
+            telegram_decision_class = "critical"
         else:
-            telegram_decision = "Telegram depends on severity: BMS critical/protection warnings may still send, but normal BMS warnings below user references are filtered."
-            telegram_decision_class = "warning"
+            telegram_decision = "Telegram filtered: BMS warning is active below user references and does not include critical/protection text."
+            telegram_decision_class = "healthy"
     else:
         telegram_decision = "No Telegram warning is due: no BMS warning is active and no enabled user reference is exceeded."
         telegram_decision_class = "healthy"

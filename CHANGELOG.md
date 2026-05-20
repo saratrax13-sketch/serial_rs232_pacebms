@@ -1,3 +1,25 @@
+## 2.9.21 - 2026-05-20
+
+### Changed
+- Clarified the Warning Intelligence Telegram decision text so BMS critical/protection warnings say plainly when Telegram will send, even if user reference values are not exceeded.
+- Clarified filtered BMS warning wording when the warning is below user references and does not include critical/protection text.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
+## 2.9.20 - 2026-05-20
+
+### Fixed
+- Tightened BMS warning deduplication so brief BMS clear/reappear flicker keeps using the existing warning cooldown instead of sending the same Telegram warning again.
+- Preserved the last warning family after a confirmed clear so repeated top-of-charge warning flicker remains quiet until the configured repeat interval expires.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.19 - 2026-05-20
 
 ### Fixed

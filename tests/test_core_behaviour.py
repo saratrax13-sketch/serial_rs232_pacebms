@@ -350,6 +350,34 @@ class WarningNormalizationTests(unittest.TestCase):
         self.assertEqual(bms_monitor.warning_repeat_seconds_for_severity(config, "warning"), 3600)
         self.assertEqual(bms_monitor.warning_repeat_seconds_for_severity(config, "critical"), 1800)
 
+    def test_warning_cooldown_survives_brief_clear_flicker(self):
+        previous_state = {
+            "family": "High cell voltage | High pack voltage",
+            "active": False,
+            "last_sent": 100.0,
+            "severity": "normal",
+            "telegram_sent_active": False,
+        }
+
+        self.assertTrue(
+            bms_monitor.warning_previous_sent_for_family(
+                previous_state,
+                "High cell voltage | High pack voltage",
+            )
+        )
+        self.assertTrue(
+            bms_monitor.warning_same_cooldown_family(
+                previous_state,
+                "High cell voltage | High pack voltage",
+            )
+        )
+        self.assertFalse(
+            bms_monitor.warning_same_cooldown_family(
+                previous_state,
+                "Low cell voltage",
+            )
+        )
+
     def test_warning_telegram_policy_filters_bms_warning_below_reference(self):
         pack = bms_monitor.PackData(
             pack_number=1,
@@ -1232,9 +1260,36 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertEqual(details["groups"][1]["title"], "Pack voltage")
         self.assertEqual(details["groups"][1]["rows"][0]["margin"], "0.223 V below ref")
         self.assertIn("user_reference_rows", details)
-        self.assertIn("Telegram depends on severity", details["telegram_decision"])
+        self.assertIn("Telegram filtered", details["telegram_decision"])
         self.assertIn("BMS warning is active below configured reference.", details["reference_checks"])
         self.assertIn("BMS warning is active even though", details["interpretation"])
+
+    def test_warning_intelligence_explains_critical_bms_telegram_decision(self):
+        pack = {
+            "highest_cell": {"number": "08", "voltage": "4.184"},
+            "lowest_cell": {"number": "01", "voltage": "4.147"},
+            "delta": "37",
+        }
+        details = web_config.build_warning_intelligence(
+            pack,
+            "cell 8 Above upper limit | Protection State 1: Above cell volt protect | Above total volt protect",
+            [(1, 4.147), (8, 4.184)],
+            54.174,
+            4.20,
+            3.00,
+            54.60,
+            39.00,
+            cell_delta_ref=100,
+            alert_toggles={
+                "notify_alert_cell_high_voltage": True,
+                "notify_alert_pack_high_voltage": True,
+            },
+            telegram_policy="user_reference_or_critical",
+        )
+
+        self.assertIn("Telegram will send", details["telegram_decision"])
+        self.assertIn("critical/protection text", details["telegram_decision"])
+        self.assertEqual(details["telegram_decision_class"], "critical")
 
     def test_warning_intelligence_shows_user_reference_without_bms_warning(self):
         pack = {
