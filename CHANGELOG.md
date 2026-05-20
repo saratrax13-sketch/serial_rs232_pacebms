@@ -1,3 +1,13 @@
+## 2.9.30 - 2026-05-20
+
+### Fixed
+- Moved the header version pill into the navigation row so it sits in the requested right-aligned position beside the tab row instead of under the live source badge stack.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.29 - 2026-05-20
 
 ### Fixed

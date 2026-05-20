@@ -155,13 +155,22 @@
       justify-content: center;
     }
 
+    .nav-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
     .tabs {
       display: flex;
       flex-wrap: nowrap;
       gap: 8px;
-      margin-bottom: 18px;
+      margin-bottom: 0;
       overflow-x: auto;
       padding-bottom: 2px;
+      min-width: 0;
     }
 
     .tab-button {
@@ -2150,6 +2159,7 @@
       body { padding: 16px; }
       .page-header { flex-direction: column; }
       .header-badges { justify-content: flex-start; }
+      .nav-row { flex-direction: column; }
       .app-icon { width: 48px; height: 48px; border-radius: 14px; }
       .row { grid-template-columns: 1fr; gap: 4px; }
       .value { text-align: left; }
@@ -2664,7 +2674,6 @@
 
     .tabs {
       gap: 7px;
-      margin-bottom: 14px;
     }
 
     .tab-button {
@@ -3010,9 +3019,13 @@
       font-size: 13px;
     }
 
+    .nav-row {
+      margin-bottom: 10px;
+      gap: 8px;
+    }
+
     .tabs {
       gap: 6px;
-      margin-bottom: 10px;
       padding-bottom: 1px;
     }
 
@@ -3664,23 +3677,23 @@
           {% endif %}
           <div class="badge {{ source_class }}" title="Web UI display source: {{ source_text }}">{{ source_label }}</div>
         </div>
-        <div class="header-badges-sub">
-          <div class="badge version" title="Installed add-on version">Version {{ addon_version }}</div>
-        </div>
       </div>
     </header>
 
-    <nav class="tabs">
-      <a class="tab-button {% if active_tab == 'dashboard' %}active{% endif %}" href="?tab=dashboard">Dashboard</a>
-      <a class="tab-button {% if active_tab == 'status' %}active{% endif %}" href="?tab=status">Tech Status</a>
-      <a class="tab-button {% if active_tab == 'diagnostics' %}active{% endif %}" href="?tab=diagnostics">Diagnostics</a>
-      <a class="tab-button {% if active_tab == 'history' %}active{% endif %}" href="?tab=history">History</a>
-      <a class="tab-button {% if active_tab == 'setup' %}active{% endif %}" href="?tab=setup">Setup</a>
-      <a class="tab-button {% if active_tab == 'config' %}active{% endif %}" href="?tab=config">Config</a>
-      <a class="tab-button {% if active_tab == 'events' %}active{% endif %}" href="?tab=events">Events</a>
-      <a class="tab-button {% if active_tab == 'backups' %}active{% endif %}" href="?tab=backups">Backups</a>
-      <a class="tab-button {% if active_tab == 'logs' %}active{% endif %}" href="?tab=logs">Logs</a>
-    </nav>
+    <div class="nav-row">
+      <nav class="tabs">
+        <a class="tab-button {% if active_tab == 'dashboard' %}active{% endif %}" href="?tab=dashboard">Dashboard</a>
+        <a class="tab-button {% if active_tab == 'status' %}active{% endif %}" href="?tab=status">Tech Status</a>
+        <a class="tab-button {% if active_tab == 'diagnostics' %}active{% endif %}" href="?tab=diagnostics">Diagnostics</a>
+        <a class="tab-button {% if active_tab == 'history' %}active{% endif %}" href="?tab=history">History</a>
+        <a class="tab-button {% if active_tab == 'setup' %}active{% endif %}" href="?tab=setup">Setup</a>
+        <a class="tab-button {% if active_tab == 'config' %}active{% endif %}" href="?tab=config">Config</a>
+        <a class="tab-button {% if active_tab == 'events' %}active{% endif %}" href="?tab=events">Events</a>
+        <a class="tab-button {% if active_tab == 'backups' %}active{% endif %}" href="?tab=backups">Backups</a>
+        <a class="tab-button {% if active_tab == 'logs' %}active{% endif %}" href="?tab=logs">Logs</a>
+      </nav>
+      <div class="badge version" title="Installed add-on version">Version {{ addon_version }}</div>
+    </div>
 
     {% if error %}
       <div class="alert">{{ error }}</div>
