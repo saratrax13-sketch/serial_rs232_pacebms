@@ -1,3 +1,15 @@
+## 2.9.40 - 2026-05-20
+
+### Fixed
+- Improved Daily BMS Summary reports so persisted SQLite history remains the source for daily energy movement after restarts.
+- Included SQLite `power_kw` history when voltage/current samples are incomplete, while still respecting the configured current deadband when current can be derived.
+- Included persisted SQLite warning events in Daily BMS Summary output even when same-day pack metric samples are missing for that pack.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+- Monitor polling behavior was not changed.
+
 ## 2.9.39 - 2026-05-20
 
 ### Fixed

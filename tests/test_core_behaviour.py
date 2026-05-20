@@ -996,6 +996,78 @@ class EnergyTrackingTests(unittest.TestCase):
         self.assertIn("Pack 01:", message)
         self.assertIn("Warnings today: cell 7 Below lower limit", message)
 
+    def test_daily_summary_uses_sqlite_power_kw_for_energy_after_restart(self):
+        state = bms_notify.NotifyState({"daily_energy_current_deadband_a": 0.2, "history_sample_seconds": 10})
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "pacebms_metrics.db"
+            with patch("bms_notify.HISTORY_DB_PATH", db_path):
+                bms_notify.init_history_db(db_path)
+                now = int(time.time())
+                con = sqlite3.connect(db_path)
+                try:
+                    for ts, snapshot_id, power_kw in [
+                        (now - 20, 1, None),
+                        (now - 10, 2, 0.50),
+                        (now, 3, -0.25),
+                    ]:
+                        con.execute(
+                            """
+                            INSERT INTO pack_metrics (
+                                ts, snapshot_id, pack_id, soc, voltage, current, power_kw, warnings
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (ts, snapshot_id, "01", 80.0, None, None, power_kw, ""),
+                        )
+                    con.commit()
+                finally:
+                    con.close()
+
+                with patch("bms_notify.telegram_send") as send:
+                    state._send_daily_summary(1)
+
+        message = send.call_args.args[1]
+        self.assertIn("Charged:    0.001 kWh", message)
+        self.assertIn("Discharged: 0.001 kWh", message)
+
+    def test_daily_summary_uses_sqlite_warning_events_without_pack_samples(self):
+        state = bms_notify.NotifyState({"daily_energy_current_deadband_a": 0.2, "history_sample_seconds": 10})
+        state.on_daily_warning_observed(1, "Warning State 1: Above cell volt warn")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "pacebms_metrics.db"
+            with patch("bms_notify.HISTORY_DB_PATH", db_path):
+                bms_notify.init_history_db(db_path)
+                now = int(time.time())
+                con = sqlite3.connect(db_path)
+                try:
+                    con.execute(
+                        """
+                        INSERT INTO warning_events (ts, snapshot_id, pack_id, severity, title, message)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            now - 5,
+                            10,
+                            "02",
+                            "critical",
+                            "BMS warning notification sent",
+                            "Protection State: Discharge MOS fault",
+                        ),
+                    )
+                    con.commit()
+                finally:
+                    con.close()
+
+                with patch("bms_notify.telegram_send") as send:
+                    state._send_daily_summary(1)
+
+        message = send.call_args.args[1]
+        self.assertIn("Pack 02:", message)
+        self.assertIn("Energy movement: no SQLite history samples recorded today", message)
+        self.assertIn("Warnings today: Protection State: Discharge MOS fault", message)
+        self.assertNotIn("Above cell voltage", message)
+
     def test_delta_report_uses_sqlite_history_after_restart(self):
         state = bms_notify.NotifyState({"notify_delta_window_start": "00:00", "notify_delta_window_end": "23:59"})
 

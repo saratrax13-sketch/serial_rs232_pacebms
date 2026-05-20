@@ -894,7 +894,7 @@ class NotifyState:
             try:
                 pack_rows = conn.execute(
                     """
-                    SELECT ts, pack_id, soc, voltage, current, warnings
+                    SELECT ts, pack_id, soc, voltage, current, power_kw, warnings
                     FROM pack_metrics
                     WHERE ts >= ? AND ts <= ?
                     ORDER BY pack_id ASC, ts ASC
@@ -925,7 +925,8 @@ class NotifyState:
             log.debug("Daily summary history lookup failed: %s", exc)
             return None
 
-        if not pack_rows:
+        event_warnings_by_pack = self._warnings_from_history_events(warning_event_rows)
+        if not pack_rows and not event_warnings_by_pack:
             return None
 
         rows_by_pack: dict[int, list[sqlite3.Row]] = {}
@@ -936,21 +937,27 @@ class NotifyState:
                 continue
             rows_by_pack.setdefault(pack_num, []).append(row)
 
-        if not rows_by_pack:
+        if not rows_by_pack and not event_warnings_by_pack:
             return None
 
         worst_cell_by_pack = self._worst_cells_from_history(cell_rows)
-        event_warnings_by_pack = self._warnings_from_history_events(warning_event_rows)
         current_deadband = float(self.config.get("daily_energy_current_deadband_a", 0.2) or 0.2)
         sample_seconds = float(self.config.get("history_sample_seconds", 10) or 10)
         max_elapsed = max(sample_seconds * 3, sample_seconds)
+        pack_numbers = set(range(1, pack_count + 1))
+        pack_numbers.update(rows_by_pack.keys())
+        pack_numbers.update(event_warnings_by_pack.keys())
 
         lines = [f"Daily BMS Summary — {datetime.now().strftime('%Y-%m-%d')}"]
-        for p in range(1, pack_count + 1):
+        for p in sorted(pack_numbers):
             rows = rows_by_pack.get(p, [])
             lines.append(f"\nPack {p:02d}:\n")
+            warnings_today = sorted(set(self._warnings_from_history_rows(rows)) | set(event_warnings_by_pack.get(p, [])))
             if not rows:
                 lines.append("  No history samples recorded today")
+                lines.append("  Energy movement: no SQLite history samples recorded today")
+                lines.append("  Worst cell: No data")
+                lines.append("  Warnings today: " + (" | ".join(warnings_today[:6]) if warnings_today else "None"))
                 continue
 
             charged, discharged = self._energy_from_history_rows(rows, current_deadband, max_elapsed)
@@ -977,7 +984,6 @@ class NotifyState:
             else:
                 lines.append("  Worst cell: No data")
 
-            warnings_today = sorted(set(self._warnings_from_history_rows(rows)) | set(event_warnings_by_pack.get(p, [])))
             lines.append("  Warnings today: " + (" | ".join(warnings_today[:6]) if warnings_today else "None"))
         return lines
 
@@ -987,22 +993,54 @@ class NotifyState:
         previous_ts = None
         for row in rows:
             ts = int(row["ts"] or 0)
-            voltage = row["voltage"]
-            current = row["current"]
             if previous_ts is None:
                 previous_ts = ts
                 continue
             elapsed_seconds = min(max(0.0, float(ts - previous_ts)), max_elapsed)
             previous_ts = ts
-            if voltage is None or current is None or elapsed_seconds <= 0:
+            if elapsed_seconds <= 0:
                 continue
-            power_w = float(voltage) * float(current)
-            kwh_delta = abs(power_w) * (elapsed_seconds / 3600.0) / 1000.0
-            if float(current) > current_deadband:
+
+            power_kw = self._history_row_float(row, "power_kw")
+            voltage = self._history_row_float(row, "voltage")
+            current = self._history_row_float(row, "current")
+
+            if current is not None:
+                if abs(current) <= current_deadband:
+                    continue
+                if power_kw is None and voltage is not None:
+                    power_kw = (voltage * current) / 1000.0
+                if power_kw is None:
+                    continue
+                direction = 1 if current > 0 else -1
+            elif power_kw is not None:
+                if voltage and voltage > 0:
+                    implied_current = (power_kw * 1000.0) / voltage
+                    if abs(implied_current) <= current_deadband:
+                        continue
+                elif abs(power_kw) < 0.001:
+                    continue
+                direction = 1 if power_kw > 0 else -1
+            else:
+                continue
+
+            kwh_delta = abs(power_kw) * (elapsed_seconds / 3600.0)
+            if direction > 0:
                 charged += kwh_delta
-            elif float(current) < -current_deadband:
+            else:
                 discharged += kwh_delta
         return charged, discharged
+
+    def _history_row_float(self, row: sqlite3.Row, key: str) -> float | None:
+        try:
+            if key not in row.keys():
+                return None
+            value = row[key]
+            if value is None:
+                return None
+            return float(value)
+        except Exception:
+            return None
 
     def _warnings_from_history_rows(self, rows: list[sqlite3.Row]) -> list[str]:
         warnings = set()
