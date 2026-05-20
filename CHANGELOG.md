@@ -1,3 +1,15 @@
+## 2.9.42 - 2026-05-20
+
+### Fixed
+- Updated Warning Intelligence so user alert reference rows are only shown when the measured value is at or beyond the configured reference.
+- Updated detailed Telegram warning output to hide non-exceeded high-cell and pack-voltage comparison rows while keeping BMS warning context visible.
+- Added regression coverage for hiding safe high-voltage, cell-delta and pack-voltage rows and for showing exceeded rows.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+- Monitor polling behavior was not changed.
+
 ## 2.9.41 - 2026-05-20
 
 ### Fixed

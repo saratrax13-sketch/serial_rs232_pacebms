@@ -17,6 +17,20 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 
 - No active sprint recorded in this handover file.
 
+## Latest Sprint Outcome
+
+- Version `2.9.42` is prepared but uncommitted for Warning Intelligence and Telegram warning-detail row filtering.
+- Warning Intelligence now hides user alert reference rows when the measured value is still safely inside the configured reference, while keeping active BMS warning context and explanation visible.
+- Detailed Telegram warning output now hides non-exceeded high-cell and pack-voltage comparison rows, but still shows rows at the reference boundary or beyond it.
+- Added regression coverage for hiding safe high-voltage, cell-delta and pack-voltage rows and for showing exceeded rows.
+- Validation passed: compile, full unit suite, config coverage and `git diff --check` with only Windows CRLF normalization warnings.
+- Version `2.9.41` committed in `e6839b5 fix cell delta report SQLite window handling`.
+- Cell Delta Report now uses the just-finished SQLite overnight window after midnight instead of selecting a future window.
+- Cell Delta Report includes pack IDs found in SQLite `pack_metrics` even when the runtime pack count is lower.
+- Added regression coverage for overnight windows and persisted history pack IDs.
+- Validation passed: compile, full unit suite, config coverage and `git diff --check` with only Windows CRLF normalization warnings.
+- Standalone Docker smoke validation passed on Ubuntu VM `192.168.10.88`: Docker image built from the committed `2.9.41` snapshot, `/data/options.json` was bootstrapped, web UI `/`, `/health`, `/api/live` and `/api/history` returned HTTP 200, and the temporary validation container was removed.
+
 ## Recent Focus Areas
 
 - Serial-first live snapshot and SQLite history.
@@ -29,10 +43,12 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 
 ## Known Watch Areas
 
+- Live Home Assistant add-on validation for `2.9.40` Daily Summary and `2.9.41` Cell Delta Report has not yet been run against a real BMS-backed `/data/pacebms_metrics.db`.
+- Standalone Docker smoke validation used `/dev/null` instead of real BMS hardware, so it did not create `/data/pacebms-live.json` from a valid serial read.
 - Daily summaries should keep using SQLite `pack_metrics` and `warning_events` for restart-safe energy movement and warnings.
 - Cell delta reports should keep using SQLite `pack_metrics`, including overnight windows and persisted pack IDs.
 - Warning Intelligence must separate BMS-reported warnings from user alert references.
-- Low-cell reference rows should not be shown as warnings when the measured value is above the configured low reference.
+- Reference comparison rows should not be shown as warnings when the measured value is safely inside the configured reference; keep active BMS warning context visible separately.
 - Home Assistant visible hotfixes require a version bump in `config.yaml`, README Current Version and `CHANGELOG.md`.
 - Do not rename MQTT discovery IDs, topics or Home Assistant entities without explicit migration approval.
 
@@ -50,3 +66,5 @@ For live add-on/container validation, run inside the PaceBMS container:
 ls -lh /data/pacebms-live.json
 ls -lh /data/pacebms_metrics.db*
 ```
+
+Next recommended step: after validation, install/update the Home Assistant add-on to `2.9.42` on the live Home Assistant host, confirm Warning Intelligence hides non-exceeded reference rows in ingress, and confirm Daily Summary and Cell Delta Report still use persisted SQLite history.

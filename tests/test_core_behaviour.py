@@ -740,9 +740,9 @@ class TelegramConfigTests(unittest.TestCase):
 
         self.assertIn("Quick Metrics", message)
         self.assertIn("BMS Reported Warning Details", message)
-        self.assertIn("- Cell 02: 4.176 V | Ref: 4.20 V | Margin: 0.024 V below ref | Not exceeded | Notify: On", message)
+        self.assertNotIn("- Cell 02: 4.176 V | Ref: 4.20 V", message)
         self.assertIn("- Cell 08: 4.200 V | Ref: 4.20 V | Margin: 0.000 V below ref | At reference | Notify: On", message)
-        self.assertIn("- Pack: 54.377 V | Ref: 54.60 V | Margin: 0.223 V below ref | Not exceeded | Notify: On", message)
+        self.assertNotIn("- Pack: 54.377 V | Ref: 54.60 V", message)
         self.assertIn("Battery profile: P13S / Hubble AM2 51V", message)
         self.assertIn("Reference Check", message)
         self.assertIn("Interpretation", message)
@@ -776,10 +776,10 @@ class TelegramConfigTests(unittest.TestCase):
         )
 
         self.assertIn("Above upper limit:", message)
-        self.assertIn("- Cell 02: 4.176 V | Ref: 4.20 V", message)
+        self.assertNotIn("- Cell 02: 4.176 V | Ref: 4.20 V", message)
         self.assertIn("- Cell 08: 4.200 V | Ref: 4.20 V", message)
-        self.assertIn("Pack voltage:", message)
-        self.assertIn("- Pack: 54.377 V | Ref: 54.60 V", message)
+        self.assertNotIn("Pack voltage:", message)
+        self.assertNotIn("- Pack: 54.377 V | Ref: 54.60 V", message)
 
     def test_p16_profile_uses_lfp_reference_defaults(self):
         notify = bms_notify.NotifyState({
@@ -805,7 +805,35 @@ class TelegramConfigTests(unittest.TestCase):
         )
 
         self.assertIn("Battery profile: P16S / Eenovance MANA LFP 51.2V", message)
-        self.assertIn("- Pack: 55.000 V | Ref: 56.16 V", message)
+        self.assertNotIn("- Pack: 55.000 V | Ref: 56.16 V", message)
+        self.assertIn("No configured reference comparison matched this warning text.", message)
+
+    def test_warning_detail_shows_pack_high_rows_above_reference(self):
+        notify = bms_notify.NotifyState({
+            "notify_warning_detail_enabled": True,
+            "notify_warnings": True,
+            "notify_cell_high_warn_voltage": 4.20,
+            "notify_include_pack_voltage": True,
+        })
+        pack = types.SimpleNamespace(
+            v_cells=[4157, 4140, 4140, 4140, 4140, 4140, 4140, 4140],
+            t_cells=[],
+            v_pack=58.822,
+            soc=99.3,
+            soh=88.5,
+            cells=13,
+            cell_max_diff=35,
+            cycles=992,
+        )
+
+        message = notify._build_warning_detail(
+            1,
+            "Warning State 1: Above total volt warn",
+            pack,
+        )
+
+        self.assertIn("Pack voltage:", message)
+        self.assertIn("- Pack: 58.822 V | Ref: 54.60 V | Margin: 4.222 V above ref | Exceeded | Notify: On", message)
 
     def test_warning_detail_hides_low_cell_rows_above_reference(self):
         notify = bms_notify.NotifyState({
@@ -1733,17 +1761,77 @@ class HealthEndpointTests(unittest.TestCase):
         )
 
         self.assertEqual(details["groups"][0]["title"], "Above upper limit")
-        self.assertEqual(details["groups"][0]["rows"][0]["label"], "Cell 02")
-        self.assertEqual(details["groups"][0]["rows"][0]["margin"], "0.024 V below ref")
-        self.assertEqual(details["groups"][0]["rows"][0]["status"], "Not exceeded")
-        self.assertEqual(details["groups"][0]["rows"][1]["status"], "At reference")
-        self.assertEqual(details["groups"][1]["title"], "Pack voltage")
-        self.assertEqual(details["groups"][1]["rows"][0]["margin"], "0.223 V below ref")
+        self.assertEqual(details["groups"][0]["rows"][0]["label"], "Cell 08")
+        self.assertEqual(details["groups"][0]["rows"][0]["status"], "At reference")
+        self.assertFalse(any(group["title"] == "Pack voltage" for group in details["groups"]))
         self.assertIn("user_reference_rows", details)
+        self.assertTrue(any(row["label"].startswith("High cell voltage") for row in details["user_reference_rows"]))
+        self.assertFalse(any(row["label"] == "Cell delta" for row in details["user_reference_rows"]))
+        self.assertFalse(any(row["label"] == "Pack high voltage" for row in details["user_reference_rows"]))
         self.assertIn("Telegram filtered", details["telegram_decision"])
         self.assertIn("BMS warning is active below configured reference.", details["reference_checks"])
         self.assertIn("BMS internal threshold appears lower than the configured user reference.", details["reference_checks"])
         self.assertIn("BMS warning is active even though", details["interpretation"])
+
+    def test_warning_intelligence_hides_safe_high_delta_and_pack_rows(self):
+        pack = {
+            "highest_cell": {"number": "08", "voltage": "4.157"},
+            "lowest_cell": {"number": "01", "voltage": "4.122"},
+            "delta": "35",
+        }
+        details = web_config.build_warning_intelligence(
+            pack,
+            "cell 8 Above upper limit | Above cell volt warn | Above total volt warn",
+            [(1, 4.122), (8, 4.157)],
+            53.822,
+            4.20,
+            3.00,
+            54.60,
+            39.00,
+            cell_delta_ref=100,
+            alert_toggles={
+                "notify_alert_cell_high_voltage": True,
+                "notify_alert_cell_delta": True,
+                "notify_alert_pack_high_voltage": True,
+            },
+        )
+
+        self.assertFalse(details["groups"])
+        self.assertFalse(details["user_reference_rows"])
+        self.assertFalse(details["show_user_reference_details"])
+        self.assertEqual(details["user_reference_summary"], "All configured user alert references are within limits.")
+        self.assertIn("BMS warning is active below configured reference.", details["reference_checks"])
+
+    def test_warning_intelligence_shows_high_delta_and_pack_rows_above_reference(self):
+        pack = {
+            "highest_cell": {"number": "08", "voltage": "4.157"},
+            "lowest_cell": {"number": "01", "voltage": "4.022"},
+            "delta": "135",
+        }
+        details = web_config.build_warning_intelligence(
+            pack,
+            "Above total volt warn",
+            [(1, 4.022), (8, 4.157)],
+            58.822,
+            4.20,
+            3.00,
+            54.60,
+            39.00,
+            cell_delta_ref=100,
+            alert_toggles={
+                "notify_alert_cell_delta": True,
+                "notify_alert_pack_high_voltage": True,
+            },
+        )
+
+        delta_row = next(row for row in details["user_reference_rows"] if row["label"] == "Cell delta")
+        pack_row = next(row for row in details["user_reference_rows"] if row["label"] == "Pack high voltage")
+        self.assertEqual(delta_row["margin"], "35 mV above ref")
+        self.assertEqual(delta_row["status"], "Exceeded")
+        self.assertEqual(pack_row["margin"], "4.222 V above ref")
+        self.assertEqual(pack_row["status"], "Exceeded")
+        self.assertEqual(details["groups"][0]["title"], "Pack voltage")
+        self.assertEqual(details["groups"][0]["rows"][0]["status"], "Exceeded")
 
     def test_warning_intelligence_hides_low_cell_ok_rows(self):
         pack = {

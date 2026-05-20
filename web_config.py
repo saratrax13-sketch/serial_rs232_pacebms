@@ -1535,6 +1535,10 @@ def _warning_status_class(status):
     return "critical" if status == "Exceeded" else ("warning" if status == "At reference" else "healthy")
 
 
+def _show_reference_row(row):
+    return row.get("status") != "Not exceeded"
+
+
 def _warning_has_critical_or_protection_text(warnings):
     low = str(warnings or "").lower()
     critical_words = (
@@ -1632,29 +1636,38 @@ def build_warning_intelligence(
 
     groups = []
     if high_cells or "above cell volt" in lower_warning:
-        groups.append({
-            "title": "Above upper limit",
-            "rows": [cell_row(cell_num, "above", cell_high_ref, "notify_alert_cell_high_voltage") for cell_num in high_cells],
-        })
+        high_rows = [
+            cell_row(cell_num, "above", cell_high_ref, "notify_alert_cell_high_voltage")
+            for cell_num in high_cells
+        ]
+        high_rows = [row for row in high_rows if _show_reference_row(row)]
+        if high_rows:
+            groups.append({
+                "title": "Above upper limit",
+                "rows": high_rows,
+            })
     if low_cells or "lower cell volt" in lower_warning:
         low_rows = [
             cell_row(cell_num, "below", cell_low_ref, "notify_alert_cell_low_voltage")
             for cell_num in low_cells
         ]
-        low_rows = [row for row in low_rows if row["status"] == "Exceeded"]
+        low_rows = [row for row in low_rows if _show_reference_row(row)]
         if low_rows:
             groups.append({
                 "title": "Below lower limit",
                 "rows": low_rows,
             })
     if "above total volt" in lower_warning or "total voltage above upper limit" in lower_warning:
-        groups.append({
-            "title": "Pack voltage",
-            "rows": [pack_row("above", pack_high_ref, "notify_alert_pack_high_voltage")],
-        })
+        high_pack_rows = [pack_row("above", pack_high_ref, "notify_alert_pack_high_voltage")]
+        high_pack_rows = [row for row in high_pack_rows if _show_reference_row(row)]
+        if high_pack_rows:
+            groups.append({
+                "title": "Pack voltage",
+                "rows": high_pack_rows,
+            })
     if "lower total volt" in lower_warning or "total voltage below lower limit" in lower_warning:
         low_pack_rows = [pack_row("below", pack_low_ref, "notify_alert_pack_low_voltage")]
-        low_pack_rows = [row for row in low_pack_rows if row["status"] == "Exceeded"]
+        low_pack_rows = [row for row in low_pack_rows if _show_reference_row(row)]
         if low_pack_rows:
             groups.append({
                 "title": "Low pack voltage",
@@ -1716,10 +1729,7 @@ def build_warning_intelligence(
     ]
     user_reference_rows = [
         row for row in user_reference_rows
-        if not (
-            (row["label"].startswith("Low cell voltage") or row["label"] == "Pack low voltage")
-            and row["status"] != "Exceeded"
-        )
+        if _show_reference_row(row)
     ]
 
     bms_exceeded = any(row["status"] == "Exceeded" for group in groups for row in group["rows"])
@@ -1727,7 +1737,7 @@ def build_warning_intelligence(
     notify_exceeded_rows = [row for row in user_exceeded_rows if row.get("notify_enabled")]
     exceeded = bool(bms_exceeded or user_exceeded_rows)
     has_warning = warning_text != "Normal"
-    show_user_reference_details = bool(has_warning or user_exceeded_rows)
+    show_user_reference_details = bool(user_reference_rows)
     user_reference_summary = (
         "One or more user alert references are exceeded."
         if user_exceeded_rows

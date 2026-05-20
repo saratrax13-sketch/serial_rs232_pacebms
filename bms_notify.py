@@ -457,6 +457,9 @@ class NotifyState:
         notify_text = "On" if self._notify_enabled('notify_warnings') and (not notify_key or self.config.get(notify_key, True)) else "Off"
         return f"- {label}: {value_text} | Ref: {ref_text} | Margin: {margin} | {status} | Notify: {notify_text}", status
 
+    def _show_warning_detail_row(self, status: str) -> bool:
+        return status != "Not exceeded"
+
     def _build_warning_detail(self, pack_num: int, cleaned: str, pack=None) -> str:
         """Build a concise Telegram warning message using latest analog data.
 
@@ -520,12 +523,16 @@ class NotifyState:
                     if not candidates and high_idx is not None:
                         candidates = [high_idx]
                     candidates = sorted(set(candidates))
-                    lines.append("Above upper limit:")
+                    high_rows = []
                     for cell_num in candidates:
                         row, status = self._warning_detail_row(f"Cell {cell_num:02d}", cell_map.get(cell_num), cell_high, "above", "notify_alert_cell_high_voltage")
-                        lines.append(row)
+                        if self._show_warning_detail_row(status):
+                            high_rows.append(row)
                         exceeded = exceeded or status == "Exceeded"
-                    detail_added = True
+                    if high_rows:
+                        lines.append("Above upper limit:")
+                        lines.extend(high_rows)
+                        detail_added = True
 
                 if self._has_low_cell_warning(cleaned):
                     candidates = self._warning_cell_numbers(cleaned, "below lower limit")
@@ -537,30 +544,31 @@ class NotifyState:
                     low_rows = []
                     for cell_num in candidates:
                         row, status = self._warning_detail_row(f"Cell {cell_num:02d}", cell_map.get(cell_num), cell_low, "below", "notify_alert_cell_low_voltage")
-                        if status == "Exceeded":
+                        if self._show_warning_detail_row(status):
                             low_rows.append(row)
+                        exceeded = exceeded or status == "Exceeded"
                     if low_rows:
                         lines.append("Below lower limit:")
                         lines.extend(low_rows)
-                        exceeded = True
                         detail_added = True
 
             if self.config.get('notify_include_pack_voltage', True):
                 pack_high = cell_high * cell_count if cell_count else 0.0
                 pack_low = cell_low * cell_count if cell_count else 0.0
                 if self._has_high_pack_warning(cleaned):
-                    lines.extend(["", "Pack voltage:"])
                     row, status = self._warning_detail_row("Pack", pack_v, pack_high, "above", "notify_alert_pack_high_voltage")
-                    lines.append(row)
+                    if self._show_warning_detail_row(status):
+                        lines.extend(["", "Pack voltage:"])
+                        lines.append(row)
+                        detail_added = True
                     exceeded = exceeded or status == "Exceeded"
-                    detail_added = True
                 if self._has_low_pack_warning(cleaned):
                     row, status = self._warning_detail_row("Pack", pack_v, pack_low, "below", "notify_alert_pack_low_voltage")
-                    if status == "Exceeded":
+                    if self._show_warning_detail_row(status):
                         lines.extend(["", "Low pack voltage:"])
                         lines.append(row)
-                        exceeded = True
                         detail_added = True
+                    exceeded = exceeded or status == "Exceeded"
 
             if not detail_added:
                 lines.append("No configured reference comparison matched this warning text.")
