@@ -2,8 +2,10 @@ import unittest
 import importlib.util
 import json
 import os
+import sqlite3
 import sys
 import tempfile
+import time
 import types
 from pathlib import Path
 from unittest.mock import patch
@@ -778,7 +780,7 @@ class EnergyTrackingTests(unittest.TestCase):
         self.assertEqual(state.kwh_discharged[1], 0.0)
 
     def test_daily_summary_reports_no_measurable_energy(self):
-        state = bms_notify.NotifyState({})
+        state = bms_notify.NotifyState({"notify_delta_window_start": "00:00", "notify_delta_window_end": "23:59"})
         state.on_soc_update(1, 80.0)
         state.on_soc_update(1, 81.0)
         state.on_daily_warning_observed(1, "Warning State 1: Above cell volt warn")
@@ -791,6 +793,140 @@ class EnergyTrackingTests(unittest.TestCase):
         self.assertIn("Energy movement: no measurable charge/discharge recorded today", message)
         self.assertIn("SOC: 80.0% -> 81.0% (+1.0%)", message)
         self.assertIn("Warnings today: Above cell voltage", message)
+
+    def test_daily_summary_uses_sqlite_history_after_restart(self):
+        state = bms_notify.NotifyState({"daily_energy_current_deadband_a": 0.2, "history_sample_seconds": 10})
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "pacebms_metrics.db"
+            with patch("bms_notify.HISTORY_DB_PATH", db_path):
+                bms_notify.init_history_db(db_path)
+                now = int(time.time())
+                rows = [
+                    (now - 20, 1, "01", 75.0, 50.0, -10.0, "cell 7 Below lower limit"),
+                    (now - 10, 2, "01", 74.0, 49.5, -10.0, "cell 7 Below lower limit"),
+                    (now - 20, 3, "02", 20.0, 48.0, 8.0, "Warning State 1: Above cell volt warn"),
+                    (now - 10, 4, "02", 21.0, 48.5, 8.0, "Warning State 1: Above cell volt warn"),
+                ]
+                con = sqlite3.connect(db_path)
+                try:
+                    for ts, snapshot_id, pack_id, soc, voltage, current, warnings in rows:
+                        con.execute(
+                            """
+                            INSERT INTO pack_metrics (
+                                ts, snapshot_id, pack_id, soc, voltage, current, warnings
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (ts, snapshot_id, pack_id, soc, voltage, current, warnings),
+                        )
+                    for ts, snapshot_id, pack_id, cells in [
+                        (now - 10, 2, "01", [3.50, 3.40, 3.49]),
+                        (now - 10, 4, "02", [3.30, 3.35, 3.70]),
+                    ]:
+                        for cell_number, voltage in enumerate(cells, start=1):
+                            con.execute(
+                                "INSERT INTO cell_metrics (ts, snapshot_id, pack_id, cell_number, voltage) VALUES (?, ?, ?, ?, ?)",
+                                (ts, snapshot_id, pack_id, cell_number, voltage),
+                            )
+                    con.commit()
+                finally:
+                    con.close()
+
+                with patch("bms_notify.telegram_send") as send:
+                    state._send_daily_summary(2)
+
+        message = send.call_args.args[1]
+        self.assertIn("Pack 01:", message)
+        self.assertIn("Discharged:", message)
+        self.assertIn("SOC: 75.0% -> 74.0% (-1.0%)", message)
+        self.assertIn("cell 7 Below lower limit", message)
+        self.assertIn("Pack 02:", message)
+        self.assertIn("Charged:", message)
+        self.assertIn("SOC: 20.0% -> 21.0% (+1.0%)", message)
+        self.assertIn("Above cell voltage", message)
+
+    def test_daily_summary_uses_sqlite_warning_events(self):
+        state = bms_notify.NotifyState({"daily_energy_current_deadband_a": 0.2, "history_sample_seconds": 10})
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "pacebms_metrics.db"
+            with patch("bms_notify.HISTORY_DB_PATH", db_path):
+                bms_notify.init_history_db(db_path)
+                now = int(time.time())
+                con = sqlite3.connect(db_path)
+                try:
+                    for snapshot_id, soc in [(1, 80.0), (2, 79.5)]:
+                        con.execute(
+                            """
+                            INSERT INTO pack_metrics (
+                                ts, snapshot_id, pack_id, soc, voltage, current, warnings
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (now - 10 + snapshot_id, snapshot_id, "01", soc, 50.0, -4.0, ""),
+                        )
+                    con.execute(
+                        """
+                        INSERT INTO warning_events (ts, snapshot_id, pack_id, severity, title, message)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            now - 5,
+                            2,
+                            "01",
+                            "warning",
+                            "BMS warning notification sent",
+                            "cell 7 Below lower limit; sent by Telegram",
+                        ),
+                    )
+                    con.commit()
+                finally:
+                    con.close()
+
+                with patch("bms_notify.telegram_send") as send:
+                    state._send_daily_summary(1)
+
+        message = send.call_args.args[1]
+        self.assertIn("Pack 01:", message)
+        self.assertIn("Warnings today: cell 7 Below lower limit", message)
+
+    def test_delta_report_uses_sqlite_history_after_restart(self):
+        state = bms_notify.NotifyState({"notify_delta_window_start": "00:00", "notify_delta_window_end": "23:59"})
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "pacebms_metrics.db"
+            with patch("bms_notify.HISTORY_DB_PATH", db_path):
+                bms_notify.init_history_db(db_path)
+                now = int(time.time())
+                con = sqlite3.connect(db_path)
+                try:
+                    for pack_id, snapshot_id, delta, high_cell, high_v, low_cell, low_v in [
+                        ("01", 1, 120.0, "06", 3.50, "07", 3.38),
+                        ("01", 2, 180.0, "06", 3.55, "07", 3.37),
+                        ("02", 3, 90.0, "11", 3.48, "13", 3.39),
+                    ]:
+                        con.execute(
+                            """
+                            INSERT INTO pack_metrics (
+                                ts, snapshot_id, pack_id, cell_delta_mv,
+                                highest_cell, highest_cell_v, lowest_cell, lowest_cell_v
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (now, snapshot_id, pack_id, delta, high_cell, high_v, low_cell, low_v),
+                        )
+                    con.commit()
+                finally:
+                    con.close()
+
+                with patch("bms_notify.telegram_send") as send:
+                    state._send_delta_report(2)
+
+        message = send.call_args.args[1]
+        self.assertIn("Pack 01:", message)
+        self.assertIn("Worst delta: 180.0 mV", message)
+        self.assertIn("Highest: Cell 06 3.550 V", message)
+        self.assertIn("Lowest: Cell 07 3.370 V", message)
+        self.assertIn("Pack 02:", message)
+        self.assertIn("Worst delta: 90.0 mV", message)
 
 
 class HealthEndpointTests(unittest.TestCase):
@@ -1086,18 +1222,74 @@ class HealthEndpointTests(unittest.TestCase):
         form = self._form_from_options(options)
         form["scan_interval"] = "14"
 
-        with (
-            patch("web_config.load_options", return_value=(options, "")),
-            patch("web_config.create_config_backup", return_value=(True, "backup ok", "before-save.json")),
-            patch("web_config.save_addon_options", return_value=(True, "Configuration saved to Home Assistant add-on options.")),
-            patch("web_config.append_event"),
-        ):
-            response = web_config.app.test_client().post("/save-config", data=form)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pending_path = str(Path(tmpdir) / "options.pending.json")
+            with (
+                patch("web_config.PENDING_OPTIONS_PATH", pending_path),
+                patch("web_config.load_options", return_value=(options, "")),
+                patch("web_config.create_config_backup", return_value=(True, "backup ok", "before-save.json")),
+                patch("web_config.save_addon_options", return_value=(True, "Configuration saved to Home Assistant add-on options.")),
+                patch("web_config.append_event"),
+            ):
+                response = web_config.app.test_client().post("/save-config", data=form)
 
         self.assertEqual(response.status_code, 303)
         location = response.headers["Location"]
         self.assertIn("tab=config", location)
         self.assertIn("Restart%20required%20for%20monitor%20runtime%20changes%20to%20apply", location)
+
+    def test_save_config_stacks_pending_options_before_restart(self):
+        runtime_options = dict(web_config.DEFAULT_OPTION_VALUES)
+        pending_options = dict(runtime_options)
+        pending_options["scan_interval"] = 14
+        form = self._form_from_options(pending_options)
+        form["bms_baudrate"] = "19200"
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pending_path = str(Path(tmpdir) / "options.pending.json")
+            with (
+                patch("web_config.PENDING_OPTIONS_PATH", pending_path),
+                patch("web_config.load_options", return_value=(runtime_options, "")),
+                patch("web_config.create_config_backup", return_value=(True, "backup ok", "before-save.json")),
+                patch("web_config.save_addon_options", return_value=(True, "Configuration saved to Home Assistant add-on options.")) as save_options,
+                patch("web_config.append_event"),
+            ):
+                self.assertTrue(web_config.save_pending_options(pending_options))
+                response = web_config.app.test_client().post("/save-config", data=form)
+
+        self.assertEqual(response.status_code, 303)
+        saved_options = save_options.call_args.args[0]
+        self.assertEqual(saved_options["scan_interval"], 14)
+        self.assertEqual(saved_options["bms_baudrate"], 19200)
+
+    def test_config_tab_shows_pending_options_but_live_badge_uses_runtime(self):
+        runtime_options = dict(web_config.DEFAULT_OPTION_VALUES)
+        pending_options = dict(runtime_options)
+        pending_options["scan_interval"] = 14
+        live_snapshot = {
+            "ok": True,
+            "data_source": "Live serial",
+            "packs": [],
+            "pack_count": 0,
+            "total_cells": 0,
+            "warning_count": 0,
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            pending_path = str(Path(tmpdir) / "options.pending.json")
+            with (
+                patch("web_config.PENDING_OPTIONS_PATH", pending_path),
+                patch("web_config.load_options", return_value=(runtime_options, "")),
+                patch("web_config.get_page_live_snapshot", return_value=live_snapshot),
+            ):
+                self.assertTrue(web_config.save_pending_options(pending_options))
+                response = web_config.app.test_client().get("/?tab=config")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Pending saved options are being shown", response.data)
+        self.assertIn(b"Live Serial", response.data)
+        self.assertNotIn(b"No Live Data", response.data)
+        self.assertIn(b'value="14"', response.data)
 
     def test_status_page_renders_technician_view(self):
         options = {

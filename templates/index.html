@@ -4604,6 +4604,11 @@
           <div class="compact-config-subtitle">
             Saves Home Assistant add-on options only. This does not write to the BMS. Restart the add-on after saving changes that affect runtime.
           </div>
+          {% if pending_options %}
+          <div class="helper-note">
+            Pending saved options are being shown from {{ pending_options.saved_at }}. The monitor is still using the previous runtime options until the add-on is restarted.
+          </div>
+          {% endif %}
 
           <div class="compact-config-toolbar">
             <div class="config-action-group">

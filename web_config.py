@@ -26,6 +26,7 @@ from bms_history import HISTORY_DB_PATH, init_history_db, query_history
 app = Flask(__name__)
 
 OPTIONS_PATH = "/data/options.json"
+PENDING_OPTIONS_PATH = "/data/options.pending.json"
 EVENT_LOG_PATH = "/data/events.json"
 MONITOR_HEALTH_PATH = "/data/monitor_health.json"
 CONFIG_BACKUP_DIR = "/data/config_backups"
@@ -332,6 +333,63 @@ def load_options():
             return json.load(f), None
     except Exception as exc:
         return {}, f"Could not read /data/options.json: {exc}"
+
+
+def load_pending_options():
+    try:
+        if not os.path.exists(PENDING_OPTIONS_PATH):
+            return None
+        with open(PENDING_OPTIONS_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict) and isinstance(data.get("options"), dict):
+            return data
+    except Exception:
+        return None
+    return None
+
+
+def clear_pending_options():
+    try:
+        if os.path.exists(PENDING_OPTIONS_PATH):
+            os.remove(PENDING_OPTIONS_PATH)
+    except Exception:
+        pass
+
+
+def save_pending_options(options):
+    """Keep saved-but-not-restarted config visible in the web UI."""
+    payload = {
+        "saved_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "restart_required": True,
+        "options": options,
+    }
+    tmp_path = f"{PENDING_OPTIONS_PATH}.tmp"
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+        os.replace(tmp_path, PENDING_OPTIONS_PATH)
+        return True
+    except Exception:
+        try:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        except Exception:
+            pass
+        return False
+
+
+def config_options_for_edit(runtime_options):
+    """Return Config-tab values, including pending saved options before restart."""
+    pending = load_pending_options()
+    if not pending:
+        return runtime_options, None
+
+    pending_options = pending.get("options")
+    if pending_options == runtime_options:
+        clear_pending_options()
+        return runtime_options, None
+
+    return pending_options, pending
 
 
 def load_events():
@@ -3509,15 +3567,18 @@ def build_battery_reference_table(options, live):
 
 
 def render_index(action_result="", action_message="", active_tab="dashboard", compare_data=None, restore_preview=None):
-    options, error = load_options()
-    grouped = build_grouped_config(options)
+    runtime_options, error = load_options()
+    config_options, pending_options = config_options_for_edit(runtime_options) if runtime_options else ({}, None)
+    options = config_options if active_tab == "config" else runtime_options
+    grouped = build_grouped_config(config_options if active_tab == "config" else options)
 
-    # Live tabs render from a warm retained-MQTT cache so tab clicks are not blocked
-    # by a fresh broker round trip. The cache is refreshed in the background.
-    live = attach_monitoring_health(options, get_page_live_snapshot(options)) if options and active_tab in ("status", "dashboard", "history", "setup", "diagnostics") else None
-    config_live = get_page_live_snapshot(options) if options and active_tab == "config" else None
-    history_status = build_history_status(options) if options and active_tab in ("setup", "diagnostics") else None
-    setup_checklist = build_setup_checklist(options, live, history_status) if options else None
+    # Live tabs render from the running monitor/runtime options. The Config tab may
+    # show pending saved options before restart, but live data must keep using the
+    # active runtime config so the header/source badge does not jump to "No data".
+    live = attach_monitoring_health(runtime_options, get_page_live_snapshot(runtime_options)) if runtime_options and active_tab in ("status", "dashboard", "history", "setup", "diagnostics", "config") else None
+    config_live = get_page_live_snapshot(runtime_options) if runtime_options and active_tab == "config" else None
+    history_status = build_history_status(runtime_options) if runtime_options and active_tab in ("setup", "diagnostics") else None
+    setup_checklist = build_setup_checklist(runtime_options, live, history_status) if runtime_options else None
 
     return render_template(
         "index.html",
@@ -3528,16 +3589,17 @@ def render_index(action_result="", action_message="", active_tab="dashboard", co
         action_result=action_result,
         action_message=action_message,
         active_tab=active_tab,
-        config_yaml=generate_config_yaml(options),
+        config_yaml=generate_config_yaml(config_options if active_tab == "config" else options),
         config_backups=list_config_backups(),
         config_backup_summary=config_backup_summary(),
         compare_data=compare_data,
         restore_preview=restore_preview,
-        diagnostics=build_diagnostics(options, live) if options and active_tab == "diagnostics" else None,
+        diagnostics=build_diagnostics(runtime_options, live) if runtime_options and active_tab == "diagnostics" else None,
         history_status=history_status,
-        log_view=build_log_view(options) if options and active_tab == "logs" else None,
-        battery_reference_table=build_battery_reference_table(options, config_live) if options and active_tab == "config" else None,
+        log_view=build_log_view(runtime_options) if runtime_options and active_tab == "logs" else None,
+        battery_reference_table=build_battery_reference_table(config_options, config_live) if config_options and active_tab == "config" else None,
         setup_checklist=setup_checklist,
+        pending_options=pending_options,
         card_help=CARD_HELP,
         field_help=FIELD_HELP,
         config_section_badges=CONFIG_SECTION_BADGES,
@@ -3963,9 +4025,10 @@ def route_save_config():
     if error:
         return render_index("warn", error, active_tab="config")
 
-    new_options = build_options_from_form(request.form, options)
+    edit_options, _pending_options = config_options_for_edit(options)
+    new_options = build_options_from_form(request.form, edit_options)
 
-    if new_options == options:
+    if new_options == edit_options:
         message = "No configuration changes detected. Nothing was saved."
         append_event("config_save", "No config changes", message, "info")
         return redirect_to_tab("config", "ok", message)
@@ -3989,6 +4052,11 @@ def route_save_config():
 
     if ok and backup_filename:
         message = message + f" Backup created: {backup_filename}"
+
+    if ok:
+        pending_ok = save_pending_options(new_options)
+        if not pending_ok:
+            message = message + " Pending display cache could not be saved; restart still required."
 
     append_event("config_save", "Configuration save", message, "ok" if ok else "warn")
 

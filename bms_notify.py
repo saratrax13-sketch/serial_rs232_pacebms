@@ -17,13 +17,15 @@
 import time
 import json
 import logging
+import sqlite3
 import urllib.request
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time as datetime_time
 from dataclasses import dataclass, field
 from typing import Optional
 
 from battery_profiles import effective_warning_references
+from bms_history import HISTORY_DB_PATH, init_history_db
 
 log = logging.getLogger("bmspace")
 
@@ -841,6 +843,11 @@ class NotifyState:
                 self._send_delta_report(pack_count)
 
     def _send_daily_summary(self, pack_count: int):
+        history_lines = self._build_history_daily_summary(pack_count)
+        if history_lines:
+            telegram_send(self.config, '\n'.join(history_lines))
+            return
+
         lines = [f"Daily BMS Summary — {datetime.now().strftime('%Y-%m-%d')}"]
         for p in range(1, pack_count + 1):
             chg  = self.kwh_charged.get(p, 0.0)
@@ -870,9 +877,203 @@ class NotifyState:
             lines.append("  Warnings today: " + (" | ".join(warnings_today[:6]) if warnings_today else "None"))
         telegram_send(self.config, '\n'.join(lines))
 
+    def _build_history_daily_summary(self, pack_count: int) -> list[str] | None:
+        """Build the daily summary from SQLite history so restarts do not erase the day."""
+        try:
+            init_history_db(HISTORY_DB_PATH)
+            today = datetime.now().date()
+            start_ts = int(datetime.combine(today, datetime_time.min).timestamp())
+            end_ts = int(time.time())
+            conn = sqlite3.connect(HISTORY_DB_PATH)
+            conn.row_factory = sqlite3.Row
+            try:
+                pack_rows = conn.execute(
+                    """
+                    SELECT ts, pack_id, soc, voltage, current, warnings
+                    FROM pack_metrics
+                    WHERE ts >= ? AND ts <= ?
+                    ORDER BY pack_id ASC, ts ASC
+                    """,
+                    (start_ts, end_ts),
+                ).fetchall()
+                cell_rows = conn.execute(
+                    """
+                    SELECT ts, pack_id, cell_number, voltage
+                    FROM cell_metrics
+                    WHERE ts >= ? AND ts <= ?
+                    ORDER BY pack_id ASC, ts ASC, cell_number ASC
+                    """,
+                    (start_ts, end_ts),
+                ).fetchall()
+                warning_event_rows = conn.execute(
+                    """
+                    SELECT ts, pack_id, severity, title, message
+                    FROM warning_events
+                    WHERE ts >= ? AND ts <= ?
+                    ORDER BY pack_id ASC, ts ASC
+                    """,
+                    (start_ts, end_ts),
+                ).fetchall()
+            finally:
+                conn.close()
+        except Exception as exc:
+            log.debug("Daily summary history lookup failed: %s", exc)
+            return None
+
+        if not pack_rows:
+            return None
+
+        rows_by_pack: dict[int, list[sqlite3.Row]] = {}
+        for row in pack_rows:
+            try:
+                pack_num = int(str(row["pack_id"]).strip())
+            except Exception:
+                continue
+            rows_by_pack.setdefault(pack_num, []).append(row)
+
+        if not rows_by_pack:
+            return None
+
+        worst_cell_by_pack = self._worst_cells_from_history(cell_rows)
+        event_warnings_by_pack = self._warnings_from_history_events(warning_event_rows)
+        current_deadband = float(self.config.get("daily_energy_current_deadband_a", 0.2) or 0.2)
+        sample_seconds = float(self.config.get("history_sample_seconds", 10) or 10)
+        max_elapsed = max(sample_seconds * 3, sample_seconds)
+
+        lines = [f"Daily BMS Summary — {datetime.now().strftime('%Y-%m-%d')}"]
+        for p in range(1, pack_count + 1):
+            rows = rows_by_pack.get(p, [])
+            lines.append(f"\nPack {p:02d}:\n")
+            if not rows:
+                lines.append("  No history samples recorded today")
+                continue
+
+            charged, discharged = self._energy_from_history_rows(rows, current_deadband, max_elapsed)
+            if charged < 0.001 and discharged < 0.001:
+                lines.append("  Energy movement: no measurable charge/discharge recorded today")
+            else:
+                lines.append(f"  Charged:    {charged:.3f} kWh")
+                lines.append(f"  Discharged: {discharged:.3f} kWh")
+
+            soc_values = [float(row["soc"]) for row in rows if row["soc"] is not None]
+            if soc_values:
+                delta = soc_values[-1] - soc_values[0]
+                if abs(delta) < 0.05:
+                    delta = 0.0
+                lines.append(f"  SOC: {soc_values[0]:.1f}% -> {soc_values[-1]:.1f}% ({delta:+.1f}%)")
+
+            wc = worst_cell_by_pack.get(p)
+            if wc:
+                lines.append(
+                    f"  Worst cell: Cell {wc['cell']:02d} "
+                    f"({wc['dev']:.1f} mV from avg) at {wc['time']}\n"
+                    f"  Cell V: {wc['volt']:.3f}V  Avg: {wc['avg']:.3f}V"
+                )
+            else:
+                lines.append("  Worst cell: No data")
+
+            warnings_today = sorted(set(self._warnings_from_history_rows(rows)) | set(event_warnings_by_pack.get(p, [])))
+            lines.append("  Warnings today: " + (" | ".join(warnings_today[:6]) if warnings_today else "None"))
+        return lines
+
+    def _energy_from_history_rows(self, rows: list[sqlite3.Row], current_deadband: float, max_elapsed: float) -> tuple[float, float]:
+        charged = 0.0
+        discharged = 0.0
+        previous_ts = None
+        for row in rows:
+            ts = int(row["ts"] or 0)
+            voltage = row["voltage"]
+            current = row["current"]
+            if previous_ts is None:
+                previous_ts = ts
+                continue
+            elapsed_seconds = min(max(0.0, float(ts - previous_ts)), max_elapsed)
+            previous_ts = ts
+            if voltage is None or current is None or elapsed_seconds <= 0:
+                continue
+            power_w = float(voltage) * float(current)
+            kwh_delta = abs(power_w) * (elapsed_seconds / 3600.0) / 1000.0
+            if float(current) > current_deadband:
+                charged += kwh_delta
+            elif float(current) < -current_deadband:
+                discharged += kwh_delta
+        return charged, discharged
+
+    def _warnings_from_history_rows(self, rows: list[sqlite3.Row]) -> list[str]:
+        warnings = set()
+        for row in rows:
+            cleaned = self._clean_warning_text(row["warnings"])
+            if cleaned == "Normal":
+                continue
+            for line in self._friendly_warning_lines(cleaned):
+                if line and line != "Normal":
+                    warnings.add(line)
+        return sorted(warnings)
+
+    def _warnings_from_history_events(self, rows: list[sqlite3.Row]) -> dict[int, list[str]]:
+        """Return per-pack warning families from persisted warning events."""
+        warnings_by_pack: dict[int, set[str]] = {}
+        for row in rows:
+            try:
+                pack_num = int(str(row["pack_id"]).strip())
+            except Exception:
+                continue
+
+            # The event message usually stores the normalized warning family.
+            # Titles are useful fallback context for older or partial rows.
+            text = str(row["message"] or row["title"] or "").strip()
+            if not text:
+                continue
+            if ";" in text:
+                text = text.split(";", 1)[0].strip()
+            cleaned = self._clean_warning_text(text)
+            if cleaned == "Normal":
+                continue
+            for line in self._friendly_warning_lines(cleaned):
+                if line and line != "Normal":
+                    warnings_by_pack.setdefault(pack_num, set()).add(line)
+        return {pack_num: sorted(values) for pack_num, values in warnings_by_pack.items()}
+
+    def _worst_cells_from_history(self, cell_rows: list[sqlite3.Row]) -> dict[int, dict]:
+        grouped: dict[tuple[int, int], list[tuple[int, float]]] = {}
+        for row in cell_rows:
+            try:
+                pack_num = int(str(row["pack_id"]).strip())
+                ts = int(row["ts"])
+                cell_num = int(row["cell_number"])
+                voltage = float(row["voltage"])
+            except Exception:
+                continue
+            if voltage <= 0:
+                continue
+            grouped.setdefault((pack_num, ts), []).append((cell_num, voltage))
+
+        worst: dict[int, dict] = {}
+        for (pack_num, ts), cells in grouped.items():
+            if len(cells) < 2:
+                continue
+            values = [voltage for _, voltage in cells]
+            avg = sum(values) / len(values)
+            cell_num, voltage = max(cells, key=lambda item: abs(item[1] - avg))
+            dev_mv = abs(voltage - avg) * 1000.0
+            if dev_mv > worst.get(pack_num, {}).get("dev", 0.0):
+                worst[pack_num] = {
+                    "cell": cell_num,
+                    "dev": round(dev_mv, 1),
+                    "time": datetime.fromtimestamp(ts).strftime("%H:%M"),
+                    "volt": round(voltage, 3),
+                    "avg": round(avg, 3),
+                }
+        return worst
+
     def _send_delta_report(self, pack_count: int):
         wh, wm = self._parse_time('notify_delta_window_start', '00:00')
         eh, em = self._parse_time('notify_delta_window_end',   '10:00')
+        history_lines = self._build_history_delta_report(pack_count, wh, wm, eh, em)
+        if history_lines:
+            telegram_send(self.config, '\n'.join(history_lines))
+            return
+
         lines  = [
             f"Cell Delta Report ({wh:02d}:{wm:02d}-{eh:02d}:{em:02d})\n"
             f"{datetime.now().strftime('%Y-%m-%d')}"
@@ -887,3 +1088,65 @@ class NotifyState:
             else:
                 lines.append(f"\nPack {p:02d}: No data in window")
         telegram_send(self.config, '\n'.join(lines))
+
+    def _build_history_delta_report(self, pack_count: int, wh: int, wm: int, eh: int, em: int) -> list[str] | None:
+        try:
+            today = datetime.now().date()
+            window_start = datetime.combine(today, datetime_time(hour=wh, minute=wm))
+            window_end = datetime.combine(today, datetime_time(hour=eh, minute=em))
+            if window_end < window_start:
+                window_end += timedelta(days=1)
+            init_history_db(HISTORY_DB_PATH)
+            conn = sqlite3.connect(HISTORY_DB_PATH)
+            conn.row_factory = sqlite3.Row
+            try:
+                rows = conn.execute(
+                    """
+                    SELECT ts, pack_id, cell_delta_mv, highest_cell, highest_cell_v, lowest_cell, lowest_cell_v
+                    FROM pack_metrics
+                    WHERE ts >= ? AND ts <= ? AND cell_delta_mv IS NOT NULL
+                    ORDER BY pack_id ASC, ts ASC
+                    """,
+                    (int(window_start.timestamp()), int(window_end.timestamp())),
+                ).fetchall()
+            finally:
+                conn.close()
+        except Exception as exc:
+            log.debug("Delta report history lookup failed: %s", exc)
+            return None
+
+        if not rows:
+            return None
+
+        worst_by_pack: dict[int, sqlite3.Row] = {}
+        for row in rows:
+            try:
+                pack_num = int(str(row["pack_id"]).strip())
+                delta = float(row["cell_delta_mv"])
+            except Exception:
+                continue
+            current = worst_by_pack.get(pack_num)
+            if current is None or delta > float(current["cell_delta_mv"] or 0):
+                worst_by_pack[pack_num] = row
+
+        lines = [
+            f"Cell Delta Report ({wh:02d}:{wm:02d}-{eh:02d}:{em:02d})\n"
+            f"{datetime.now().strftime('%Y-%m-%d')}"
+        ]
+        for p in range(1, pack_count + 1):
+            row = worst_by_pack.get(p)
+            if row:
+                detail = f"  Worst delta: {float(row['cell_delta_mv']):.1f} mV at {datetime.fromtimestamp(int(row['ts'])).strftime('%H:%M')}"
+                high_cell = row["highest_cell"]
+                low_cell = row["lowest_cell"]
+                high_v = row["highest_cell_v"]
+                low_v = row["lowest_cell_v"]
+                if high_cell and low_cell and high_v is not None and low_v is not None:
+                    detail += (
+                        f"\n  Highest: Cell {int(high_cell):02d} {float(high_v):.3f} V"
+                        f"\n  Lowest: Cell {int(low_cell):02d} {float(low_v):.3f} V"
+                    )
+                lines.append(f"\nPack {p:02d}:\n{detail}")
+            else:
+                lines.append(f"\nPack {p:02d}: No data in window")
+        return lines

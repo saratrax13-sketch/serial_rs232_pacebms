@@ -1,3 +1,50 @@
+## 2.9.34 - 2026-05-20
+
+### Fixed
+- Added a pending-options cache for successful Config saves so saved values remain visible before the add-on restart applies them to `/data/options.json`.
+- Subsequent Config saves before restart now build from the pending saved values instead of the previous runtime options, preventing earlier saved edits from being lost.
+- Keeps the header live-data badge based on the running monitor's runtime options while the Config tab displays pending saved options.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
+## 2.9.33 - 2026-05-20
+
+### Fixed
+- Added persisted SQLite `warning_events` into the daily Telegram summary so same-day warnings are still reported when pack metric samples do not carry the warning text.
+- Keeps live Telegram alerts live-only while making scheduled historical reports use the monitor-owned database where appropriate.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
+## 2.9.32 - 2026-05-20
+
+### Fixed
+- Changed the scheduled cell delta Telegram report to use local SQLite history before falling back to in-memory delta tracking.
+- Prevents add-on restarts from causing `No data in window` when valid pack delta history exists for the configured report window.
+- Adds highest and lowest cell context to the history-based delta report where available.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
+## 2.9.31 - 2026-05-20
+
+### Fixed
+- Changed the daily Telegram summary to calculate per-pack charge/discharge, SOC movement, worst-cell deviation and warnings from the local SQLite history database before falling back to in-memory counters.
+- Prevents add-on restarts from erasing earlier same-day discharge/charge and warning evidence in the daily report.
+- Cleans tiny rounded SOC changes so near-zero movement does not display as `-0.0%`.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.30 - 2026-05-20
 
 ### Fixed
