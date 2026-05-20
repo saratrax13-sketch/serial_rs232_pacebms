@@ -3740,7 +3740,7 @@
         {% if live.user_summary %}
         <div class="status-hero">
           <div class="status-label">Operating State</div>
-          <div id="tech-operating-state" class="status-value {{ live.user_summary.class }}">{{ live.user_summary.status }}</div>
+          <div id="tech-operating-state" class="status-value {{ live.user_summary.power_state_class|default(live.user_summary.class) }}">{{ live.user_summary.power_state|default(live.user_summary.status) }}</div>
           <div class="summary-meta">
             <span id="tech-power-flow">{{ live.user_summary.power_flow }}</span><br>
             Power: <span id="tech-total-power">{{ live.user_summary.total_power_kw }}</span><br>
@@ -5225,7 +5225,7 @@ This cannot be undone.`);">
         {% if diagnostics.live.user_summary %}
         <div class="status-hero">
           <div class="status-label">Operating State</div>
-          <div id="diagnostics-operating-state" class="status-value {{ diagnostics.live.user_summary.class }}">{{ diagnostics.live.user_summary.status }}</div>
+          <div id="diagnostics-operating-state" class="status-value {{ diagnostics.live.user_summary.power_state_class|default(diagnostics.live.user_summary.class) }}">{{ diagnostics.live.user_summary.power_state|default(diagnostics.live.user_summary.status) }}</div>
           <div class="summary-meta">
             <span id="diagnostics-power-flow">{{ diagnostics.live.user_summary.power_flow }}</span><br>
             Power: <span id="diagnostics-total-power">{{ diagnostics.live.user_summary.total_power_kw }}</span><br>
@@ -5773,6 +5773,15 @@ This cannot be undone.`);">
               detailEl.textContent = check.detail;
             }
           });
+        }
+
+        if (data.user_summary) {
+          setText("tech-operating-state", data.user_summary.power_state || data.user_summary.status);
+          setClass("tech-operating-state", "status-value", data.user_summary.power_state_class || data.user_summary.class);
+          setText("tech-power-flow", data.user_summary.power_flow);
+          setText("tech-total-power", data.user_summary.total_power_kw);
+          setText("tech-battery-current", data.user_summary.battery_current);
+          setText("tech-battery-time", data.user_summary.runtime_remaining);
         }
 
         const packs = data.packs || [];
@@ -7287,6 +7296,16 @@ Restart the add-on afterwards for runtime changes to apply.`);
         setDiagnosticsText("#diagnostics-layout", data.layout);
         setDiagnosticsText("#diagnostics-last-analog", data.last_analog_read);
         setDiagnosticsText("#diagnostics-last-warning", data.last_warn_read);
+
+        if (data.user_summary) {
+          setDiagnosticsText("#diagnostics-operating-state", data.user_summary.power_state || data.user_summary.status);
+          const diagnosticsOperating = document.getElementById("diagnostics-operating-state");
+          if (diagnosticsOperating) diagnosticsOperating.className = "status-value " + (data.user_summary.power_state_class || data.user_summary.class || "unknown");
+          setDiagnosticsText("#diagnostics-power-flow", data.user_summary.power_flow);
+          setDiagnosticsText("#diagnostics-total-power", data.user_summary.total_power_kw);
+          setDiagnosticsText("#diagnostics-battery-current", data.user_summary.battery_current);
+          setDiagnosticsText("#diagnostics-battery-time", data.user_summary.runtime_remaining);
+        }
 
         updateDiagnosticCard(
           "MQTT Snapshot",

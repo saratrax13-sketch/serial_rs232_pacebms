@@ -2164,6 +2164,8 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertEqual(normalized["overall_class"], "caution")
         self.assertEqual(normalized["user_summary"]["status"], "BMS Caution")
         self.assertEqual(normalized["user_summary"]["class"], "caution")
+        self.assertEqual(normalized["user_summary"]["power_state"], "Idle")
+        self.assertEqual(normalized["user_summary"]["power_state_class"], "healthy")
         self.assertEqual(normalized["user_summary"]["warning_class"], "caution")
         self.assertIn("highest severity: BMS Caution", normalized["user_summary"]["warning_summary"])
         self.assertEqual(normalized["monitoring_health"]["status"], "Watching With Caution")

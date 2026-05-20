@@ -1121,6 +1121,22 @@ def _calculate_user_summary(options, live):
         runtime_remaining = "Idle"
         runtime_detail = "No meaningful discharge load detected."
 
+    if availability == "offline" or stale == "ON":
+        power_state = "Communication stale"
+        power_state_class = "stale"
+    elif fully_count == len(packs) and abs(total_power_kw) <= idle_threshold_kw:
+        power_state = "Fully charged"
+        power_state_class = "healthy"
+    elif total_power_kw > idle_threshold_kw:
+        power_state = "Charging"
+        power_state_class = "healthy"
+    elif total_power_kw < -idle_threshold_kw:
+        power_state = "Discharging"
+        power_state_class = "warning"
+    else:
+        power_state = "Idle"
+        power_state_class = "healthy"
+
     if warning_count:
         warning_summary = f"{warning_count} active warning(s)"
         if highest_warning:
@@ -1136,6 +1152,8 @@ def _calculate_user_summary(options, live):
     return {
         "status": status,
         "class": status_class,
+        "power_state": power_state,
+        "power_state_class": power_state_class,
         "summary": summary,
         "combined_soc": _fmt_number(combined_soc, 1, "%"),
         "combined_soh": _fmt_number(combined_soh, 1, "%"),

@@ -1,3 +1,14 @@
+## 2.9.47 - 2026-05-21
+
+### Fixed
+- Test build for Home Assistant: removed repeated BMS Caution wording from the Tech Status and Diagnostics top summary row.
+- The overall status still shows BMS Caution when the BMS reports a below-reference warning, while the operating-state tile now shows the actual power-flow state such as Charging, Discharging, Idle or Fully charged.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+- Monitor polling behavior was not changed.
+
 ## 2.9.46 - 2026-05-21
 
 ### Fixed
