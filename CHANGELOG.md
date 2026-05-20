@@ -1,3 +1,14 @@
+## 2.9.44 - 2026-05-21
+
+### Fixed
+- Test build for Home Assistant: restored BMS-reported warning detail rows for below-reference BMS Caution cases.
+- Warning Intelligence now keeps the User Alert Reference Check clean while still showing measured BMS warning cell/pack voltage, reference and margin details under BMS Reported Warning Details.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+- Monitor polling behavior was not changed.
+
 ## 2.9.43 - 2026-05-20
 
 ### Fixed
