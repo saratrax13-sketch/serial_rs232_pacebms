@@ -1,3 +1,14 @@
+## 2.9.13 - 2026-05-20
+
+### Changed
+- Added a measured pack state pill to BMS Control State rows in Tech Status and Diagnostics.
+- The new state pill shows Charging, Discharging, Idle or Unknown from measured pack power.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.12 - 2026-05-20
 
 ### Changed

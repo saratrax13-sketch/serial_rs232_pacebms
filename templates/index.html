@@ -3963,6 +3963,15 @@
             <div class="metric-section">
               <div class="metric-section-title">BMS Control State</div>
               <div class="fet-row">
+              {% if pack.power_kw is defined and pack.power_kw != 'Unknown' and pack_power > 0.05 %}
+              <span class="pill ok">State: Charging</span>
+              {% elif pack.power_kw is defined and pack.power_kw != 'Unknown' and pack_power < -0.05 %}
+              <span class="pill warning">State: Discharging</span>
+              {% elif pack.power_kw is defined and pack.power_kw != 'Unknown' %}
+              <span class="pill off">State: Idle</span>
+              {% else %}
+              <span class="pill off">State: Unknown</span>
+              {% endif %}
               <span class="pill {% if pack.charge_fet == 'ON' %}ok{% else %}off{% endif %}">Charge FET: {{ pack.charge_fet }}</span>
               <span class="pill {% if pack.discharge_fet == 'ON' %}ok{% else %}danger{% endif %}">Discharge FET: {{ pack.discharge_fet }}</span>
               <span class="pill {% if pack.fully == 'ON' %}ok{% else %}off{% endif %}">Full: {{ pack.fully }}</span>
@@ -5355,6 +5364,15 @@ This cannot be undone.`);">
             <div class="metric-section">
               <div class="metric-section-title">BMS Control State</div>
               <div class="fet-row">
+                {% if pack.power_kw is defined and pack.power_kw != 'Unknown' and pack_power > 0.05 %}
+                <span class="pill ok">State: Charging</span>
+                {% elif pack.power_kw is defined and pack.power_kw != 'Unknown' and pack_power < -0.05 %}
+                <span class="pill warning">State: Discharging</span>
+                {% elif pack.power_kw is defined and pack.power_kw != 'Unknown' %}
+                <span class="pill off">State: Idle</span>
+                {% else %}
+                <span class="pill off">State: Unknown</span>
+                {% endif %}
                 <span class="pill {% if pack.charge_fet == 'ON' %}ok{% else %}off{% endif %}">Charge FET: {{ pack.charge_fet }}</span>
                 <span class="pill {% if pack.discharge_fet == 'ON' %}ok{% else %}danger{% endif %}">Discharge FET: {{ pack.discharge_fet }}</span>
                 <span class="pill {% if pack.fully == 'ON' %}ok{% else %}off{% endif %}">Full: {{ pack.fully }}</span>
