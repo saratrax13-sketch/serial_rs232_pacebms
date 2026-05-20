@@ -2,6 +2,7 @@
 
 ### Fixed
 - Updated the Web UI so BMS-reported warnings below configured user references show as BMS Caution instead of Warning.
+- Restored BMS-reported warning detail rows for below-reference BMS cautions, including measured cell/pack voltage, reference and margin details.
 - Toned down BMS-only cell badges in Diagnostics so they remain visible without looking like user-reference alarms.
 - Made live serial Warning Intelligence use the current add-on options for cell-delta references, alert toggles and BMS warning Telegram policy.
 - Renamed the Warning Intelligence Telegram section to BMS Warning Telegram Decision for clearer scope.
