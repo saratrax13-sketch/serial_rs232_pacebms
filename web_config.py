@@ -639,7 +639,7 @@ def mqtt_value_configured(value):
     return bool(text) and not text.upper().startswith("YOUR_MQTT_")
 
 
-def build_setup_checklist(options, live=None):
+def build_setup_checklist(options, live=None, history_status=None):
     """Build first-run setup status for the web UI.
 
     This is a read-only configuration guide. It checks add-on options and
@@ -678,6 +678,10 @@ def build_setup_checklist(options, live=None):
         warning_repeats = False
     monitor_seen = str(live.get("monitor_state", "")).lower() == "running" or str(live.get("availability", "")).lower() == "online"
     bms_reads_seen = live.get("last_analog_read", "Unknown") not in ("Unknown", "Not available", "")
+    history_status = history_status or build_history_status(options)
+    history_enabled = str(history_status.get("enabled", "")).upper() == "ON"
+    history_has_sample = history_status.get("latest_sample", "No data") not in ("No data", "Unknown", "")
+    history_has_error = bool(history_status.get("error"))
     expected_cells = int(_to_float(options.get("expected_cell_count"), 0) or 0)
     expected_packs = int(_to_float(options.get("expected_pack_count"), 0) or 0)
     detected_cells = int(_to_float(live.get("total_cells"), 0) or 0)
@@ -750,6 +754,20 @@ def build_setup_checklist(options, live=None):
             "status": "Ready" if warning_repeats else "Check",
             "class": "healthy" if warning_repeats else "warning",
             "detail": "Severity-aware warning repeat intervals are configured." if warning_repeats else "Set caution, warning and critical repeat intervals to at least 60 seconds.",
+        },
+        {
+            "title": "Local History",
+            "status": "Ready" if history_enabled and history_has_sample and not history_has_error else ("Disabled" if not history_enabled else "Waiting"),
+            "class": "healthy" if history_enabled and history_has_sample and not history_has_error else ("off" if not history_enabled else "warning"),
+            "detail": (
+                f"Latest sample: {history_status.get('latest_sample', 'No data')}"
+                if history_enabled and history_has_sample and not history_has_error
+                else (
+                    "Local history is disabled; graphs will not retain long-term samples."
+                    if not history_enabled
+                    else f"Waiting for SQLite samples. {history_status.get('error') or 'Confirm the monitor is running and Store local history is enabled.'}"
+                )
+            ),
         },
     ]
 
@@ -1578,6 +1596,12 @@ def build_warning_intelligence(
     notify_exceeded_rows = [row for row in user_exceeded_rows if row.get("notify_enabled")]
     exceeded = bool(bms_exceeded or user_exceeded_rows)
     has_warning = warning_text != "Normal"
+    show_user_reference_details = bool(has_warning or user_exceeded_rows)
+    user_reference_summary = (
+        "One or more user alert references are exceeded."
+        if user_exceeded_rows
+        else "All configured user alert references are within limits."
+    )
 
     reference_checks = [
         f"Cell high reference: {cell_high_ref:.2f} V",
@@ -1640,6 +1664,8 @@ def build_warning_intelligence(
     return {
         "groups": groups,
         "user_reference_rows": user_reference_rows,
+        "show_user_reference_details": show_user_reference_details,
+        "user_reference_summary": user_reference_summary,
         "reference_checks": reference_checks,
         "telegram_policy": policy_label,
         "telegram_decision": telegram_decision,
@@ -3430,7 +3456,8 @@ def render_index(action_result="", action_message="", active_tab="dashboard", co
     # by a fresh broker round trip. The cache is refreshed in the background.
     live = attach_monitoring_health(options, get_page_live_snapshot(options)) if options and active_tab in ("status", "dashboard", "history", "setup", "diagnostics") else None
     config_live = get_page_live_snapshot(options) if options and active_tab == "config" else None
-    setup_checklist = build_setup_checklist(options, live) if options else None
+    history_status = build_history_status(options) if options and active_tab in ("setup", "diagnostics") else None
+    setup_checklist = build_setup_checklist(options, live, history_status) if options else None
 
     return render_template(
         "index.html",
@@ -3447,6 +3474,7 @@ def render_index(action_result="", action_message="", active_tab="dashboard", co
         compare_data=compare_data,
         restore_preview=restore_preview,
         diagnostics=build_diagnostics(options, live) if options and active_tab == "diagnostics" else None,
+        history_status=history_status,
         log_view=build_log_view(options) if options and active_tab == "logs" else None,
         battery_reference_table=build_battery_reference_table(options, config_live) if options and active_tab == "config" else None,
         setup_checklist=setup_checklist,

@@ -1,3 +1,15 @@
+## 2.9.15 - 2026-05-20
+
+### Changed
+- Simplified Warning Intelligence when no BMS warning is active and no user alert reference is exceeded.
+- Made Local History Storage visible on Setup without depending on the Diagnostics tab context.
+- Added Local History to the Setup Checklist so storage health is visible during first-run validation.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.14 - 2026-05-20
 
 ### Changed

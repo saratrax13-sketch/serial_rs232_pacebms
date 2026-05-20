@@ -3758,7 +3758,9 @@
 
               <div class="warning-intel-section">
                 <strong>User Alert Reference Check</strong>
-                {% if pack.warning_intelligence and pack.warning_intelligence.user_reference_rows %}
+                {% if pack.warning_intelligence and not pack.warning_intelligence.show_user_reference_details %}
+                  <div class="warning-detail-empty">{{ pack.warning_intelligence.user_reference_summary }}</div>
+                {% elif pack.warning_intelligence and pack.warning_intelligence.user_reference_rows %}
                   <ul class="warning-intel-list detail-list">
                     {% for row in pack.warning_intelligence.user_reference_rows %}
                       <li>
@@ -4457,54 +4459,54 @@
       </section>
       {% endif %}
 
-      {% if diagnostics %}
+      {% if history_status %}
       <section class="card wide-card">
         <h2>Local History Storage</h2>
         <p>SQLite metrics used for Dashboard and History graphs. This storage is local, read-only from the UI, and does not write to the BMS.</p>
         <div class="status-grid">
           <div class="status-tile">
             <div class="tile-label">Store Local History</div>
-            <div class="tile-value {{ diagnostics.history_status.class }}">{{ diagnostics.history_status.enabled }}</div>
+            <div class="tile-value {{ history_status.class }}">{{ history_status.enabled }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Latest Sample</div>
-            <div class="tile-value">{{ diagnostics.history_status.latest_sample }}</div>
+            <div class="tile-value">{{ history_status.latest_sample }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Database Size</div>
-            <div class="tile-value">{{ diagnostics.history_status.db_size }}</div>
+            <div class="tile-value">{{ history_status.db_size }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">WAL Size</div>
-            <div class="tile-value">{{ diagnostics.history_status.wal_size }}</div>
+            <div class="tile-value">{{ history_status.wal_size }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Bank Rows</div>
-            <div class="tile-value">{{ diagnostics.history_status.rows.bank }}</div>
+            <div class="tile-value">{{ history_status.rows.bank }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Pack Rows</div>
-            <div class="tile-value">{{ diagnostics.history_status.rows.pack }}</div>
+            <div class="tile-value">{{ history_status.rows.pack }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Cell Rows</div>
-            <div class="tile-value">{{ diagnostics.history_status.rows.cell }}</div>
+            <div class="tile-value">{{ history_status.rows.cell }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Temperature Rows</div>
-            <div class="tile-value">{{ diagnostics.history_status.rows.temperature }}</div>
+            <div class="tile-value">{{ history_status.rows.temperature }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Warning Events</div>
-            <div class="tile-value">{{ diagnostics.history_status.rows.warnings }}</div>
+            <div class="tile-value">{{ history_status.rows.warnings }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Retention</div>
-            <div class="tile-value">{{ diagnostics.history_status.retention }}</div>
+            <div class="tile-value">{{ history_status.retention }}</div>
           </div>
         </div>
-        {% if diagnostics.history_status.error %}
-          <div class="alert warn">History database check failed: {{ diagnostics.history_status.error }}</div>
+        {% if history_status.error %}
+          <div class="alert warn">History database check failed: {{ history_status.error }}</div>
         {% endif %}
       </section>
       {% endif %}
