@@ -1,3 +1,21 @@
+## 2.9.8 - 2026-05-19
+
+### Added
+- Added a read-only History tab for local SQLite battery trends with selectable 30 minute, 1 hour, 6 hour and 24 hour ranges.
+- Added Diagnostics visibility for local history database health, row counts, retention settings and latest sample time.
+- Added serial-first history validation steps for Home Assistant and standalone Docker documentation.
+
+### Changed
+- Bumped the Home Assistant add-on version so the history/graph visibility sprint is available as an update.
+
+### Fixed
+- Closed short-lived SQLite diagnostic/query connections explicitly after history checks.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.7 - 2026-05-19
 
 ### Changed

@@ -1630,7 +1630,7 @@ class HealthEndpointTests(unittest.TestCase):
             patch("web_config.load_events", return_value=[]),
         ):
             client = web_config.app.test_client()
-            for tab in ("dashboard", "status", "diagnostics", "setup", "config", "events", "backups", "logs"):
+            for tab in ("dashboard", "history", "status", "diagnostics", "setup", "config", "events", "backups", "logs"):
                 with self.subTest(tab=tab):
                     response = client.get(f"/?tab={tab}")
                     self.assertEqual(response.status_code, 200)
@@ -1713,7 +1713,7 @@ class HealthEndpointTests(unittest.TestCase):
             client = web_config.app.test_client()
             response = client.get("/")
             html = response.get_data(as_text=True)
-            expected_tabs = ["dashboard", "status", "diagnostics", "setup", "config", "events", "backups", "logs"]
+            expected_tabs = ["dashboard", "history", "status", "diagnostics", "setup", "config", "events", "backups", "logs"]
 
             for tab in expected_tabs:
                 self.assertIn(f'href="?tab={tab}"', html)

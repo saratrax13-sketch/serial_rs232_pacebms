@@ -46,6 +46,19 @@ Use Setup for first-run checks and safe MQTT/Telegram tests:
 
 ![Setup checklist](screenshots/Setup.png)
 
+## Serial-first History Check
+
+The web UI reads the monitor-owned live snapshot first. MQTT is optional output/fallback, not the primary UI source.
+
+After the add-on has been running for a few minutes:
+
+1. Open **Dashboard** and confirm the Battery Confidence cards update.
+2. Confirm the **Live Trends** graphs begin to show local history.
+3. Open **History** and try the 30 minute and 1 hour range buttons.
+4. Open **Diagnostics** and confirm **Local History Storage** shows row counts and a latest sample time.
+
+If the graphs are empty, confirm **Config > History & Live Data > Store local history** is enabled and wait for the next sample interval.
+
 ## Serial Connection Notes
 
 For serial use, select the correct serial device path in the add-on configuration.

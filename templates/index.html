@@ -654,6 +654,47 @@
       margin-top: 4px;
     }
 
+    .history-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 12px 0;
+    }
+
+    .history-range-button.active {
+      border-color: var(--accent);
+      background: rgba(14, 165, 233, 0.25);
+      color: var(--text);
+    }
+
+    .history-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 10px;
+      margin: 12px 0;
+    }
+
+    .history-summary-tile {
+      background: rgba(15, 23, 42, 0.72);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 14px;
+      padding: 10px;
+    }
+
+    .history-summary-label {
+      color: var(--label);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .history-summary-value {
+      color: var(--text);
+      font-size: 16px;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
     .bar-row {
       display: grid;
       grid-template-columns: 86px minmax(0, 1fr) 74px;
@@ -3563,6 +3604,7 @@
 
     <nav class="tabs">
       <a class="tab-button {% if active_tab == 'dashboard' %}active{% endif %}" href="?tab=dashboard">Dashboard</a>
+      <a class="tab-button {% if active_tab == 'history' %}active{% endif %}" href="?tab=history">History</a>
       <a class="tab-button {% if active_tab == 'status' %}active{% endif %}" href="?tab=status">Tech Status</a>
       <a class="tab-button {% if active_tab == 'diagnostics' %}active{% endif %}" href="?tab=diagnostics">Diagnostics</a>
       <a class="tab-button {% if active_tab == 'setup' %}active{% endif %}" href="?tab=setup">Setup</a>
@@ -4110,22 +4152,22 @@
           <article class="chart-card">
             <div class="chart-title">Bank SOC</div>
             <canvas id="chart-bank-soc" height="120" aria-label="Bank SOC history"></canvas>
-            <div class="chart-status" data-chart-status="chart-bank-soc"></div>
+            <div class="chart-status" data-chart-status="chart-bank-soc" data-chart-group="live"></div>
           </article>
           <article class="chart-card">
             <div class="chart-title">Battery Power</div>
             <canvas id="chart-bank-power" height="120" aria-label="Battery power history"></canvas>
-            <div class="chart-status" data-chart-status="chart-bank-power"></div>
+            <div class="chart-status" data-chart-status="chart-bank-power" data-chart-group="live"></div>
           </article>
           <article class="chart-card">
             <div class="chart-title">Pack Voltage</div>
             <canvas id="chart-bank-voltage" height="120" aria-label="Pack voltage history"></canvas>
-            <div class="chart-status" data-chart-status="chart-bank-voltage"></div>
+            <div class="chart-status" data-chart-status="chart-bank-voltage" data-chart-group="live"></div>
           </article>
           <article class="chart-card">
             <div class="chart-title">Cell Delta</div>
             <canvas id="chart-bank-delta" height="120" aria-label="Cell delta history"></canvas>
-            <div class="chart-status" data-chart-status="chart-bank-delta"></div>
+            <div class="chart-status" data-chart-status="chart-bank-delta" data-chart-group="live"></div>
           </article>
         </div>
       </section>
@@ -4230,6 +4272,77 @@
       </section>
 
       {% endif %}
+    </section>
+
+    <section class="tab-panel {% if active_tab == 'history' %}active{% endif %}">
+      <div class="view-note">
+        <strong>Historical trends</strong>
+        <span>Use this page to review local SQLite history from the monitor-owned live snapshot. This page is read-only and does not publish MQTT or send BMS commands.</span>
+      </div>
+
+      <section class="card wide-card">
+        <div class="card-header-row">
+          <div>
+            <h2>History Trends</h2>
+            <p class="live-trends-note">Local serial-first history. Charts refresh every 10 seconds while this tab is open.</p>
+          </div>
+          <button class="icon-button" type="button" onclick="refreshHistoryCharts(true)" aria-label="Refresh history" title="Refresh history">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M21 12a9 9 0 0 1-15.5 6.2"></path>
+              <path d="M3 12a9 9 0 0 1 15.5-6.2"></path>
+              <path d="M18.5 2.8v3.5h-3.5"></path>
+              <path d="M5.5 21.2v-3.5h3.5"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="history-controls" role="group" aria-label="History range">
+          <button class="history-range-button active" type="button" data-history-range="1800">30 min</button>
+          <button class="history-range-button" type="button" data-history-range="3600">1 hour</button>
+          <button class="history-range-button" type="button" data-history-range="21600">6 hours</button>
+          <button class="history-range-button" type="button" data-history-range="86400">24 hours</button>
+        </div>
+        <div class="history-summary-grid">
+          <div class="history-summary-tile">
+            <div class="history-summary-label">Visible Samples</div>
+            <div id="history-visible-samples" class="history-summary-value">No data</div>
+          </div>
+          <div class="history-summary-tile">
+            <div class="history-summary-label">Oldest Sample</div>
+            <div id="history-oldest-sample" class="history-summary-value">No data</div>
+          </div>
+          <div class="history-summary-tile">
+            <div class="history-summary-label">Newest Sample</div>
+            <div id="history-newest-sample" class="history-summary-value">No data</div>
+          </div>
+          <div class="history-summary-tile">
+            <div class="history-summary-label">Refresh</div>
+            <div class="history-summary-value">10 seconds</div>
+          </div>
+        </div>
+        <div id="history-refresh-message" class="dashboard-refresh-message">Waiting for history data.</div>
+        <div class="chart-grid live-trends-grid">
+          <article class="chart-card">
+            <div class="chart-title">Bank SOC</div>
+            <canvas id="history-bank-soc" height="120" aria-label="Historical bank SOC"></canvas>
+            <div class="chart-status" data-chart-status="history-bank-soc" data-chart-group="history"></div>
+          </article>
+          <article class="chart-card">
+            <div class="chart-title">Battery Power</div>
+            <canvas id="history-bank-power" height="120" aria-label="Historical battery power"></canvas>
+            <div class="chart-status" data-chart-status="history-bank-power" data-chart-group="history"></div>
+          </article>
+          <article class="chart-card">
+            <div class="chart-title">Average Pack Voltage</div>
+            <canvas id="history-bank-voltage" height="120" aria-label="Historical average pack voltage"></canvas>
+            <div class="chart-status" data-chart-status="history-bank-voltage" data-chart-group="history"></div>
+          </article>
+          <article class="chart-card">
+            <div class="chart-title">Worst Cell Delta</div>
+            <canvas id="history-bank-delta" height="120" aria-label="Historical worst cell delta"></canvas>
+            <div class="chart-status" data-chart-status="history-bank-delta" data-chart-group="history"></div>
+          </article>
+        </div>
+      </section>
     </section>
 
     <section class="tab-panel {% if active_tab == 'setup' %}active{% endif %}">
@@ -4924,6 +5037,56 @@ This cannot be undone.`);">
 
       {% if diagnostics %}
       <section class="card wide-card">
+        <h2>Local History Storage</h2>
+        <p>SQLite metrics used for Dashboard and History graphs. This storage is local, read-only from the UI, and does not write to the BMS.</p>
+        <div class="status-grid">
+          <div class="status-tile">
+            <div class="tile-label">Store Local History</div>
+            <div class="tile-value {{ diagnostics.history_status.class }}">{{ diagnostics.history_status.enabled }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Latest Sample</div>
+            <div class="tile-value">{{ diagnostics.history_status.latest_sample }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Database Size</div>
+            <div class="tile-value">{{ diagnostics.history_status.db_size }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">WAL Size</div>
+            <div class="tile-value">{{ diagnostics.history_status.wal_size }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Bank Rows</div>
+            <div class="tile-value">{{ diagnostics.history_status.rows.bank }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Pack Rows</div>
+            <div class="tile-value">{{ diagnostics.history_status.rows.pack }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Cell Rows</div>
+            <div class="tile-value">{{ diagnostics.history_status.rows.cell }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Temperature Rows</div>
+            <div class="tile-value">{{ diagnostics.history_status.rows.temperature }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Warning Events</div>
+            <div class="tile-value">{{ diagnostics.history_status.rows.warnings }}</div>
+          </div>
+          <div class="status-tile">
+            <div class="tile-label">Retention</div>
+            <div class="tile-value">{{ diagnostics.history_status.retention }}</div>
+          </div>
+        </div>
+        {% if diagnostics.history_status.error %}
+          <div class="alert warn">History database check failed: {{ diagnostics.history_status.error }}</div>
+        {% endif %}
+      </section>
+
+      <section class="card wide-card">
         <h2>Battery Configuration</h2>
         <p>Detected pack topology and identity details. Pack serials are shown only where the current BMS read exposes them.</p>
 
@@ -5339,6 +5502,14 @@ This cannot be undone.`);">
         }, 1000);
         addActiveTabTimer(function () {
           refreshLiveTrends();
+        }, 10000);
+        return;
+      }
+
+      if (document.querySelector('.tab-panel.active #history-refresh-message')) {
+        refreshHistoryCharts(true);
+        addActiveTabTimer(function () {
+          refreshHistoryCharts();
         }, 10000);
         return;
       }
@@ -6115,10 +6286,14 @@ Restart the add-on afterwards for runtime changes to apply.`);
     const liveTrendCharts = {};
     let liveTrendLastSnapshotId = null;
 
-    function setLiveTrendStatus(message) {
-      document.querySelectorAll("[data-chart-status]").forEach(function (el) {
+    function setChartGroupStatus(group, message) {
+      document.querySelectorAll(`[data-chart-group="${group}"]`).forEach(function (el) {
         el.textContent = message || "";
       });
+    }
+
+    function setLiveTrendStatus(message) {
+      setChartGroupStatus("live", message);
     }
 
     function ensureLiveTrendCharts() {
@@ -6322,6 +6497,101 @@ Restart the add-on afterwards for runtime changes to apply.`);
       } catch (err) {
         setLiveTrendStatus("Graph refresh failed: " + err.message);
       }
+    }
+
+    let activeHistoryRangeSeconds = 1800;
+
+    function setHistoryStatus(message) {
+      setChartGroupStatus("history", message);
+      const msg = document.getElementById("history-refresh-message");
+      if (msg && message) msg.textContent = message;
+    }
+
+    function ensureHistoryCharts() {
+      createLiveTrendChart("history-bank-soc", "SOC", "#60a5fa", "%", {
+        min: 0,
+        max: 100,
+        decimals: 0,
+      });
+      createLiveTrendChart("history-bank-power", "Power", "#fbbf24", " kW", {
+        suggestedMin: -1,
+        suggestedMax: 1,
+        decimals: 2,
+      });
+      createLiveTrendChart("history-bank-voltage", "Average pack voltage", "#34d399", " V", {
+        suggestedMin: 40,
+        suggestedMax: 60,
+        decimals: 1,
+      });
+      createLiveTrendChart("history-bank-delta", "Worst cell delta", "#f59e0b", " mV", {
+        min: 0,
+        suggestedMax: 100,
+        decimals: 0,
+      });
+      return ["history-bank-soc", "history-bank-power", "history-bank-voltage", "history-bank-delta"].every(function (id) {
+        return Boolean(liveTrendCharts[id]);
+      });
+    }
+
+    function historySampleTime(ts) {
+      const number = Number(ts);
+      if (!Number.isFinite(number)) return "No data";
+      return new Date(number * 1000).toLocaleString();
+    }
+
+    function setHistorySummary(bankRows) {
+      const rows = bankRows || [];
+      setText("history-visible-samples", String(rows.length));
+      setText("history-oldest-sample", rows.length ? historySampleTime(rows[0].ts) : "No data");
+      setText("history-newest-sample", rows.length ? historySampleTime(rows[rows.length - 1].ts) : "No data");
+      const msg = document.getElementById("history-refresh-message");
+      if (msg && rows.length) {
+        msg.textContent = "History refreshed at " + new Date().toLocaleTimeString();
+      }
+    }
+
+    async function refreshHistoryCharts(force = false) {
+      if (!document.getElementById("history-bank-soc")) return;
+      if (!window.Chart) {
+        setHistoryStatus("Chart library did not load.");
+        return;
+      }
+      if (!ensureHistoryCharts()) {
+        setHistoryStatus("Charts are not ready yet.");
+        return;
+      }
+      try {
+        const response = await fetch("api/history?range_seconds=" + encodeURIComponent(activeHistoryRangeSeconds), { cache: "no-store" });
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        const history = await response.json();
+        const bankRows = history.bank || [];
+        setHistorySummary(bankRows);
+        if (!bankRows.length) {
+          setHistoryStatus("Waiting for local history samples.");
+          return;
+        }
+        const labels = bankRows.map(row => historyTimeLabel(row.ts));
+        const deltaByTs = maxPackDeltaByTimestamp(history.packs || []);
+        setChartGroupStatus("history", "");
+        updateLiveTrendChart("history-bank-soc", labels, bankRows.map(row => historyNumber(row.combined_soc)));
+        updateLiveTrendChart("history-bank-power", labels, bankRows.map(row => historyNumber(row.total_power_kw)));
+        updateLiveTrendChart("history-bank-voltage", labels, bankRows.map(row => historyNumber(row.avg_voltage)));
+        updateLiveTrendChart("history-bank-delta", labels, bankRows.map(row => historyNumber(deltaByTs[String(row.ts || "")])));
+      } catch (err) {
+        setHistoryStatus("History refresh failed: " + err.message);
+      }
+    }
+
+    function initializeHistoryControls() {
+      document.querySelectorAll("[data-history-range]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          activeHistoryRangeSeconds = Number(button.getAttribute("data-history-range")) || 1800;
+          document.querySelectorAll("[data-history-range]").forEach(function (item) {
+            item.classList.toggle("active", item === button);
+          });
+          refreshHistoryCharts(true);
+        });
+      });
     }
 
     async function refreshDashboard(quiet = false) {
@@ -6744,6 +7014,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
       setupSoftTabs();
       initializeConfigForm();
       initializeReportScheduleFields();
+      initializeHistoryControls();
       initializeActivePanel();
     });
 

@@ -41,7 +41,8 @@ def float_or_none(value: Any) -> float | None:
 
 def init_history_db(db_path: Path = HISTORY_DB_PATH) -> None:
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db_path) as conn:
+    conn = sqlite3.connect(db_path)
+    try:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
         conn.executescript(
@@ -130,6 +131,9 @@ def init_history_db(db_path: Path = HISTORY_DB_PATH) -> None:
             CREATE INDEX IF NOT EXISTS idx_system_events_ts ON system_events(ts);
             """
         )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def _combined_values(snapshot: dict[str, Any]) -> dict[str, float | int | None]:
@@ -336,7 +340,8 @@ class HistoryWriter:
             pass
 
     def _run(self) -> None:
-        with sqlite3.connect(self.db_path, timeout=10) as conn:
+        conn = sqlite3.connect(self.db_path, timeout=10)
+        try:
             conn.execute("PRAGMA journal_mode=WAL")
             conn.execute("PRAGMA synchronous=NORMAL")
             while not self.stop_event.is_set():
@@ -371,12 +376,15 @@ class HistoryWriter:
                     conn.commit()
                 except Exception:
                     conn.rollback()
+        finally:
+            conn.close()
 
 
 def query_history(range_seconds: int = 1800, db_path: Path = HISTORY_DB_PATH) -> dict[str, Any]:
     init_history_db(db_path)
     since = int(time.time()) - max(60, int(range_seconds))
-    with sqlite3.connect(db_path) as conn:
+    conn = sqlite3.connect(db_path)
+    try:
         conn.row_factory = sqlite3.Row
         bank_rows = conn.execute(
             """
@@ -416,6 +424,8 @@ def query_history(range_seconds: int = 1800, db_path: Path = HISTORY_DB_PATH) ->
             """,
             (since,),
         ).fetchall()
+    finally:
+        conn.close()
     return {
         "ok": True,
         "range_seconds": range_seconds,

@@ -4,6 +4,7 @@ import json
 import logging
 import re
 import os
+import sqlite3
 from pathlib import Path
 import threading
 import time
@@ -2260,7 +2261,79 @@ def build_diagnostics(options, live=None):
             "threshold_writes": False,
             "config_writes": "Home Assistant add-on options only",
         },
+        "history_status": build_history_status(options),
     }
+
+
+def format_bytes(size):
+    try:
+        size = float(size)
+    except Exception:
+        return "Unknown"
+    units = ["B", "KB", "MB", "GB"]
+    for unit in units:
+        if size < 1024 or unit == units[-1]:
+            return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
+        size /= 1024
+
+
+def build_history_status(options):
+    """Return lightweight SQLite history health for diagnostics and support."""
+    enabled = bool(options.get("metrics_enabled", True)) if options else True
+    raw_retention = options.get("history_retention_days", 90) if options else 90
+    event_retention = options.get("history_event_retention_days", 365) if options else 365
+    status = {
+        "enabled": "ON" if enabled else "OFF",
+        "class": "healthy" if enabled else "off",
+        "db_path": str(HISTORY_DB_PATH),
+        "db_size": "No data",
+        "wal_size": "No data",
+        "latest_sample": "No data",
+        "retention": f"Raw {raw_retention} days | Events {event_retention} days",
+        "rows": {
+            "bank": 0,
+            "pack": 0,
+            "cell": 0,
+            "temperature": 0,
+            "warnings": 0,
+            "system": 0,
+        },
+        "error": "",
+    }
+    if not enabled:
+        return status
+
+    try:
+        init_history_db(HISTORY_DB_PATH)
+        db_size = HISTORY_DB_PATH.stat().st_size if HISTORY_DB_PATH.exists() else 0
+        wal_path = Path(str(HISTORY_DB_PATH) + "-wal")
+        wal_size = wal_path.stat().st_size if wal_path.exists() else 0
+        status["db_size"] = format_bytes(db_size)
+        status["wal_size"] = format_bytes(wal_size)
+        table_map = {
+            "bank": "bank_metrics",
+            "pack": "pack_metrics",
+            "cell": "cell_metrics",
+            "temperature": "temperature_metrics",
+            "warnings": "warning_events",
+            "system": "system_events",
+        }
+        latest_ts = None
+        conn = sqlite3.connect(HISTORY_DB_PATH, timeout=2)
+        try:
+            for label, table in table_map.items():
+                status["rows"][label] = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+                table_latest = conn.execute(f"SELECT MAX(ts) FROM {table}").fetchone()[0]
+                if table_latest is not None:
+                    latest_ts = max(latest_ts or 0, int(table_latest))
+        finally:
+            conn.close()
+        if latest_ts:
+            status["latest_sample"] = datetime.fromtimestamp(latest_ts).strftime("%Y-%m-%d %H:%M:%S")
+    except Exception as exc:
+        status["class"] = "warning"
+        status["error"] = str(exc)
+    return status
 
 
 def build_sanitized_config(options):
@@ -3163,7 +3236,7 @@ def render_index(action_result="", action_message="", active_tab="dashboard", co
 
     # Live tabs render from a warm retained-MQTT cache so tab clicks are not blocked
     # by a fresh broker round trip. The cache is refreshed in the background.
-    live = attach_monitoring_health(options, get_page_live_snapshot(options)) if options and active_tab in ("status", "dashboard", "setup", "diagnostics") else None
+    live = attach_monitoring_health(options, get_page_live_snapshot(options)) if options and active_tab in ("status", "dashboard", "history", "setup", "diagnostics") else None
     config_live = get_page_live_snapshot(options) if options and active_tab == "config" else None
     setup_checklist = build_setup_checklist(options, live) if options else None
 

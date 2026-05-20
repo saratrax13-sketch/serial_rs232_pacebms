@@ -172,6 +172,40 @@ http://127.0.0.1:8099/health
 
 This checks whether the monitor process is heartbeating. It does not mean the battery itself is healthy.
 
+## Serial-first Validation
+
+After startup, confirm the live snapshot, history database and graph API are available inside the container:
+
+```sh
+docker compose exec pacebms sh
+ls -lh /data/pacebms-live.json
+ls -lh /data/pacebms_metrics.db*
+python - <<'PY'
+import sqlite3
+db = "/data/pacebms_metrics.db"
+con = sqlite3.connect(db)
+for table in ["bank_metrics", "pack_metrics", "cell_metrics", "temperature_metrics", "warning_events", "system_events"]:
+    print(table, con.execute(f"select count(*) from {table}").fetchone()[0])
+con.close()
+PY
+python - <<'PY'
+import urllib.request
+for url in [
+    "http://127.0.0.1:8099/api/live",
+    "http://127.0.0.1:8099/api/history?range_seconds=1800",
+    "http://127.0.0.1:8099/static/vendor/chart.min.js",
+]:
+    response = urllib.request.urlopen(url, timeout=5)
+    print(url, response.status, len(response.read()))
+PY
+```
+
+Expected result:
+
+- `/data/pacebms-live.json` exists after the first valid serial read.
+- `/data/pacebms_metrics.db` exists when local history is enabled.
+- `/api/live`, `/api/history` and the local Chart.js asset return HTTP `200`.
+
 ## Home Assistant Integration
 
 Standalone Docker publishes MQTT state and Home Assistant discovery topics only when MQTT is enabled.
