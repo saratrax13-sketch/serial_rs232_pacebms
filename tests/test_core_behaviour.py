@@ -861,6 +861,11 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Setup Checklist", response.data)
         self.assertIn(b"Setup Tests", response.data)
+        self.assertIn(b"Local History Storage", response.data)
+        history_pos = response.data.find(b"Local History Storage")
+        tests_pos = response.data.find(b"Setup Tests")
+        checklist_pos = response.data.find(b"Setup Checklist")
+        self.assertTrue(history_pos < tests_pos < checklist_pos)
         self.assertIn(b"Refresh setup", response.data)
         self.assertIn(b"setup-refresh-marker", response.data)
 
@@ -1911,10 +1916,13 @@ class HealthEndpointTests(unittest.TestCase):
             client = web_config.app.test_client()
             response = client.get("/")
             html = response.get_data(as_text=True)
-            expected_tabs = ["dashboard", "history", "status", "diagnostics", "setup", "config", "events", "backups", "logs"]
+            expected_tabs = ["dashboard", "status", "diagnostics", "history", "setup", "config", "events", "backups", "logs"]
 
             for tab in expected_tabs:
                 self.assertIn(f'href="?tab={tab}"', html)
+
+            tab_positions = [html.find(f'href="?tab={tab}"') for tab in expected_tabs]
+            self.assertEqual(tab_positions, sorted(tab_positions))
 
             for tab in expected_tabs:
                 with self.subTest(tab=tab):

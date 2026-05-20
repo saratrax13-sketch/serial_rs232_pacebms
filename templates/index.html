@@ -624,7 +624,7 @@
 
     .chart-title {
       color: #93c5fd;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 600;
       margin-bottom: 8px;
     }
@@ -3625,9 +3625,9 @@
 
     <nav class="tabs">
       <a class="tab-button {% if active_tab == 'dashboard' %}active{% endif %}" href="?tab=dashboard">Dashboard</a>
-      <a class="tab-button {% if active_tab == 'history' %}active{% endif %}" href="?tab=history">History</a>
       <a class="tab-button {% if active_tab == 'status' %}active{% endif %}" href="?tab=status">Tech Status</a>
       <a class="tab-button {% if active_tab == 'diagnostics' %}active{% endif %}" href="?tab=diagnostics">Diagnostics</a>
+      <a class="tab-button {% if active_tab == 'history' %}active{% endif %}" href="?tab=history">History</a>
       <a class="tab-button {% if active_tab == 'setup' %}active{% endif %}" href="?tab=setup">Setup</a>
       <a class="tab-button {% if active_tab == 'config' %}active{% endif %}" href="?tab=config">Config</a>
       <a class="tab-button {% if active_tab == 'events' %}active{% endif %}" href="?tab=events">Events</a>
@@ -4425,45 +4425,6 @@
         <span>Use this page for first-run validation, MQTT/Telegram tests and Full Monitoring dry checks. These tools do not send BMS write or control commands.</span>
       </div>
 
-      {% if setup_checklist %}
-      <section class="card wide-card">
-        <div class="setup-checklist-header">
-          <div>
-            <h2>Setup Checklist</h2>
-            <p>{{ setup_checklist.summary }}</p>
-          </div>
-          <div class="setup-checklist-actions">
-            <span class="setup-progress {{ setup_checklist.summary_class }}">{{ setup_checklist.ready_count }} / {{ setup_checklist.total_count }} ready</span>
-            <button class="icon-button" type="button" onclick="reloadTab('setup')" aria-label="Refresh setup" title="Refresh setup">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M21 12a9 9 0 0 1-15.5 6.2"></path>
-                <path d="M3 12a9 9 0 0 1 15.5-6.2"></path>
-                <path d="M18.5 2.8v3.5h-3.5"></path>
-                <path d="M5.5 21.2v-3.5h3.5"></path>
-              </svg>
-            </button>
-          </div>
-        </div>
-        <div id="setup-refresh-marker" hidden></div>
-
-        {% if setup_checklist.telegram_enabled and not setup_checklist.telegram_configured %}
-          <div class="alert">Telegram notifications are enabled, but the bot token or chat ID is missing or still uses placeholder values. Direct Telegram alerts will be skipped until real values are saved.</div>
-        {% endif %}
-
-        <div class="setup-checklist-grid">
-          {% for item in setup_checklist["items"] %}
-          <article class="setup-check-item {{ item.class }}">
-            <div class="setup-check-top">
-              <div class="setup-check-title">{{ item.title }}</div>
-              <span class="setup-check-status {{ item.class }}">{{ item.status }}</span>
-            </div>
-            <div class="setup-check-detail">{{ item.detail }}</div>
-          </article>
-          {% endfor %}
-        </div>
-      </section>
-      {% endif %}
-
       {% if history_status %}
       <section class="card wide-card">
         <h2>Local History Storage</h2>
@@ -4531,6 +4492,45 @@
           </form>
         </div>
       </section>
+
+      {% if setup_checklist %}
+      <section class="card wide-card">
+        <div class="setup-checklist-header">
+          <div>
+            <h2>Setup Checklist</h2>
+            <p>{{ setup_checklist.summary }}</p>
+          </div>
+          <div class="setup-checklist-actions">
+            <span class="setup-progress {{ setup_checklist.summary_class }}">{{ setup_checklist.ready_count }} / {{ setup_checklist.total_count }} ready</span>
+            <button class="icon-button" type="button" onclick="reloadTab('setup')" aria-label="Refresh setup" title="Refresh setup">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M21 12a9 9 0 0 1-15.5 6.2"></path>
+                <path d="M3 12a9 9 0 0 1 15.5-6.2"></path>
+                <path d="M18.5 2.8v3.5h-3.5"></path>
+                <path d="M5.5 21.2v-3.5h3.5"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div id="setup-refresh-marker" hidden></div>
+
+        {% if setup_checklist.telegram_enabled and not setup_checklist.telegram_configured %}
+          <div class="alert">Telegram notifications are enabled, but the bot token or chat ID is missing or still uses placeholder values. Direct Telegram alerts will be skipped until real values are saved.</div>
+        {% endif %}
+
+        <div class="setup-checklist-grid">
+          {% for item in setup_checklist["items"] %}
+          <article class="setup-check-item {{ item.class }}">
+            <div class="setup-check-top">
+              <div class="setup-check-title">{{ item.title }}</div>
+              <span class="setup-check-status {{ item.class }}">{{ item.status }}</span>
+            </div>
+            <div class="setup-check-detail">{{ item.detail }}</div>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
     </section>
 
     <section class="tab-panel {% if active_tab == 'config' %}active{% endif %}">
@@ -6496,12 +6496,11 @@ Restart the add-on afterwards for runtime changes to apply.`);
 
     function ensureLiveTrendCharts() {
       createLiveTrendChart("chart-bank-soc", "SOC", "#60a5fa", "%", {
-        adaptive: true,
-        hardMin: 0,
-        hardMax: 100,
-        minSpan: 1,
-        padding: 0.25,
+        min: 0,
+        max: 100,
         decimals: 0,
+        tickUnit: "%",
+        helpText: "Combined bank SOC from local history.",
       });
       createLiveTrendChart("chart-bank-power", "Power", "#fbbf24", " kW", {
         adaptive: true,
@@ -6509,12 +6508,16 @@ Restart the add-on afterwards for runtime changes to apply.`);
         minSpan: 1,
         padding: 0.15,
         decimals: 2,
+        tickUnit: " kW",
+        helpText: "Positive is charging, negative is discharging.",
       });
       createLiveTrendChart("chart-bank-voltage", "Average pack voltage", "#34d399", " V", {
         adaptive: true,
         minSpan: 0.5,
         padding: 0.12,
         decimals: 2,
+        tickUnit: " V",
+        helpText: "Average pack voltage across detected packs.",
       });
       createLiveTrendChart("chart-bank-delta", "Cell delta", "#f59e0b", " mV", {
         adaptive: true,
@@ -6522,6 +6525,8 @@ Restart the add-on afterwards for runtime changes to apply.`);
         minSpan: 10,
         padding: 5,
         decimals: 0,
+        tickUnit: " mV",
+        helpText: "Worst cell delta across detected packs.",
       });
       return Object.keys(liveTrendCharts).length > 0;
     }
@@ -6585,11 +6590,11 @@ Restart the add-on afterwards for runtime changes to apply.`);
         ticks: {
           color: "#b7c7dd",
           maxTicksLimit: 5,
-          font: { size: 10, weight: "400" },
+          font: { size: 11, weight: "400" },
           callback: function (value) {
             const number = Number(value);
             if (!Number.isFinite(number)) return value;
-            return number.toFixed(axisConfig.decimals ?? 1);
+            return `${number.toFixed(axisConfig.decimals ?? 1)}${axisConfig.tickUnit || ""}`;
           },
         },
         grid: { color: "rgba(148, 163, 184, 0.10)" },
@@ -6610,10 +6615,11 @@ Restart the add-on afterwards for runtime changes to apply.`);
             backgroundColor: color + "22",
             borderWidth: 2,
             pointRadius: 0,
-            pointHoverRadius: 5,
-            pointHitRadius: 24,
-            tension: 0.25,
+            pointHoverRadius: 4,
+            pointHitRadius: 28,
+            tension: 0.18,
             fill: true,
+            spanGaps: true,
           }],
         },
         options: {
@@ -6621,7 +6627,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
           responsive: true,
           maintainAspectRatio: false,
           interaction: {
-            mode: "nearest",
+            mode: "index",
             intersect: false,
           },
           plugins: {
@@ -6640,7 +6646,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
               bodyFont: { size: 11, weight: "400" },
               callbacks: {
                 title: function (items) {
-                  return items && items.length ? items[0].label : "";
+                  return items && items.length ? `Sample ${items[0].label}` : "";
                 },
                 label: function (context) {
                   const value = Number(context.parsed.y);
@@ -6649,7 +6655,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
                   return `${activeLabel}: ${Number.isFinite(value) ? value.toFixed(decimals) : "No data"}${unit}`;
                 },
                 afterLabel: function () {
-                  return "Local history sample";
+                  return axisConfig.helpText || "Local history sample";
                 },
               },
             },
@@ -6658,8 +6664,8 @@ Restart the add-on afterwards for runtime changes to apply.`);
             x: {
               ticks: {
                 color: "#b7c7dd",
-                maxTicksLimit: 4,
-                font: { size: 10, weight: "400" },
+                maxTicksLimit: 5,
+                font: { size: 11, weight: "400" },
               },
               grid: { color: "rgba(148, 163, 184, 0.10)" },
             },
@@ -6762,12 +6768,11 @@ Restart the add-on afterwards for runtime changes to apply.`);
 
     function ensureHistoryCharts() {
       createLiveTrendChart("history-bank-soc", "SOC", "#60a5fa", "%", {
-        adaptive: true,
-        hardMin: 0,
-        hardMax: 100,
-        minSpan: 5,
-        padding: 1,
+        min: 0,
+        max: 100,
         decimals: 0,
+        tickUnit: "%",
+        helpText: "SOC for the selected bank or pack view.",
       });
       createLiveTrendChart("history-bank-power", "Power", "#fbbf24", " kW", {
         adaptive: true,
@@ -6775,12 +6780,16 @@ Restart the add-on afterwards for runtime changes to apply.`);
         minSpan: 1,
         padding: 0.15,
         decimals: 2,
+        tickUnit: " kW",
+        helpText: "Positive is charging, negative is discharging.",
       });
       createLiveTrendChart("history-bank-voltage", "Average pack voltage", "#34d399", " V", {
         adaptive: true,
         minSpan: 0.5,
         padding: 0.12,
         decimals: 2,
+        tickUnit: " V",
+        helpText: "Voltage for the selected bank or pack view.",
       });
       createLiveTrendChart("history-bank-delta", "Worst cell delta", "#f59e0b", " mV", {
         adaptive: true,
@@ -6788,6 +6797,8 @@ Restart the add-on afterwards for runtime changes to apply.`);
         minSpan: 10,
         padding: 5,
         decimals: 0,
+        tickUnit: " mV",
+        helpText: "Cell voltage spread for the selected view.",
       });
       return ["history-bank-soc", "history-bank-power", "history-bank-voltage", "history-bank-delta"].every(function (id) {
         return Boolean(liveTrendCharts[id]);
@@ -6808,12 +6819,12 @@ Restart the add-on afterwards for runtime changes to apply.`);
       const prefix = historyViewLabel();
       const bankView = activeHistoryPackId === "all";
       setText("history-selected-view", prefix);
-      setText("history-title-soc", bankView ? "Bank SOC" : `${prefix} SOC`);
-      setText("history-title-power", bankView ? "Battery Power" : `${prefix} Power`);
-      setText("history-title-voltage", bankView ? "Average Pack Voltage" : `${prefix} Voltage`);
-      setText("history-title-delta", bankView ? "Worst Cell Delta" : `${prefix} Cell Delta`);
+      setText("history-title-soc", bankView ? "Bank SOC (%)" : `${prefix} SOC (%)`);
+      setText("history-title-power", bankView ? "Bank Power (kW)" : `${prefix} Power (kW)`);
+      setText("history-title-voltage", bankView ? "Average Pack Voltage (V)" : `${prefix} Voltage (V)`);
+      setText("history-title-delta", bankView ? "Worst Cell Delta (mV)" : `${prefix} Cell Delta (mV)`);
       updateChartDatasetLabel("history-bank-soc", bankView ? "Bank SOC" : `${prefix} SOC`);
-      updateChartDatasetLabel("history-bank-power", bankView ? "Battery power" : `${prefix} power`);
+      updateChartDatasetLabel("history-bank-power", bankView ? "Bank power" : `${prefix} power`);
       updateChartDatasetLabel("history-bank-voltage", bankView ? "Average pack voltage" : `${prefix} voltage`);
       updateChartDatasetLabel("history-bank-delta", bankView ? "Worst cell delta" : `${prefix} cell delta`);
     }

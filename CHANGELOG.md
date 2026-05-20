@@ -1,3 +1,15 @@
+## 2.9.25 - 2026-05-20
+
+### Changed
+- Reordered the main navigation so History follows Diagnostics.
+- Reordered Setup content so Setup Tests sit between Local History Storage and Setup Checklist.
+- Improved live/history graph readability with clearer chart titles, unit-aware axis labels, softer chart typography and more useful hover text.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.24 - 2026-05-20
 
 ### Fixed
