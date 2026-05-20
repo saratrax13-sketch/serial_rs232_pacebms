@@ -1049,13 +1049,15 @@ def _calculate_user_summary(options, live):
     stale = str(live.get("stale", "Unknown")).upper()
     availability = str(live.get("availability", "Unknown")).lower()
 
+    highest_warning, highest_warning_class = _highest_pack_warning(packs)
+
     idle_threshold_kw = 0.05
     if availability == "offline" or stale == "ON":
         status = "Communication stale"
         status_class = "stale"
     elif warning_count:
-        status = "Warning"
-        status_class = "warning"
+        status = highest_warning or "Warning"
+        status_class = highest_warning_class or "warning"
     elif fully_count == len(packs) and abs(total_power_kw) <= idle_threshold_kw:
         status = "Fully charged"
         status_class = "healthy"
@@ -1119,24 +1121,11 @@ def _calculate_user_summary(options, live):
         runtime_remaining = "Idle"
         runtime_detail = "No meaningful discharge load detected."
 
-    severity_rank = {"Critical": 3, "Warning": 2, "BMS Caution": 1, "Caution": 1}
-    highest_warning = None
-    for pack in packs:
-        if pack.get("warnings") == "Normal":
-            continue
-        label = str(pack.get("severity_label", "Warning"))
-        if highest_warning is None or severity_rank.get(label, 2) > severity_rank.get(highest_warning, 2):
-            highest_warning = label
     if warning_count:
         warning_summary = f"{warning_count} active warning(s)"
         if highest_warning:
             warning_summary = f"{warning_summary} - highest severity: {highest_warning}"
-        if highest_warning == "Critical":
-            warning_class = "critical"
-        elif highest_warning in ("BMS Caution", "Caution"):
-            warning_class = "caution"
-        else:
-            warning_class = "warning"
+        warning_class = highest_warning_class or "warning"
     else:
         warning_summary = "No active warnings"
         warning_class = "healthy"
@@ -1235,9 +1224,14 @@ def build_monitoring_health(options, live=None, heartbeat=None):
         status_class = "stale"
         summary = live.get("stale_reason") or "BMS data is older than the configured stale-data threshold."
     elif live.get("warning_count", 0):
-        status = "Watching With Warnings"
-        status_class = "warning"
-        summary = "Monitoring is active and one or more packs have BMS warnings."
+        highest_warning, highest_warning_class = _highest_pack_warning(live.get("packs") or [])
+        if highest_warning in ("BMS Caution", "Caution"):
+            status = "Watching With Caution"
+            summary = "Monitoring is active and the BMS reports a warning below configured references."
+        else:
+            status = "Watching With Warnings"
+            summary = "Monitoring is active and one or more packs have BMS warnings."
+        status_class = highest_warning_class or "warning"
     else:
         status = "Watching"
         status_class = "healthy"
@@ -1315,6 +1309,56 @@ def _safe_cell_extreme(value):
         "number": value.get("number") or "Unknown",
         "voltage": value.get("voltage") or "Unknown",
     }
+
+
+def _severity_label_class(label):
+    label = str(label or "")
+    if label == "Critical":
+        return "critical"
+    if label in ("BMS Caution", "Caution"):
+        return "caution"
+    if label == "Normal":
+        return "healthy"
+    return "warning"
+
+
+def _highest_pack_warning(packs):
+    severity_rank = {"Critical": 3, "Warning": 2, "BMS Caution": 1, "Caution": 1}
+    highest = None
+    for pack in packs or []:
+        if str(pack.get("warnings") or "Normal") == "Normal":
+            continue
+        label = str(pack.get("severity_label") or "Warning")
+        if highest is None or severity_rank.get(label, 2) > severity_rank.get(highest, 2):
+            highest = label
+    return highest, _severity_label_class(highest) if highest else None
+
+
+def _apply_overall_warning_status(live):
+    if not isinstance(live, dict):
+        return live
+    availability = str(live.get("availability", "Unknown")).lower()
+    monitor_state = str(live.get("monitor_state", "Unknown")).lower()
+    stale = str(live.get("stale", "Unknown")).upper()
+    warning_count = int(_to_float(live.get("warning_count"), 0) or 0)
+
+    if availability == "offline" or monitor_state in {"disconnected", "stopped"}:
+        live["overall_status"] = "Offline"
+        live["overall_class"] = "offline"
+    elif stale == "ON":
+        live["overall_status"] = "Stale"
+        live["overall_class"] = "stale"
+    elif warning_count > 0:
+        highest, highest_class = _highest_pack_warning(live.get("packs") or [])
+        live["overall_status"] = highest or "Warning"
+        live["overall_class"] = highest_class or "warning"
+    elif live.get("ok"):
+        live["overall_status"] = "Healthy"
+        live["overall_class"] = "healthy"
+    else:
+        live["overall_status"] = "Unknown"
+        live["overall_class"] = "unknown"
+    return live
 
 
 def normalize_live_snapshot_for_template(live, options=None):
@@ -1414,6 +1458,7 @@ def normalize_live_snapshot_for_template(live, options=None):
             cell_count = _to_float(pack.get("cell_count"), 0)
             total_cells += int(cell_count or 0)
         normalized["total_cells"] = total_cells
+    _apply_overall_warning_status(normalized)
     return normalized
 
 
@@ -2249,21 +2294,7 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
     monitor_state = str(result["monitor_state"]).lower()
     stale = str(result["stale"]).upper()
 
-    if availability == "offline" or monitor_state in {"disconnected", "stopped"}:
-        result["overall_status"] = "Offline"
-        result["overall_class"] = "offline"
-    elif stale == "ON":
-        result["overall_status"] = "Stale"
-        result["overall_class"] = "stale"
-    elif warning_count > 0:
-        result["overall_status"] = "Warning"
-        result["overall_class"] = "warning"
-    elif result["ok"]:
-        result["overall_status"] = "Healthy"
-        result["overall_class"] = "healthy"
-    else:
-        result["overall_status"] = "Unknown"
-        result["overall_class"] = "unknown"
+    _apply_overall_warning_status(result)
 
     if not messages and not result["error"]:
         result["error"] = "No retained MQTT values were received. Check mqtt_retain_state and MQTT connection."
@@ -2577,6 +2608,7 @@ def build_diagnostics(options, live=None):
     availability = str(live.get("availability", "Unknown")).lower()
     monitor_state = str(live.get("monitor_state", "Unknown")).lower()
     warning_count = int(live.get("warning_count", 0) or 0)
+    highest_warning, highest_warning_class = _highest_pack_warning(live.get("packs") or [])
 
     mqtt_ok = bool(live.get("ok"))
     bms_fresh = stale_state == "OFF" and live.get("last_analog_read", "Unknown") not in ("Unknown", "Not available")
@@ -2603,8 +2635,8 @@ def build_diagnostics(options, live=None):
         },
         {
             "title": "Warnings",
-            "status": "Active" if warning_count else "Normal",
-            "class": "warning" if warning_count else "healthy",
+            "status": highest_warning or ("Active" if warning_count else "Normal"),
+            "class": (highest_warning_class or "warning") if warning_count else "healthy",
             "detail": f"{warning_count} pack(s) with active BMS warnings.",
         },
         {

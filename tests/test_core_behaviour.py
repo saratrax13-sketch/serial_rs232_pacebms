@@ -2051,7 +2051,10 @@ class HealthEndpointTests(unittest.TestCase):
         live = {
             "ok": True,
             "availability": "online",
+            "monitor_state": "running",
             "stale": "OFF",
+            "analog_age_seconds": 1,
+            "warn_age_seconds": 1,
             "pack_count": 1,
             "total_cells": 13,
             "warning_count": 1,
@@ -2086,7 +2089,15 @@ class HealthEndpointTests(unittest.TestCase):
             }],
         }
 
-        normalized = web_config.attach_monitoring_health(options, live)
+        with (
+            patch("web_config.load_monitor_health", return_value={
+                "updated_at": 1000,
+                "state": "running",
+                "health_timeout_seconds": 60,
+            }),
+            patch("web_config.time.time", return_value=1001),
+        ):
+            normalized = web_config.attach_monitoring_health(options, live)
         pack = normalized["packs"][0]
 
         self.assertEqual(pack["severity_class"], "caution")
@@ -2094,8 +2105,14 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertFalse(pack["warning_intelligence"]["user_reference_rows"])
         self.assertTrue(pack["warning_intelligence"]["groups"])
         self.assertEqual(pack["warning_intelligence"]["groups"][0]["rows"][0]["status"], "BMS caution")
+        self.assertEqual(normalized["overall_status"], "BMS Caution")
+        self.assertEqual(normalized["overall_class"], "caution")
+        self.assertEqual(normalized["user_summary"]["status"], "BMS Caution")
+        self.assertEqual(normalized["user_summary"]["class"], "caution")
         self.assertEqual(normalized["user_summary"]["warning_class"], "caution")
         self.assertIn("highest severity: BMS Caution", normalized["user_summary"]["warning_summary"])
+        self.assertEqual(normalized["monitoring_health"]["status"], "Watching With Caution")
+        self.assertEqual(normalized["monitoring_health"]["class"], "caution")
 
     def test_log_classifier_keeps_web_access_noise_at_debug_level_3(self):
         level, category = web_config.classify_log_line(

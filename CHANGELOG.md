@@ -1,3 +1,14 @@
+## 2.9.45 - 2026-05-21
+
+### Fixed
+- Test build for Home Assistant: aligned overall status, dashboard operating state, monitoring health and warning health cards with BMS Caution severity.
+- BMS-reported warnings below configured user references now remain visible as caution across the UI instead of showing top-level Warning labels.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+- Monitor polling behavior was not changed.
+
 ## 2.9.44 - 2026-05-21
 
 ### Fixed

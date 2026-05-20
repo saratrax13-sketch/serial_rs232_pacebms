@@ -19,6 +19,10 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 
 ## Latest Sprint Outcome
 
+- Version `2.9.45` is prepared but uncommitted for all-tabs BMS Caution UI alignment.
+- Overall status, dashboard operating state, monitoring health and warning health cards now use BMS Caution for BMS-reported warnings below configured user references.
+- Added regression coverage so below-reference BMS warnings remain visible as caution without top-level Warning labels.
+- Version `2.9.44` prepared a Home Assistant test build for restored BMS Caution warning detail rows.
 - Version `2.9.43` is prepared but uncommitted for Warning Intelligence UI severity polish.
 - Web UI now shows BMS-reported warnings below configured user references as BMS Caution instead of Warning.
 - BMS-reported warning details now still show measured cell/pack voltage, reference and margin rows for below-reference BMS cautions.
