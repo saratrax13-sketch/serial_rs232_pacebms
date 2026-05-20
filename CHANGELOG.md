@@ -1,3 +1,14 @@
+## 2.9.18 - 2026-05-20
+
+### Fixed
+- Fixed History range and pack selector buttons so they keep working after Home Assistant Ingress soft tab navigation.
+- Kept History graph updates in-place when switching between Bank, Pack 01 and Pack 02 views.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.17 - 2026-05-20
 
 ### Changed

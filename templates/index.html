@@ -5553,6 +5553,7 @@ This cannot be undone.`);">
         }
         initializeConfigForm();
         initializeReportScheduleFields();
+        initializeHistoryControls();
         restoreLogFilterState(logFilterState);
         initializeActivePanel();
         window.scrollTo({ top: previousScrollY, left: 0, behavior: "auto" });
@@ -6809,6 +6810,17 @@ Restart the add-on afterwards for runtime changes to apply.`);
       updateChartDatasetLabel("history-bank-delta", bankView ? "Worst cell delta" : `${prefix} cell delta`);
     }
 
+    function syncHistoryControls() {
+      document.querySelectorAll("[data-history-range]").forEach(function (item) {
+        const itemRange = Number(item.getAttribute("data-history-range")) || 1800;
+        item.classList.toggle("active", itemRange === activeHistoryRangeSeconds);
+      });
+      document.querySelectorAll("[data-history-pack]").forEach(function (item) {
+        item.classList.toggle("active", String(item.getAttribute("data-history-pack") || "all") === activeHistoryPackId);
+      });
+      setHistoryTitles();
+    }
+
     function updateChartDatasetLabel(canvasId, label) {
       const chart = liveTrendCharts[canvasId];
       if (chart && chart.data && chart.data.datasets && chart.data.datasets[0]) {
@@ -6877,26 +6889,37 @@ Restart the add-on afterwards for runtime changes to apply.`);
       }
     }
 
+    let historyControlsInitialized = false;
+
     function initializeHistoryControls() {
-      document.querySelectorAll("[data-history-range]").forEach(function (button) {
-        button.addEventListener("click", function () {
-          activeHistoryRangeSeconds = Number(button.getAttribute("data-history-range")) || 1800;
+      if (historyControlsInitialized) {
+        syncHistoryControls();
+        return;
+      }
+      historyControlsInitialized = true;
+      document.addEventListener("click", function (event) {
+        const rangeButton = event.target.closest("[data-history-range]");
+        if (rangeButton) {
+          activeHistoryRangeSeconds = Number(rangeButton.getAttribute("data-history-range")) || 1800;
           document.querySelectorAll("[data-history-range]").forEach(function (item) {
-            item.classList.toggle("active", item === button);
+            item.classList.toggle("active", item === rangeButton);
           });
+          setHistoryTitles();
           refreshHistoryCharts(true);
-        });
-      });
-      document.querySelectorAll("[data-history-pack]").forEach(function (button) {
-        button.addEventListener("click", function () {
-          activeHistoryPackId = String(button.getAttribute("data-history-pack") || "all");
+          return;
+        }
+
+        const packButton = event.target.closest("[data-history-pack]");
+        if (packButton) {
+          activeHistoryPackId = String(packButton.getAttribute("data-history-pack") || "all");
           document.querySelectorAll("[data-history-pack]").forEach(function (item) {
-            item.classList.toggle("active", item === button);
+            item.classList.toggle("active", item === packButton);
           });
+          setHistoryTitles();
           refreshHistoryCharts(true);
-        });
+        }
       });
-      setHistoryTitles();
+      syncHistoryControls();
     }
 
     async function refreshDashboard(quiet = false) {
