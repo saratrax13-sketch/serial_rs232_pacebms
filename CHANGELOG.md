@@ -1,3 +1,15 @@
+## 2.9.16 - 2026-05-20
+
+### Changed
+- Improved Dashboard and History graph scaling so SOC, power, pack voltage and cell delta use adaptive ranges instead of overly broad fixed axes.
+- Improved graph hover behavior with a larger hit area and clearer local-history tooltip text.
+- Kept Live Trends in a two-by-two layout with quieter supporting text.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.15 - 2026-05-20
 
 ### Changed

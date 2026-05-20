@@ -648,7 +648,7 @@
     }
 
     .live-trends-note {
-      color: #8ea6c4;
+      color: #8298b8;
       font-size: 12px;
       line-height: 1.35;
       margin-top: 4px;
@@ -6490,23 +6490,31 @@ Restart the add-on afterwards for runtime changes to apply.`);
 
     function ensureLiveTrendCharts() {
       createLiveTrendChart("chart-bank-soc", "SOC", "#60a5fa", "%", {
-        min: 0,
-        max: 100,
+        adaptive: true,
+        hardMin: 0,
+        hardMax: 100,
+        minSpan: 1,
+        padding: 0.25,
         decimals: 0,
       });
       createLiveTrendChart("chart-bank-power", "Power", "#fbbf24", " kW", {
-        suggestedMin: -1,
-        suggestedMax: 1,
+        adaptive: true,
+        zeroBaseline: true,
+        minSpan: 1,
+        padding: 0.15,
         decimals: 2,
       });
       createLiveTrendChart("chart-bank-voltage", "Average pack voltage", "#34d399", " V", {
-        suggestedMin: 40,
-        suggestedMax: 60,
-        decimals: 1,
+        adaptive: true,
+        minSpan: 0.5,
+        padding: 0.12,
+        decimals: 2,
       });
       createLiveTrendChart("chart-bank-delta", "Cell delta", "#f59e0b", " mV", {
-        min: 0,
-        suggestedMax: 100,
+        adaptive: true,
+        hardMin: 0,
+        minSpan: 10,
+        padding: 5,
         decimals: 0,
       });
       return Object.keys(liveTrendCharts).length > 0;
@@ -6588,8 +6596,8 @@ Restart the add-on afterwards for runtime changes to apply.`);
             backgroundColor: color + "22",
             borderWidth: 2,
             pointRadius: 0,
-            pointHoverRadius: 4,
-            pointHitRadius: 12,
+            pointHoverRadius: 5,
+            pointHitRadius: 24,
             tension: 0.25,
             fill: true,
           }],
@@ -6599,7 +6607,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
           responsive: true,
           maintainAspectRatio: false,
           interaction: {
-            mode: "index",
+            mode: "nearest",
             intersect: false,
           },
           plugins: {
@@ -6625,6 +6633,9 @@ Restart the add-on afterwards for runtime changes to apply.`);
                   const decimals = axisConfig.decimals ?? 1;
                   return `${label}: ${Number.isFinite(value) ? value.toFixed(decimals) : "No data"}${unit}`;
                 },
+                afterLabel: function () {
+                  return "Local history sample";
+                },
               },
             },
           },
@@ -6641,8 +6652,36 @@ Restart the add-on afterwards for runtime changes to apply.`);
           },
         },
       });
+      chart.$paceAxisConfig = axisConfig;
       liveTrendCharts[canvasId] = chart;
       return chart;
+    }
+
+    function adaptiveAxisRange(values, axisConfig = {}) {
+      const numeric = (values || []).map(historyNumber).filter(value => value !== null);
+      if (!numeric.length || !axisConfig.adaptive) return {};
+      let min = Math.min(...numeric);
+      let max = Math.max(...numeric);
+      if (axisConfig.zeroBaseline) {
+        const span = Math.max(Math.abs(min), Math.abs(max), (axisConfig.minSpan || 1) / 2);
+        return { min: -span, max: span };
+      }
+      const minSpan = Number(axisConfig.minSpan ?? 1);
+      const padding = Number(axisConfig.padding ?? minSpan * 0.15);
+      if ((max - min) < minSpan) {
+        const center = (max + min) / 2;
+        min = center - (minSpan / 2);
+        max = center + (minSpan / 2);
+      }
+      min -= padding;
+      max += padding;
+      if (Number.isFinite(axisConfig.hardMin)) min = Math.max(min, Number(axisConfig.hardMin));
+      if (Number.isFinite(axisConfig.hardMax)) max = Math.min(max, Number(axisConfig.hardMax));
+      if (min >= max) {
+        min = Number.isFinite(axisConfig.hardMin) ? Number(axisConfig.hardMin) : min - minSpan;
+        max = Number.isFinite(axisConfig.hardMax) ? Number(axisConfig.hardMax) : max + minSpan;
+      }
+      return { min, max };
     }
 
     function updateLiveTrendChart(canvasId, labels, values) {
@@ -6650,6 +6689,12 @@ Restart the add-on afterwards for runtime changes to apply.`);
       if (!chart) return;
       chart.data.labels = labels;
       chart.data.datasets[0].data = values;
+      const axisRange = adaptiveAxisRange(values, chart.$paceAxisConfig || {});
+      ["min", "max"].forEach(function (key) {
+        if (Object.prototype.hasOwnProperty.call(axisRange, key)) {
+          chart.options.scales.y[key] = axisRange[key];
+        }
+      });
       chart.update("none");
     }
 
@@ -6701,23 +6746,31 @@ Restart the add-on afterwards for runtime changes to apply.`);
 
     function ensureHistoryCharts() {
       createLiveTrendChart("history-bank-soc", "SOC", "#60a5fa", "%", {
-        min: 0,
-        max: 100,
+        adaptive: true,
+        hardMin: 0,
+        hardMax: 100,
+        minSpan: 1,
+        padding: 0.25,
         decimals: 0,
       });
       createLiveTrendChart("history-bank-power", "Power", "#fbbf24", " kW", {
-        suggestedMin: -1,
-        suggestedMax: 1,
+        adaptive: true,
+        zeroBaseline: true,
+        minSpan: 1,
+        padding: 0.15,
         decimals: 2,
       });
       createLiveTrendChart("history-bank-voltage", "Average pack voltage", "#34d399", " V", {
-        suggestedMin: 40,
-        suggestedMax: 60,
-        decimals: 1,
+        adaptive: true,
+        minSpan: 0.5,
+        padding: 0.12,
+        decimals: 2,
       });
       createLiveTrendChart("history-bank-delta", "Worst cell delta", "#f59e0b", " mV", {
-        min: 0,
-        suggestedMax: 100,
+        adaptive: true,
+        hardMin: 0,
+        minSpan: 10,
+        padding: 5,
         decimals: 0,
       });
       return ["history-bank-soc", "history-bank-power", "history-bank-voltage", "history-bank-delta"].every(function (id) {
