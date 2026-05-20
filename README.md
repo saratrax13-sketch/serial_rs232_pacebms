@@ -30,7 +30,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.9.27"
+version: "2.9.28"
 ```
 
 ---

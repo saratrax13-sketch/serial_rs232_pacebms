@@ -1,3 +1,13 @@
+## 2.9.28 - 2026-05-20
+
+### Fixed
+- Adjusted the header version pill to match the compact navigation pill sizing and align right under the live source badge.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.27 - 2026-05-20
 
 ### Fixed
