@@ -7,6 +7,7 @@ import sys
 import tempfile
 import time
 import types
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -1106,6 +1107,76 @@ class EnergyTrackingTests(unittest.TestCase):
         self.assertIn("Lowest: Cell 07 3.370 V", message)
         self.assertIn("Pack 02:", message)
         self.assertIn("Worst delta: 90.0 mV", message)
+
+    def test_delta_report_uses_previous_overnight_sqlite_window_after_midnight(self):
+        state = bms_notify.NotifyState({"notify_delta_window_start": "22:00", "notify_delta_window_end": "02:00"})
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "pacebms_metrics.db"
+            with patch("bms_notify.HISTORY_DB_PATH", db_path):
+                bms_notify.init_history_db(db_path)
+                report_now = datetime(2026, 5, 20, 1, 30)
+                in_window = int(datetime(2026, 5, 19, 23, 30).timestamp())
+                future_window = int(datetime(2026, 5, 20, 23, 30).timestamp())
+                con = sqlite3.connect(db_path)
+                try:
+                    for ts, snapshot_id, delta in [
+                        (in_window, 1, 150.0),
+                        (future_window, 2, 300.0),
+                    ]:
+                        con.execute(
+                            """
+                            INSERT INTO pack_metrics (
+                                ts, snapshot_id, pack_id, cell_delta_mv,
+                                highest_cell, highest_cell_v, lowest_cell, lowest_cell_v
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (ts, snapshot_id, "01", delta, "08", 3.55, "09", 3.40),
+                        )
+                    con.commit()
+                finally:
+                    con.close()
+
+                with patch("bms_notify.datetime") as dt_mock:
+                    dt_mock.now.return_value = report_now
+                    dt_mock.combine.side_effect = datetime.combine
+                    dt_mock.fromtimestamp.side_effect = datetime.fromtimestamp
+                    with patch("bms_notify.telegram_send") as send:
+                        state._send_delta_report(1)
+
+        message = send.call_args.args[1]
+        self.assertIn("Worst delta: 150.0 mV", message)
+        self.assertNotIn("300.0 mV", message)
+
+    def test_delta_report_includes_sqlite_pack_ids_beyond_runtime_pack_count(self):
+        state = bms_notify.NotifyState({"notify_delta_window_start": "00:00", "notify_delta_window_end": "23:59"})
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "pacebms_metrics.db"
+            with patch("bms_notify.HISTORY_DB_PATH", db_path):
+                bms_notify.init_history_db(db_path)
+                now = int(time.time())
+                con = sqlite3.connect(db_path)
+                try:
+                    con.execute(
+                        """
+                        INSERT INTO pack_metrics (
+                            ts, snapshot_id, pack_id, cell_delta_mv,
+                            highest_cell, highest_cell_v, lowest_cell, lowest_cell_v
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (now, 1, "03", 210.0, "10", 3.56, "11", 3.35),
+                    )
+                    con.commit()
+                finally:
+                    con.close()
+
+                with patch("bms_notify.telegram_send") as send:
+                    state._send_delta_report(1)
+
+        message = send.call_args.args[1]
+        self.assertIn("Pack 03:", message)
+        self.assertIn("Worst delta: 210.0 mV", message)
 
 
 class HealthEndpointTests(unittest.TestCase):

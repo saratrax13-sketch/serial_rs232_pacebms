@@ -1134,11 +1134,8 @@ class NotifyState:
 
     def _build_history_delta_report(self, pack_count: int, wh: int, wm: int, eh: int, em: int) -> list[str] | None:
         try:
-            today = datetime.now().date()
-            window_start = datetime.combine(today, datetime_time(hour=wh, minute=wm))
-            window_end = datetime.combine(today, datetime_time(hour=eh, minute=em))
-            if window_end < window_start:
-                window_end += timedelta(days=1)
+            now = datetime.now()
+            window_start, window_end = self._delta_report_window(now, wh, wm, eh, em)
             init_history_db(HISTORY_DB_PATH)
             conn = sqlite3.connect(HISTORY_DB_PATH)
             conn.row_factory = sqlite3.Row
@@ -1172,11 +1169,13 @@ class NotifyState:
             if current is None or delta > float(current["cell_delta_mv"] or 0):
                 worst_by_pack[pack_num] = row
 
+        pack_numbers = set(range(1, pack_count + 1))
+        pack_numbers.update(worst_by_pack.keys())
         lines = [
             f"Cell Delta Report ({wh:02d}:{wm:02d}-{eh:02d}:{em:02d})\n"
             f"{datetime.now().strftime('%Y-%m-%d')}"
         ]
-        for p in range(1, pack_count + 1):
+        for p in sorted(pack_numbers):
             row = worst_by_pack.get(p)
             if row:
                 detail = f"  Worst delta: {float(row['cell_delta_mv']):.1f} mV at {datetime.fromtimestamp(int(row['ts'])).strftime('%H:%M')}"
@@ -1193,3 +1192,13 @@ class NotifyState:
             else:
                 lines.append(f"\nPack {p:02d}: No data in window")
         return lines
+
+    def _delta_report_window(self, now: datetime, wh: int, wm: int, eh: int, em: int) -> tuple[datetime, datetime]:
+        window_start = datetime.combine(now.date(), datetime_time(hour=wh, minute=wm))
+        window_end = datetime.combine(now.date(), datetime_time(hour=eh, minute=em))
+        if window_end < window_start:
+            window_end += timedelta(days=1)
+            if now < window_end:
+                window_start -= timedelta(days=1)
+                window_end -= timedelta(days=1)
+        return window_start, window_end

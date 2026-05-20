@@ -1,3 +1,14 @@
+## 2.9.41 - 2026-05-20
+
+### Fixed
+- Improved Cell Delta Report history windows so overnight ranges after midnight use the just-finished SQLite window instead of a future window.
+- Included SQLite history pack IDs in Cell Delta Report output even when the runtime pack count is lower than the stored history pack list.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+- Monitor polling behavior was not changed.
+
 ## 2.9.40 - 2026-05-20
 
 ### Fixed

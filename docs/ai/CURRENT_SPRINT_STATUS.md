@@ -21,6 +21,7 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 
 - Serial-first live snapshot and SQLite history.
 - Daily summary SQLite energy and warning-event reporting.
+- Cell delta report SQLite overnight-window and history-pack handling.
 - History graph usability and tab refresh stability.
 - Telegram warning deduplication and warning clarity.
 - Config save/load behavior and reference-value consistency.
@@ -28,8 +29,8 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 
 ## Known Watch Areas
 
-- Cell delta reports should use SQLite history when available.
 - Daily summaries should keep using SQLite `pack_metrics` and `warning_events` for restart-safe energy movement and warnings.
+- Cell delta reports should keep using SQLite `pack_metrics`, including overnight windows and persisted pack IDs.
 - Warning Intelligence must separate BMS-reported warnings from user alert references.
 - Low-cell reference rows should not be shown as warnings when the measured value is above the configured low reference.
 - Home Assistant visible hotfixes require a version bump in `config.yaml`, README Current Version and `CHANGELOG.md`.
