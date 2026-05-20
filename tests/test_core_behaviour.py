@@ -66,6 +66,7 @@ import bms_monitor
 import bms_notify
 import standalone_config
 import web_config
+import bms_live
 
 
 def build_pace_response(info: bytes = b"ABCD") -> bytes:
@@ -1346,6 +1347,32 @@ class HealthEndpointTests(unittest.TestCase):
 
         self.assertEqual(labels[7], ["BMS Low Warning"])
         self.assertNotIn(8, labels)
+
+    def test_live_snapshot_marks_generic_bms_warning_cell_extreme(self):
+        pack = types.SimpleNamespace(
+            pack_number=1,
+            cells=3,
+            v_cells=[4125, 4145, 4160],
+            t_cells=[],
+            v_pack=53855,
+            i_pack=0,
+            i_remain_cap=88000,
+            i_full_cap=89000,
+            i_design_cap=100000,
+            cycles=992,
+            soc=99.77,
+            soh=88.54,
+            cell_max_diff=35,
+        )
+        analog_data = types.SimpleNamespace(pack_data=[pack])
+        warn = types.SimpleNamespace(pack_number=1, warnings="Warning State 1: Above cell volt warn | Above total volt warn")
+
+        snapshot = bms_live.build_live_snapshot({}, analog_data=analog_data, warn_list=[warn])
+
+        cells = snapshot["packs"][0]["cells"]
+        self.assertIn("BMS High Warning", cells[2]["labels"])
+        self.assertEqual(cells[2]["class"], "cell-alert")
+        self.assertNotIn("BMS High Warning", cells[0]["labels"])
 
     def test_log_classifier_keeps_web_access_noise_at_debug_level_3(self):
         level, category = web_config.classify_log_line(

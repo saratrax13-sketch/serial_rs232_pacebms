@@ -1,3 +1,13 @@
+## 2.9.24 - 2026-05-20
+
+### Fixed
+- Applied BMS warning cell labels to the serial-first live snapshot path used by the current UI, so Detailed Pack & Cell Data shows BMS High Warning or BMS Low Warning when the BMS reports a generic cell-voltage warning.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.23 - 2026-05-20
 
 ### Fixed

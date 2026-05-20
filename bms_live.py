@@ -97,6 +97,36 @@ def _warning_cell_label_map(warnings: str) -> dict[int, list[str]]:
     return labels
 
 
+def _has_bms_high_cell_warning(warnings: str) -> bool:
+    low = str(warnings or "").lower()
+    return (
+        ("above cell" in low and "volt" in low)
+        or ("above upper limit" in low and "cell" in low)
+        or ("cell" in low and "volt protect" in low and "above" in low)
+    )
+
+
+def _has_bms_low_cell_warning(warnings: str) -> bool:
+    low = str(warnings or "").lower()
+    return (
+        (("lower cell" in low or "low cell" in low or "below cell" in low) and "volt" in low)
+        or ("below lower limit" in low and "cell" in low)
+        or ("cell" in low and "volt protect" in low and ("lower" in low or "below" in low))
+    )
+
+
+def _add_warning_fallback_labels(labels: dict[int, list[str]], warnings: str, highest_cell_num: int | None, lowest_cell_num: int | None) -> dict[int, list[str]]:
+    if _has_bms_high_cell_warning(warnings) and highest_cell_num is not None:
+        labels.setdefault(highest_cell_num, [])
+        if "BMS High Warning" not in labels[highest_cell_num]:
+            labels[highest_cell_num].append("BMS High Warning")
+    if _has_bms_low_cell_warning(warnings) and lowest_cell_num is not None:
+        labels.setdefault(lowest_cell_num, [])
+        if "BMS Low Warning" not in labels[lowest_cell_num]:
+            labels[lowest_cell_num].append("BMS Low Warning")
+    return labels
+
+
 def build_live_snapshot(
     config: dict[str, Any],
     analog_data: Any | None = None,
@@ -143,11 +173,16 @@ def build_live_snapshot(
         lowest_cell = _format_cell_extreme(cell_values, high=False)
         warn = warnings_by_pack.get(pack_number)
         warning_text = str(getattr(warn, "warnings", "") or "Normal")
-        bms_cell_warning_labels = _warning_cell_label_map(warning_text)
-
-        detailed_cells = []
         high_num = _safe_int(highest_cell.get("number"), -1)
         low_num = _safe_int(lowest_cell.get("number"), -1)
+        bms_cell_warning_labels = _add_warning_fallback_labels(
+            _warning_cell_label_map(warning_text),
+            warning_text,
+            high_num if high_num > 0 else None,
+            low_num if low_num > 0 else None,
+        )
+
+        detailed_cells = []
         for cell_num, cell_v in cell_values:
             labels = []
             if cell_num == high_num:
