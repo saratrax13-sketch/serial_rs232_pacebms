@@ -1,3 +1,15 @@
+## 2.9.9 - 2026-05-20
+
+### Changed
+- Bumped the Home Assistant add-on version so the Diagnostics cell-data UI sprint is visible as an update.
+- Reworked Diagnostics Detailed Cell Data into a Detailed Pack & Cell Data layout matching the Tech Status Battery Packs cards.
+- Kept individual cell readings below each pack so pack context and cell diagnostics stay together.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.8 - 2026-05-19
 
 ### Added

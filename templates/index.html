@@ -5185,36 +5185,147 @@ This cannot be undone.`);">
 
       </section>
 
-      <section class="card wide-card">
-        <h2>Detailed Cell Data</h2>
+      <section class="card wide-card tech-pack-section diagnostics-cell-section">
+        <div class="section-title-block">
+          <h2>Detailed Pack & Cell Data</h2>
+          <p>Per-pack diagnostic context with individual cell readings below each pack.</p>
+        </div>
 
         {% if live and live.packs %}
-        <div class="cell-detail-grid">
+        <div class="pack-grid">
           {% for pack in live.packs %}
-          <article class="cell-pack-card">
-            <div class="cell-pack-header">
+          {% set pack_role = pack.role if pack.role else ('Master' if pack.id == '01' or pack.id == '1' else 'Slave') %}
+          {% set pack_voltage = pack.voltage|default(0)|float %}
+          {% set pack_current = pack.current|default(0)|float %}
+          {% set pack_remaining = pack.remaining_capacity_ah|default(0)|float %}
+          {% set pack_full = pack.full_capacity_ah|default(0)|float %}
+          {% set pack_power = (pack_voltage * pack_current) / 1000 %}
+          {% set runtime_hours = (pack_voltage * pack_remaining / 1000) / (-pack_power) if pack_power < -0.05 and pack_remaining > 0 else none %}
+          {% set charge_hours = (pack_voltage * (pack_full - pack_remaining) / 1000) / pack_power if pack_power > 0.05 and pack_full > pack_remaining else none %}
+          <article class="pack-card">
+            <div class="pack-header">
               <div>
-                <div class="cell-pack-title">Pack {{ pack.id }}</div>
-                <div class="topology-note">{{ pack.cell_count }} cells detected</div>
+                <div class="pack-title">Pack {{ pack.id }}</div>
+                <div class="summary-meta">{{ pack_role }} - {{ pack.cell_count }} cells detected</div>
               </div>
-              <span class="cell-role-badge">{% if pack.role %}{{ pack.role }}{% elif pack.id == '01' %}Master{% else %}Slave{% endif %}</span>
+              <span class="pill {{ pack.severity_class }}">{{ pack.severity_label }}</span>
             </div>
 
-            <div class="cell-summary-row">
-              <div class="cell-summary-tile">
-                <div class="cell-summary-label">Highest</div>
-                <div class="cell-summary-value">Cell {{ pack.highest_cell.number }} = {{ pack.highest_cell.voltage }} V</div>
+            <div class="pack-quick-strip">
+              <div class="pack-quick-item">
+                <div class="pack-quick-label">SOC</div>
+                <div class="pack-quick-value">{{ pack.soc }}%</div>
+                <span class="pack-quick-icon">↻</span>
               </div>
-              <div class="cell-summary-tile">
-                <div class="cell-summary-label">Lowest</div>
-                <div class="cell-summary-value">Cell {{ pack.lowest_cell.number }} = {{ pack.lowest_cell.voltage }} V</div>
+              <div class="pack-quick-item">
+                <div class="pack-quick-label">SOH</div>
+                <div class="pack-quick-value">{{ pack.soh }}%</div>
+                <span class="pack-quick-icon">◇</span>
               </div>
-              <div class="cell-summary-tile">
-                <div class="cell-summary-label">Delta</div>
-                <div class="cell-summary-value">{{ pack.delta }} mV</div>
+              <div class="pack-quick-item">
+                <div class="pack-quick-label">Voltage</div>
+                <div class="pack-quick-value">{{ pack.voltage }} V</div>
+                <span class="pack-quick-icon">⚡</span>
+              </div>
+              <div class="pack-quick-item">
+                <div class="pack-quick-label">Current</div>
+                <div class="pack-quick-value">{{ pack.current }} A</div>
+                <span class="pack-quick-icon">⌁</span>
               </div>
             </div>
 
+            <div class="pack-detail-rows">
+              <div class="pack-detail-row">
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Role</span>
+                  <span class="pack-detail-value">{{ pack_role }}</span>
+                </div>
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Serial</span>
+                  <span class="pack-detail-value">{{ pack.serial|default('N/A') }}</span>
+                </div>
+              </div>
+              <div class="pack-detail-row">
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Cells</span>
+                  <span class="pack-detail-value">{{ pack.cell_count }}</span>
+                </div>
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Power</span>
+                  <span class="pack-detail-value">{{ pack.power_kw|default('Unknown') }} kW</span>
+                </div>
+              </div>
+              <div class="pack-detail-row">
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Remaining Capacity</span>
+                  <span class="pack-detail-value">{{ pack.remaining_capacity_ah }} Ah</span>
+                </div>
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Full Capacity</span>
+                  <span class="pack-detail-value">{{ pack.full_capacity_ah }} Ah</span>
+                </div>
+              </div>
+              <div class="pack-detail-row">
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Design Capacity</span>
+                  <span class="pack-detail-value">{{ pack.design_capacity_ah }} Ah</span>
+                </div>
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Projected Runtime</span>
+                  <span class="pack-detail-value">
+                    {% if runtime_hours is not none %}
+                      {{ ((runtime_hours * 60)|round(0, 'floor') // 60)|int }}h {{ ((runtime_hours * 60)|round(0, 'floor') % 60)|int }}m
+                    {% elif charge_hours is not none %}
+                      Charge {{ ((charge_hours * 60)|round(0, 'floor') // 60)|int }}h {{ ((charge_hours * 60)|round(0, 'floor') % 60)|int }}m
+                    {% else %}
+                      Idle
+                    {% endif %}
+                  </span>
+                </div>
+              </div>
+              <div class="pack-detail-row">
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Highest Cell</span>
+                  <span class="pack-detail-value">C{{ pack.highest_cell.number }} - {{ pack.highest_cell.voltage }} V</span>
+                </div>
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Lowest Cell</span>
+                  <span class="pack-detail-value">C{{ pack.lowest_cell.number }} - {{ pack.lowest_cell.voltage }} V</span>
+                </div>
+              </div>
+              <div class="pack-detail-row">
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Cycles</span>
+                  <span class="pack-detail-value">{{ pack.cycles }}</span>
+                </div>
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Cell Delta</span>
+                  <span class="pack-detail-value">{{ pack.delta }} mV</span>
+                </div>
+              </div>
+              <div class="pack-detail-row">
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Cell High Ref</span>
+                  <span class="pack-detail-value">{{ pack.cell_high_ref }} V</span>
+                </div>
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Pack High Ref</span>
+                  <span class="pack-detail-value">{{ pack.pack_high_ref }} V</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="metric-section">
+              <div class="metric-section-title">BMS Control State</div>
+              <div class="fet-row">
+                <span class="pill {% if pack.charge_fet == 'ON' %}ok{% else %}off{% endif %}">Charge FET: {{ pack.charge_fet }}</span>
+                <span class="pill {% if pack.discharge_fet == 'ON' %}ok{% else %}danger{% endif %}">Discharge FET: {{ pack.discharge_fet }}</span>
+                <span class="pill {% if pack.fully == 'ON' %}ok{% else %}off{% endif %}">Full: {{ pack.fully }}</span>
+              </div>
+            </div>
+
+            <div class="metric-section">
+              <div class="metric-section-title">Cell Data</div>
             {% if pack.cells %}
             <table class="cell-table">
               <thead>
@@ -5247,6 +5358,7 @@ This cannot be undone.`);">
             {% else %}
             <p>No individual cell values are currently available for this pack.</p>
             {% endif %}
+            </div>
           </article>
           {% endfor %}
         </div>
