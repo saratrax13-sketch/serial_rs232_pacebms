@@ -5381,7 +5381,7 @@ This cannot be undone.`);">
                     {% if cell.labels %}
                     <div class="cell-labels">
                       {% for label in cell.labels %}
-                      <span class="cell-label {% if 'reference' in label %}alert{% else %}highlow{% endif %}">{{ label }}</span>
+                      <span class="cell-label {% if label.startswith('BMS ') or 'reference' in label %}alert{% else %}highlow{% endif %}">{{ label }}</span>
                       {% endfor %}
                     </div>
                     {% else %}

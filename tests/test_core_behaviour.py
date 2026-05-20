@@ -1263,6 +1263,15 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn("No BMS warning is active", details["telegram_decision"])
         self.assertIn("app-side watch condition", details["interpretation"])
 
+    def test_bms_warning_cell_labels_identify_triggered_cells(self):
+        labels = web_config._warning_cell_label_map(
+            "cell 7 Below lower limit | cell 13 Below lower limit | cell 2 Above upper limit"
+        )
+
+        self.assertEqual(labels[2], ["BMS High Warning"])
+        self.assertEqual(labels[7], ["BMS Low Warning"])
+        self.assertEqual(labels[13], ["BMS Low Warning"])
+
     def test_log_classifier_keeps_web_access_noise_at_debug_level_3(self):
         level, category = web_config.classify_log_line(
             '172.30.32.2 - - [18/May/2026 18:47:33] "GET /api/status HTTP/1.1" 200 -',

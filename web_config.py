@@ -1387,6 +1387,15 @@ def _extract_warning_cell_numbers(warnings, phrase):
     return sorted(set(numbers))
 
 
+def _warning_cell_label_map(warnings):
+    labels = {}
+    for cell_num in _extract_warning_cell_numbers(warnings, "above upper limit"):
+        labels.setdefault(cell_num, []).append("BMS High Warning")
+    for cell_num in _extract_warning_cell_numbers(warnings, "below lower limit"):
+        labels.setdefault(cell_num, []).append("BMS Low Warning")
+    return labels
+
+
 def _margin_text_for_unit(value, ref, direction, unit, precision=1):
     if value is None or ref is None:
         return "Unknown", "Unknown"
@@ -1841,6 +1850,7 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
             low_num, lowest_cell_v = min(cell_values, key=lambda item: item[1])
             highest_cell = {"number": f"{high_num:02d}", "voltage": f"{highest_cell_v:.3f}"}
             lowest_cell = {"number": f"{low_num:02d}", "voltage": f"{lowest_cell_v:.3f}"}
+            bms_cell_warning_labels = _warning_cell_label_map(warnings)
 
             for cell_num, cell_v in sorted(cell_values, key=lambda item: item[0]):
                 labels = []
@@ -1848,6 +1858,7 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
                     labels.append("Highest")
                 if cell_num == low_num:
                     labels.append("Lowest")
+                labels.extend(bms_cell_warning_labels.get(cell_num, []))
                 if cell_v > cell_high_ref:
                     labels.append("Above high reference")
                 if cell_v < cell_low_ref:
@@ -1857,7 +1868,7 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
                     "number": f"{cell_num:02d}",
                     "voltage": f"{cell_v:.3f}",
                     "labels": labels,
-                    "class": "cell-alert" if ("Above high reference" in labels or "Below low reference" in labels) else ("cell-highlow" if labels else "cell-normal"),
+                    "class": "cell-alert" if any(("reference" in label or label.startswith("BMS ")) for label in labels) else ("cell-highlow" if labels else "cell-normal"),
                 })
 
         pack_v = _to_float(voltage)

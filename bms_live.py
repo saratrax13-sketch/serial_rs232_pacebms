@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from datetime import datetime
 from pathlib import Path
@@ -76,6 +77,26 @@ def _warning_map(warn_list: list[Any] | None) -> dict[int, Any]:
     return result
 
 
+def _extract_warning_cell_numbers(warnings: str, phrase: str) -> list[int]:
+    numbers = []
+    for part in re.split(r"[\n|,;]+", str(warnings or "")):
+        if phrase not in part.lower():
+            continue
+        match = re.search(r"\bcell\s*0*(\d+)\b", part, re.IGNORECASE)
+        if match:
+            numbers.append(int(match.group(1)))
+    return sorted(set(numbers))
+
+
+def _warning_cell_label_map(warnings: str) -> dict[int, list[str]]:
+    labels: dict[int, list[str]] = {}
+    for cell_num in _extract_warning_cell_numbers(warnings, "above upper limit"):
+        labels.setdefault(cell_num, []).append("BMS High Warning")
+    for cell_num in _extract_warning_cell_numbers(warnings, "below lower limit"):
+        labels.setdefault(cell_num, []).append("BMS Low Warning")
+    return labels
+
+
 def build_live_snapshot(
     config: dict[str, Any],
     analog_data: Any | None = None,
@@ -120,6 +141,9 @@ def build_live_snapshot(
         cell_values = [(idx + 1, _safe_float(value, 0.0) / 1000.0) for idx, value in enumerate(raw_cells)]
         highest_cell = _format_cell_extreme(cell_values, high=True)
         lowest_cell = _format_cell_extreme(cell_values, high=False)
+        warn = warnings_by_pack.get(pack_number)
+        warning_text = str(getattr(warn, "warnings", "") or "Normal")
+        bms_cell_warning_labels = _warning_cell_label_map(warning_text)
 
         detailed_cells = []
         high_num = _safe_int(highest_cell.get("number"), -1)
@@ -130,6 +154,7 @@ def build_live_snapshot(
                 labels.append("Highest")
             if cell_num == low_num:
                 labels.append("Lowest")
+            labels.extend(bms_cell_warning_labels.get(cell_num, []))
             if cell_high_ref is not None and cell_v > cell_high_ref:
                 labels.append("Above high reference")
             if cell_low_ref is not None and cell_v < cell_low_ref:
@@ -138,11 +163,9 @@ def build_live_snapshot(
                 "number": f"{cell_num:02d}",
                 "voltage": f"{cell_v:.3f}",
                 "labels": labels,
-                "class": "cell-alert" if any("reference" in label for label in labels) else ("cell-highlow" if labels else "cell-normal"),
+                "class": "cell-alert" if any(("reference" in label or label.startswith("BMS ")) for label in labels) else ("cell-highlow" if labels else "cell-normal"),
             })
 
-        warn = warnings_by_pack.get(pack_number)
-        warning_text = str(getattr(warn, "warnings", "") or "Normal")
         has_warning = warning_text != "Normal"
         if has_warning:
             warning_count += 1

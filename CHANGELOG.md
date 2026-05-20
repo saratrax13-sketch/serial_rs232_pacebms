@@ -1,3 +1,14 @@
+## 2.9.12 - 2026-05-20
+
+### Changed
+- Added BMS-triggered cell status pills in Diagnostics Detailed Pack & Cell Data.
+- Cells named by the BMS warning text now show `BMS High Warning` or `BMS Low Warning` separately from highest/lowest and user reference status.
+
+### Notes
+- MQTT topics and Home Assistant discovery identifiers were not changed.
+- Monitor polling behavior and BMS serial commands were not changed.
+- No BMS write/control commands were added.
+
 ## 2.9.11 - 2026-05-20
 
 ### Changed
