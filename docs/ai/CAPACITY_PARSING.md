@@ -48,6 +48,10 @@ Combined full capacity: 200 Ah
 
 If a pack does not report capacity, do not invent it. Show Unknown or omit it from a clearly labelled calculated total.
 
+## Reports And History
+
+Daily summaries, cell delta reports and other historical reporting should use SQLite history when available. Do not rely only on the latest live snapshot or in-memory counters for reports that need evidence across a time window.
+
 ## Current Code Pointers
 
 - `bms_monitor.py`
@@ -58,4 +62,3 @@ If a pack does not report capacity, do not invent it. Show Unknown or omit it fr
   - diagnostics battery configuration
 - `bms_notify.py`
   - daily summary energy movement
-

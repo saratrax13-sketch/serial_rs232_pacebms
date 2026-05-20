@@ -10,6 +10,7 @@ Use this checklist for each project sprint.
 4. Group related work into a meaningful sprint where practical, instead of uploading one or two small changes at a time.
 5. Avoid unrelated refactors.
 6. Do not commit until the maintainer explicitly asks.
+7. If the sprint changes current direction, open issues or handover state, update `docs/ai/CURRENT_SPRINT_STATUS.md`.
 
 ## During Editing
 
@@ -31,6 +32,8 @@ When a sprint changes user-facing behavior or is intended for release:
 5. Update screenshots/docs when UI changes are visible.
 
 If the sprint is only an internal fix, ask or infer whether to bump the version based on prior user direction.
+
+For this project, every Home Assistant deployable hotfix should be treated as release-visible. Update `config.yaml`, README Current Version and `CHANGELOG.md` so Home Assistant can offer the update.
 
 ## Final Response
 

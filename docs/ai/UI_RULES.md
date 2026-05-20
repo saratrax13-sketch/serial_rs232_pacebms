@@ -2,6 +2,8 @@
 
 The Web UI should be organized by audience and task.
 
+Classic UI is the active UI. Do not replace it or reintroduce alternate UI experiments unless the maintainer explicitly asks.
+
 ## Main Views
 
 ### Dashboard
@@ -80,4 +82,3 @@ Do not reintroduce a complex View Detail plus Category model.
 - Avoid user-facing explanatory clutter in daily-use views.
 - Place detailed help behind info buttons/details panels.
 - Keep Battery Profile & References wide enough to avoid horizontal scrolling.
-

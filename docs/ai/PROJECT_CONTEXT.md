@@ -18,15 +18,17 @@ The monitor is intended to help users know whether the battery pack is healthy, 
 
 ## Current Direction
 
-- Home Assistant add-on first.
+- Home Assistant add-on is the primary deployment mode.
+- Standalone Docker is a supported secondary deployment mode.
+- Do not break either mode.
 - Read-only BMS communication.
 - Current supported path is RS232 serial using Pace/UART ASCII frames.
-- Standalone Docker is supported as a serial-first deployment target alongside Home Assistant add-on mode.
 - RS485 may be considered later, but do not change protocol assumptions without proof from logs and maintainer approval.
 - TCP/IP BMS connection code was intentionally removed.
 - Serial polling drives the Web UI through `/data/pacebms-live.json`.
 - MQTT retained state is optional output/fallback, not the primary UI source.
 - Telegram is an optional monitoring/alerting layer.
+- Classic UI is the active UI. Do not revive alternate UI experiments unless the maintainer explicitly asks.
 - Web UI is split by audience:
   - Dashboard: user confidence
   - Tech Status: live technician review
@@ -142,6 +144,15 @@ Telegram warnings should not spam repeatedly while the same alarm remains active
 
 Use warning family normalization, severity-aware repeat cooldowns and clear/recovery events.
 
+### Local History And Reports
+
+Serial-first history is stored in `/data/pacebms_metrics.db`.
+
+Reports and graph endpoints should prefer SQLite history when the required
+sample window is available. Do not rely only on in-memory current-day state for
+reports that need historical charge, discharge, SOC movement, cell delta or
+warning-event evidence.
+
 ### BMS Internal Warnings
 
 The BMS may report an internal warning even when calculated reference thresholds are not crossed.
@@ -213,7 +224,7 @@ Telegram should not be assumed to be automatically enabled in Home Assistant. Th
 
 ### Standalone Docker Mode
 
-Standalone Docker is supported for users who want to run the same read-only serial monitor outside Home Assistant.
+Standalone Docker is a supported secondary mode for users who want to run the same read-only serial monitor outside Home Assistant.
 
 It uses:
 

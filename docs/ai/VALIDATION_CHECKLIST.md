@@ -5,7 +5,7 @@ Run these checks before release handoff.
 ## Python Compile
 
 ```powershell
-python -m py_compile bms_monitor.py bms_notify.py web_config.py constants.py supervisor.py tests\test_core_behaviour.py battery_profiles.py
+python -m py_compile bms_monitor.py bms_notify.py web_config.py constants.py supervisor.py tests\test_core_behaviour.py battery_profiles.py bms_live.py bms_history.py standalone_config.py
 ```
 
 ## Unit Tests
@@ -54,6 +54,17 @@ groups_not_in_options []
 duplicate_group_keys []
 ```
 
+## Serial-First Runtime Files
+
+For runtime validation in a running add-on/container, confirm these exist after the monitor has started and completed at least one valid read:
+
+```sh
+ls -lh /data/pacebms-live.json
+ls -lh /data/pacebms_metrics.db*
+```
+
+The Web UI should be able to read `/api/live` and `/api/history` without MQTT being enabled.
+
 ## Documentation Image Links
 
 ```powershell
@@ -89,4 +100,3 @@ if (missing.length) {
 console.log("all_markdown_images_exist");
 '@ | node -
 ```
-
