@@ -6045,7 +6045,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
           <h3>How the table works</h3>
           <ul>
             <li><strong>Profile reference</strong> changes when you select a battery profile and is shown as guidance.</li>
-            <li><strong>Measured</strong> is the latest retained MQTT value from the BMS.</li>
+            <li><strong>Measured</strong> is the latest live value available to the web UI, normally from the monitor-owned serial snapshot and only from retained MQTT when fallback mode is used.</li>
             <li><strong>User defined</strong> is the editable add-on option used for Warning Intelligence, Telegram detail and Telegram filtering after you change it from the default.</li>
             <li><strong>Telegram alert</strong> controls whether that reference line can send Telegram when the warning policy allows it.</li>
             <li><strong>Message detail</strong> controls extra context included in warning messages.</li>
@@ -6076,6 +6076,32 @@ Restart the add-on afterwards for runtime changes to apply.`);
 
           <h3>Safety note</h3>
           <p>These values are reference values for explanation and notification policy only. They do not write thresholds to the BMS and they do not control charge or discharge FETs.</p>
+        `
+      },
+      "History & Live Data": {
+        title: "History & Live Data Settings",
+        html: `
+          <p>These settings control what the web UI displays and whether local SQLite history is stored for graphs and reports.</p>
+
+          <h3>Web UI display source</h3>
+          <ul>
+            <li><code>auto</code> uses live serial data first, then retained MQTT only if live serial data is unavailable and MQTT is enabled.</li>
+            <li><code>monitor_live</code> uses only the monitor-owned live serial snapshot.</li>
+            <li><code>mqtt_retained</code> uses retained MQTT fallback only.</li>
+          </ul>
+          <p>This setting changes the web UI display source only. It does not change how the monitor polls the BMS.</p>
+
+          <h3>Local history</h3>
+          <ul>
+            <li><code>metrics_enabled</code> stores local SQLite history under <code>/data/pacebms_metrics.db</code>.</li>
+            <li><code>history_sample_seconds</code> controls pack and bank metric sampling. Default: <code>10</code> seconds.</li>
+            <li><code>history_cell_sample_seconds</code> controls cell and temperature metric sampling. Default: <code>30</code> seconds.</li>
+            <li><code>history_retention_days</code> controls raw metric retention. Default: <code>90</code> days.</li>
+            <li><code>history_event_retention_days</code> controls event and rollup retention. Default: <code>365</code> days.</li>
+          </ul>
+
+          <h3>Safety note</h3>
+          <p>History storage is local and read-only from the UI. It never writes to the BMS and it does not publish fake values.</p>
         `
       },
       "Telegram": {
@@ -6248,7 +6274,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
 
           <h3>Topic settings</h3>
           <ul>
-            <li><code>mqtt_base_topic</code> — the root MQTT topic used by the add-on. Example: <code>pacebms</code>. Pack topics are then published under this, for example <code>pacebms/pack_1/soc</code>.</li>
+            <li><code>mqtt_base_topic</code> is the root MQTT topic used by the add-on. Example: <code>pacebms</code>. Pack topics are then published under this, for example <code>pacebms/pack_01/soc</code>.</li>
             <li><code>mqtt_ha_discovery_topic</code> — the Home Assistant MQTT discovery root topic. This is normally <code>homeassistant</code>.</li>
           </ul>
 

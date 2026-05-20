@@ -1195,6 +1195,21 @@ class HealthEndpointTests(unittest.TestCase):
                     missing.append(key)
         self.assertEqual(missing, [])
 
+    def test_config_info_buttons_have_help_for_every_card(self):
+        missing_fallback = [group for group in web_config.GROUPS if group not in web_config.CARD_HELP]
+        self.assertEqual(missing_fallback, [])
+
+        template = Path("templates/index.html").read_text(encoding="utf-8")
+        missing_modal = []
+        for group in web_config.GROUPS:
+            if f'"{group}": {{' not in template:
+                missing_modal.append(group)
+
+        self.assertEqual(missing_modal, [])
+        self.assertIn("History & Live Data Settings", template)
+        self.assertIn("monitor-owned serial snapshot", template)
+        self.assertNotIn("latest retained MQTT value from the BMS", template)
+
     def test_build_options_from_form_adds_upgraded_defaults_and_preserves_secrets(self):
         current_options = dict(web_config.DEFAULT_OPTION_VALUES)
         current_options["telegram_bot_token"] = "123456:real-token"

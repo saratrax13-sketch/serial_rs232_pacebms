@@ -1,3 +1,15 @@
+## 2.9.38 - 2026-05-20
+
+### Fixed
+- Added fallback help text for every Config card so info buttons remain meaningful even if the detailed browser modal falls back to server-provided content.
+- Added detailed History & Live Data help explaining serial-first live snapshots, MQTT fallback and SQLite history storage.
+- Updated Battery Profile & Alert References help so measured values are described as live serial-first values instead of retained MQTT-only values.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+- Monitor polling behavior was not changed.
+
 ## 2.9.37 - 2026-05-20
 
 ### Fixed
