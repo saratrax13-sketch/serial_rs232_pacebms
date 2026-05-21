@@ -21,9 +21,12 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 
 - Version `2.9.48` is prepared but uncommitted for a full operational UI audit sprint.
 - Added regression coverage for all main tab buttons, rendered link/form route reachability, live refresh API payload contracts and stable serial-first values across Dashboard, Tech Status and Diagnostics.
+- Added MQTT discovery stability regression coverage confirming discovery topics, `unique_id` values and advertised state topics remain unique across padding edge cases.
+- Added MQTT discovery/state publisher coverage confirming advertised Home Assistant discovery state topics are backed by the serial monitor's MQTT state publishers.
+- Added serial monitor regression coverage confirming the poll helpers use only the expected read-only Pace CID2 requests: version, serial number, analog data, pack capacity and warning/status.
 - Replaced remaining MQTT-specific live-status wording with serial-first live-data wording in Dashboard, Tech Status and Diagnostics refresh/status messages.
 - Operational audit found and fixed an unclosed SQLite connection in the per-pack cell history API used by History refreshes.
-- Validation passed for `2.9.48`: compile, full unit suite (`101` tests), config coverage, rendered template JavaScript syntax check and `git diff --check` with only Windows CRLF normalization warnings.
+- Validation passed for `2.9.48`: compile, full unit suite (`104` tests), config coverage, rendered template JavaScript syntax check and `git diff --check` with only Windows CRLF normalization warnings.
 - Version `2.9.47` is prepared but uncommitted for Warning Intelligence and BMS Caution UI cleanup.
 - BMS-reported warnings below configured user references now show as `BMS Caution` instead of top-level `Warning`, while reference-exceeded cases still escalate to Warning/Critical.
 - Warning Intelligence now keeps active BMS warning context visible but hides user alert reference rows when measured values are safely inside configured references.
@@ -66,7 +69,7 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 - Warning Intelligence must keep separating BMS-reported warnings from user alert references.
 - Reference comparison rows should not be shown as warnings when the measured value is safely inside the configured reference; keep active BMS warning context visible separately as BMS Caution. This was live-validated in `2.9.47`.
 - Home Assistant visible hotfixes require a version bump in `config.yaml`, README Current Version and `CHANGELOG.md`.
-- Do not rename MQTT discovery IDs, topics or Home Assistant entities without explicit migration approval.
+- Do not rename MQTT discovery IDs, topics or Home Assistant entities without explicit migration approval. Padding, base topic, discovery topic and BMS serial changes remain retained-discovery migration risks even when the current code emits unique IDs.
 
 ## Next Recommended Validation
 
@@ -83,4 +86,4 @@ ls -lh /data/pacebms-live.json
 ls -lh /data/pacebms_metrics.db*
 ```
 
-Next recommended step: install/update the Home Assistant add-on to `2.9.48` on the live Home Assistant host and do a final user-facing click-through of Dashboard, Tech Status, Diagnostics, History, Setup, Config, Events, Backups and Logs before committing/uploading the validated sprint.
+Next recommended step: install/update the Home Assistant add-on to `2.9.48` on the live Home Assistant host and do a final user-facing click-through of Dashboard, Tech Status, Diagnostics, History, Setup, Config, Events, Backups and Logs. If MQTT discovery is enabled, confirm no new duplicate entities appear in Home Assistant and old retained discovery topics are not present before committing/uploading the validated sprint.

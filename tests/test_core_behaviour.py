@@ -3002,6 +3002,162 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn("pacebms/pack_01/v_cells/cell_01", [payload["state_topic"] for payload in payloads])
         self.assertTrue(all(retain for _topic, _payload, _qos, retain in client.published))
 
+    def test_discovery_topics_unique_across_padding_edge_cases(self):
+        class FakeMqttClient:
+            def __init__(self):
+                self.published = []
+
+            def publish(self, topic, payload, qos=0, retain=False):
+                self.published.append((topic, payload, qos, retain))
+
+        analog_data = bms_monitor.AnalogData(
+            packs=2,
+            pack_data=[
+                bms_monitor.PackData(pack_number=1, cells=16, temps=4, v_cells=[3300] * 16, t_cells=[25] * 4),
+                bms_monitor.PackData(pack_number=2, cells=16, temps=4, v_cells=[3301] * 16, t_cells=[26] * 4),
+            ],
+        )
+
+        for pack_padding in (0, 1, 2, 3, "bad", None):
+            for cell_padding in (0, 1, 2, 3, "bad", None):
+                with self.subTest(pack_padding=pack_padding, cell_padding=cell_padding):
+                    options = dict(web_config.DEFAULT_OPTION_VALUES)
+                    options.update({
+                        "mqtt_base_topic": "pacebms",
+                        "mqtt_ha_discovery": True,
+                        "mqtt_ha_discovery_topic": "homeassistant",
+                        "zero_pad_number_packs": pack_padding,
+                        "zero_pad_number_cells": cell_padding,
+                    })
+                    client = FakeMqttClient()
+
+                    bms_monitor.publish_ha_discovery(
+                        client,
+                        options,
+                        "HL2107001569",
+                        "P13S120A-12290-2.50",
+                        analog_data,
+                    )
+
+                    topics = [topic for topic, _payload, _qos, _retain in client.published]
+                    payloads = [json.loads(payload) for _topic, payload, _qos, _retain in client.published]
+                    unique_ids = [payload["unique_id"] for payload in payloads]
+                    state_topics = [payload["state_topic"] for payload in payloads]
+
+                    self.assertEqual(len(topics), len(set(topics)))
+                    self.assertEqual(len(unique_ids), len(set(unique_ids)))
+                    self.assertEqual(len(state_topics), len(set(state_topics)))
+
+    def test_discovery_state_topics_match_serial_mqtt_publishers(self):
+        class FakeMqttClient:
+            def __init__(self):
+                self.published = []
+
+            def publish(self, topic, payload, qos=0, retain=False):
+                self.published.append((topic, payload, qos, retain))
+
+        options = dict(web_config.DEFAULT_OPTION_VALUES)
+        options.update({
+            "mqtt_base_topic": "pacebms",
+            "mqtt_ha_discovery": True,
+            "mqtt_ha_discovery_topic": "homeassistant",
+            "zero_pad_number_packs": 2,
+            "zero_pad_number_cells": 2,
+            "mqtt_retain_state": True,
+        })
+        analog_data = bms_monitor.AnalogData(
+            packs=1,
+            pack_data=[
+                bms_monitor.PackData(
+                    pack_number=1,
+                    cells=13,
+                    temps=2,
+                    v_cells=[3300] * 13,
+                    t_cells=[25, 26],
+                    i_pack=-12.5,
+                    v_pack=53.2,
+                    i_remain_cap=88000,
+                    i_full_cap=90000,
+                    i_design_cap=100000,
+                    cycles=123,
+                    soc=97.5,
+                    soh=91.2,
+                    cell_max_diff=35,
+                ),
+            ],
+        )
+        capacity = bms_monitor.PackCapacity(
+            remain_cap=88000,
+            full_cap=90000,
+            design_cap=100000,
+            soc=97.5,
+            soh=91.2,
+        )
+        warn_list = [
+            bms_monitor.WarnData(
+                pack_number=1,
+                warnings="Normal",
+                balancing1="",
+                balancing2="",
+                prot_short_circuit=0,
+                prot_discharge_current=0,
+                prot_charge_current=0,
+                fully=0,
+                current_limit=0,
+                charge_fet=1,
+                discharge_fet=1,
+                pack_indicate=0,
+                reverse=0,
+                ac_in=0,
+                heart=0,
+            )
+        ]
+
+        discovery_client = FakeMqttClient()
+        state_client = FakeMqttClient()
+        bms_monitor.publish_ha_discovery(
+            discovery_client,
+            options,
+            "HL2107001569",
+            "P13S120A-12290-2.50",
+            analog_data,
+        )
+        bms_monitor.publish_analog_data(state_client, options, analog_data, force=True)
+        bms_monitor.publish_pack_capacity(state_client, options, capacity, force=True)
+        bms_monitor.publish_warn_data(state_client, options, warn_list, force=True)
+
+        discovery_state_topics = {
+            json.loads(payload)["state_topic"]
+            for _topic, payload, _qos, _retain in discovery_client.published
+        }
+        published_state_topics = {
+            topic
+            for topic, _payload, _qos, _retain in state_client.published
+        }
+
+        self.assertTrue(discovery_state_topics)
+        self.assertTrue(discovery_state_topics.issubset(published_state_topics))
+
+    def test_serial_poll_helpers_use_only_read_only_cid2_commands(self):
+        with patch("bms_monitor.bms_request", return_value=(False, "skip")) as request:
+            bms_monitor.bms_get_version(object(), {})
+            bms_monitor.bms_get_serial(object(), {})
+            bms_monitor.bms_get_analog_data(object(), {})
+            bms_monitor.bms_get_pack_capacity(object(), {})
+            bms_monitor.bms_get_warn_info(object(), {}, packs=1)
+
+        requested_cid2 = [call.kwargs["cid2"] for call in request.call_args_list]
+        self.assertEqual(
+            requested_cid2,
+            [
+                bms_monitor.constants.cid2SoftwareVersion,
+                bms_monitor.constants.cid2SerialNumber,
+                bms_monitor.constants.cid2PackAnalogData,
+                bms_monitor.constants.cid2PackCapacity,
+                bms_monitor.constants.cid2WarnInfo,
+            ],
+        )
+
     def test_config_advanced_help_warns_about_entity_sensitive_padding(self):
         options = dict(web_config.DEFAULT_OPTION_VALUES)
         live = {
