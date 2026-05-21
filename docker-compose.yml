@@ -5,6 +5,10 @@ services:
     container_name: pacebms-rs232-monitor
     restart: unless-stopped
 
+    env_file:
+      - path: .env
+        required: false
+
     volumes:
       - ./data:/data
 
