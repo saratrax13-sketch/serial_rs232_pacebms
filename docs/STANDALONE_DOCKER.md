@@ -57,7 +57,7 @@ PACEBMS_BMS_BAUDRATE=9600
 PACEBMS_MQTT_ENABLED=false
 ```
 
-Set `PACEBMS_MQTT_ENABLED=true` and provide MQTT host/user/password only if you want MQTT/Home Assistant output.
+Set `PACEBMS_MQTT_ENABLED=true` and provide MQTT host/user/password only if you want MQTT/Home Assistant output. When MQTT is enabled, also review the discovery topic, retained state and force-republish values before Home Assistant discovers entities.
 
 Start the container:
 
@@ -140,6 +140,11 @@ The compose file exposes the common setup values:
 | `PACEBMS_MQTT_USER` | MQTT username |
 | `PACEBMS_MQTT_PASSWORD` | MQTT password |
 | `PACEBMS_MQTT_BASE_TOPIC` | MQTT base topic, default `pacebms` |
+| `PACEBMS_MQTT_HA_DISCOVERY` | Enables Home Assistant MQTT discovery |
+| `PACEBMS_MQTT_HA_DISCOVERY_TOPIC` | Home Assistant discovery root topic, default `homeassistant` |
+| `PACEBMS_MQTT_RETAIN_STATE` | Retains MQTT state topics for Home Assistant and fallback recovery |
+| `PACEBMS_STATE_FORCE_REPUBLISH_SECONDS` | Periodic state republish interval in seconds |
+| `PACEBMS_WARN_FORCE_REPUBLISH_SECONDS` | Periodic warning/status republish interval in seconds |
 | `PACEBMS_NOTIFY_ENABLED` | Enables direct Telegram notifications |
 | `PACEBMS_TELEGRAM_BOT_TOKEN` | Telegram bot token |
 | `PACEBMS_TELEGRAM_CHAT_ID` | Telegram chat ID |
