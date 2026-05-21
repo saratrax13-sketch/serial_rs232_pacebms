@@ -19,23 +19,16 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 
 ## Latest Sprint Outcome
 
-- Version `2.9.47` is prepared but uncommitted for duplicate BMS Caution wording cleanup.
-- Tech Status and Diagnostics now keep Overall Status as BMS Caution while showing the actual power-flow state in the Operating State tile.
-- Version `2.9.46` is prepared but uncommitted for BMS warning clear UI refresh validation.
-- Backend/API validation confirms a normal BMS warning read clears warning count, pack severity, Warning Intelligence rows and BMS cell warning labels.
-- Status and Diagnostics soft refresh now reload their detailed warning sections when the live warning signature changes, so stale BMS warning badges do not linger after the BMS resets.
-- Version `2.9.45` is prepared but uncommitted for all-tabs BMS Caution UI alignment.
-- Overall status, dashboard operating state, monitoring health and warning health cards now use BMS Caution for BMS-reported warnings below configured user references.
-- Added regression coverage so below-reference BMS warnings remain visible as caution without top-level Warning labels.
-- Version `2.9.44` prepared a Home Assistant test build for restored BMS Caution warning detail rows.
-- Version `2.9.43` is prepared but uncommitted for Warning Intelligence UI severity polish.
-- Web UI now shows BMS-reported warnings below configured user references as BMS Caution instead of Warning.
-- BMS-reported warning details now still show measured cell/pack voltage, reference and margin rows for below-reference BMS cautions.
-- Diagnostics cell badges now style BMS-only warning labels as caution, while reference crossings still use alert styling.
+- Version `2.9.47` is prepared but uncommitted for Warning Intelligence and BMS Caution UI cleanup.
+- BMS-reported warnings below configured user references now show as `BMS Caution` instead of top-level `Warning`, while reference-exceeded cases still escalate to Warning/Critical.
+- Warning Intelligence now keeps active BMS warning context visible but hides user alert reference rows when measured values are safely inside configured references.
+- BMS-reported warning detail rows now show measured cell/pack voltage, reference and margin rows for below-reference BMS cautions.
+- Backend/API regression coverage confirms a normal BMS warning read clears warning count, pack severity, Warning Intelligence rows and BMS cell warning labels.
+- Status and Diagnostics soft refresh now reload detailed warning sections when the live warning signature changes, so stale BMS warning badges do not linger after the BMS resets.
+- Tech Status and Diagnostics now keep Overall Status as BMS Caution while Operating State shows actual power-flow state such as Charging, Discharging, Idle or Fully charged.
 - Live serial Warning Intelligence now uses current add-on options for cell-delta references, alert toggles and BMS warning Telegram policy.
-- The Warning Intelligence Telegram section is now labelled BMS Warning Telegram Decision to avoid confusion with SOC/SOH/FET Telegram alerts.
-- Added regression coverage for BMS-only below-reference UI caution handling and made history-report tests deterministic around day-boundary windows.
-- Validation passed: compile, full unit suite, config coverage and `git diff --check` with only Windows CRLF normalization warnings.
+- The Warning Intelligence Telegram section is labelled BMS Warning Telegram Decision to avoid confusion with SOC/SOH/FET Telegram alerts.
+- Validation passed for `2.9.47`: compile, full unit suite (`98` tests), config coverage and `git diff --check` with only Windows CRLF normalization warnings.
 - Version `2.9.42` prepared Warning Intelligence and Telegram warning-detail row filtering.
 - Warning Intelligence now hides user alert reference rows when the measured value is still safely inside the configured reference, while keeping active BMS warning context and explanation visible.
 - Detailed Telegram warning output now hides non-exceeded high-cell and pack-voltage comparison rows, but still shows rows at the reference boundary or beyond it.
@@ -84,4 +77,4 @@ ls -lh /data/pacebms-live.json
 ls -lh /data/pacebms_metrics.db*
 ```
 
-Next recommended step: after validation, install/update the Home Assistant add-on to `2.9.47` on the live Home Assistant host, confirm Warning Intelligence shows Pack 01 as BMS Caution for BMS-only below-reference warnings, confirm Tech Status/Diagnostics Operating State shows the power-flow state instead of repeating BMS Caution, and confirm Status/Diagnostics clear warning badges after the BMS reports normal warning state again.
+Next recommended step: install/update the Home Assistant add-on to `2.9.47` on the live Home Assistant host, then confirm three live UI states: Pack 01 shows BMS Caution for BMS-only below-reference warnings, Tech Status/Diagnostics Operating State shows the power-flow state instead of repeating BMS Caution, and Status/Diagnostics clear warning badges after `/data/pacebms-live.json` reports `"warnings": "Normal"`.
