@@ -1,3 +1,15 @@
+## 2.9.48 - 2026-05-21
+
+### Fixed
+- Test build for Home Assistant: added operational UI audit coverage for all main tabs, rendered navigation/actions, live refresh API payloads and stable serial-first values across Dashboard, Tech Status and Diagnostics.
+- Replaced remaining MQTT-specific live-status wording with serial-first live-data wording in Dashboard, Tech Status and Diagnostics refresh/status messages.
+- Closed the SQLite connection used by the per-pack cell history API so repeated history refreshes do not leave database handles open.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+- Monitor polling behavior was not changed.
+
 ## 2.9.47 - 2026-05-21
 
 ### Fixed

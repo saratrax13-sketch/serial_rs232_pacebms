@@ -2641,16 +2641,17 @@ def build_diagnostics(options, live=None):
     warning_count = int(live.get("warning_count", 0) or 0)
     highest_warning, highest_warning_class = _highest_pack_warning(live.get("packs") or [])
 
-    mqtt_ok = bool(live.get("ok"))
+    live_ok = bool(live.get("ok"))
+    data_source = live.get("data_source") or ("Live serial" if str(live.get("source", "")) == "live_serial" else "Live data")
     bms_fresh = stale_state == "OFF" and live.get("last_analog_read", "Unknown") not in ("Unknown", "Not available")
     monitor_ok = availability == "online" and monitor_state == "running"
 
     health_cards = [
         {
-            "title": "MQTT Snapshot",
-            "status": "OK" if mqtt_ok else "Check",
-            "class": "healthy" if mqtt_ok else "warning",
-            "detail": "Live MQTT retained values were received." if mqtt_ok else live.get("error", "No retained MQTT values received."),
+            "title": "Live Data",
+            "status": "OK" if live_ok else "Check",
+            "class": "healthy" if live_ok else "warning",
+            "detail": f"{data_source} values were received." if live_ok else live.get("error", "No live data values received."),
         },
         {
             "title": "Monitor",
@@ -4471,7 +4472,8 @@ def api_history_cells(pack_id):
     init_history_db(HISTORY_DB_PATH)
     import sqlite3
     since = int(time.time()) - max(60, range_seconds)
-    with sqlite3.connect(HISTORY_DB_PATH) as conn:
+    conn = sqlite3.connect(HISTORY_DB_PATH)
+    try:
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
             """
@@ -4482,6 +4484,8 @@ def api_history_cells(pack_id):
             """,
             (since, str(pack_id).zfill(2)),
         ).fetchall()
+    finally:
+        conn.close()
     return jsonify({"ok": True, "range_seconds": range_seconds, "cells": [dict(row) for row in rows]})
 
 

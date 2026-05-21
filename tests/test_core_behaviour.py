@@ -2,6 +2,7 @@ import unittest
 import importlib.util
 import json
 import os
+import re
 import sqlite3
 import sys
 import tempfile
@@ -1257,6 +1258,104 @@ class HealthEndpointTests(unittest.TestCase):
                 else:
                     form[key] = str(value)
         return form
+
+    def _operational_live_snapshot(self):
+        return {
+            "ok": True,
+            "source": "live_serial",
+            "data_source": "Live serial",
+            "snapshot_id": 123456789,
+            "availability": "online",
+            "monitor_state": "running",
+            "stale": "OFF",
+            "stale_reason": "Fresh",
+            "last_analog_read": "2026-05-21 12:00:00",
+            "last_warn_read": "2026-05-21 12:00:01",
+            "analog_age_seconds": 1,
+            "warn_age_seconds": 1,
+            "overall_status": "Healthy",
+            "overall_class": "healthy",
+            "layout": "2 pack(s), 26 cells total - Pack 01: 13 cells, Pack 02: 13 cells",
+            "bms_sn": "HL2107001569",
+            "bms_version": "P13S120A-12290-2.50",
+            "base_topic": "pacebms",
+            "fetched_at": "2026-05-21 12:00:02",
+            "error": "",
+            "severity_summary": {"Normal": 2},
+            "pack_count": 2,
+            "total_cells": 26,
+            "warning_count": 0,
+            "packs": [
+                {
+                    "id": "01",
+                    "cell_count": 13,
+                    "role": "Master",
+                    "serial": "HL2107001569",
+                    "soc": "94.96",
+                    "soh": "88.54",
+                    "cycles": "992",
+                    "remaining_capacity_ah": "84",
+                    "full_capacity_ah": "89",
+                    "design_capacity_ah": "100",
+                    "voltage": "52.972",
+                    "current": "-18.71",
+                    "power_kw": "-0.99",
+                    "delta": "33",
+                    "temperatures": [26.7],
+                    "warnings": "Normal",
+                    "severity_class": "healthy",
+                    "severity_label": "Normal",
+                    "highest_cell": {"number": "08", "voltage": "4.092"},
+                    "lowest_cell": {"number": "01", "voltage": "4.059"},
+                    "cell_high_ref": "4.20",
+                    "cell_low_ref": "3.00",
+                    "pack_high_ref": "54.60",
+                    "pack_low_ref": "39.00",
+                    "charge_fet": "ON",
+                    "discharge_fet": "ON",
+                    "fully": "OFF",
+                    "cells": [
+                        {"number": f"{idx:02d}", "voltage": f"{4.060 + idx / 1000:.3f}", "labels": [], "class": "cell-normal"}
+                        for idx in range(1, 14)
+                    ],
+                    "reference_checks": ["No active BMS warning."],
+                },
+                {
+                    "id": "02",
+                    "cell_count": 13,
+                    "role": "Slave",
+                    "serial": "N/A",
+                    "soc": "97.58",
+                    "soh": "90.07",
+                    "cycles": "511",
+                    "remaining_capacity_ah": "88",
+                    "full_capacity_ah": "90",
+                    "design_capacity_ah": "100",
+                    "voltage": "53.004",
+                    "current": "-17.08",
+                    "power_kw": "-0.91",
+                    "delta": "45",
+                    "temperatures": [26.4],
+                    "warnings": "Normal",
+                    "severity_class": "healthy",
+                    "severity_label": "Normal",
+                    "highest_cell": {"number": "01", "voltage": "4.088"},
+                    "lowest_cell": {"number": "13", "voltage": "4.043"},
+                    "cell_high_ref": "4.20",
+                    "cell_low_ref": "3.00",
+                    "pack_high_ref": "54.60",
+                    "pack_low_ref": "39.00",
+                    "charge_fet": "ON",
+                    "discharge_fet": "ON",
+                    "fully": "OFF",
+                    "cells": [
+                        {"number": f"{idx:02d}", "voltage": f"{4.040 + idx / 1000:.3f}", "labels": [], "class": "cell-normal"}
+                        for idx in range(1, 14)
+                    ],
+                    "reference_checks": ["No active BMS warning."],
+                },
+            ],
+        }
 
     def test_setup_page_renders_setup_checklist(self):
         options = {
@@ -2632,72 +2731,7 @@ class HealthEndpointTests(unittest.TestCase):
 
     def test_all_main_tab_buttons_point_to_renderable_tabs(self):
         options = dict(web_config.DEFAULT_OPTION_VALUES)
-        live = {
-            "ok": True,
-            "availability": "online",
-            "monitor_state": "running",
-            "stale": "OFF",
-            "stale_reason": "Fresh",
-            "last_analog_read": "2026-05-19 12:00:00",
-            "last_warn_read": "2026-05-19 12:00:01",
-            "analog_age_seconds": 1,
-            "warn_age_seconds": 1,
-            "overall_status": "Healthy",
-            "overall_class": "healthy",
-            "layout": "2 pack(s), 26 cells total",
-            "bms_sn": "TEST",
-            "base_topic": "pacebms",
-            "fetched_at": "now",
-            "error": "",
-            "severity_summary": {},
-            "pack_count": 2,
-            "total_cells": 26,
-            "warning_count": 0,
-            "packs": [
-                {
-                    "id": "01",
-                    "cell_count": 13,
-                    "role": "Master",
-                    "serial": "PACK01",
-                    "soc": "98.1",
-                    "soh": "90.3",
-                    "cycles": "990",
-                    "remaining_capacity_ah": "88",
-                    "full_capacity_ah": "90",
-                    "design_capacity_ah": "100",
-                    "voltage": "53.8",
-                    "current": "0.0",
-                    "delta": "35",
-                    "temperatures": [27.0],
-                    "warnings": "Normal",
-                    "severity_class": "healthy",
-                    "severity_label": "Normal",
-                    "highest_cell": {"number": "08", "voltage": "4.158"},
-                    "lowest_cell": {"number": "01", "voltage": "4.123"},
-                },
-                {
-                    "id": "02",
-                    "cell_count": 13,
-                    "role": "Slave",
-                    "serial": "N/A",
-                    "soc": "99.9",
-                    "soh": "88.5",
-                    "cycles": "510",
-                    "remaining_capacity_ah": "90",
-                    "full_capacity_ah": "90",
-                    "design_capacity_ah": "100",
-                    "voltage": "53.6",
-                    "current": "0.0",
-                    "delta": "43",
-                    "temperatures": [27.0],
-                    "warnings": "Normal",
-                    "severity_class": "healthy",
-                    "severity_label": "Normal",
-                    "highest_cell": {"number": "01", "voltage": "4.135"},
-                    "lowest_cell": {"number": "13", "voltage": "4.092"},
-                },
-            ],
-        }
+        live = self._operational_live_snapshot()
 
         with (
             patch("web_config.load_options", return_value=(options, "")),
@@ -2724,51 +2758,87 @@ class HealthEndpointTests(unittest.TestCase):
                     self.assertEqual(tab_response.status_code, 200)
                     self.assertIn('class="tab-panel active"', tab_response.get_data(as_text=True))
 
+    def test_operational_ui_routes_links_and_forms_are_reachable(self):
+        options = dict(web_config.DEFAULT_OPTION_VALUES)
+        options["mqtt_enabled"] = False
+        live = self._operational_live_snapshot()
+        expected_tabs = {"dashboard", "status", "diagnostics", "history", "setup", "config", "events", "backups", "logs"}
+
+        with (
+            patch("web_config.load_options", return_value=(options, "")),
+            patch("web_config.get_page_live_snapshot", return_value=live),
+            patch("web_config.refresh_live_snapshot_cache_once", return_value=live),
+            patch("web_config.load_events", return_value=[]),
+            patch("web_config.list_config_backups", return_value=[]),
+            patch("web_config.build_log_view", return_value={"debug_output": 0, "rows": []}),
+        ):
+            client = web_config.app.test_client()
+            html_by_tab = {}
+            for tab in sorted(expected_tabs):
+                response = client.get(f"/?tab={tab}")
+                self.assertEqual(response.status_code, 200)
+                html_by_tab[tab] = response.get_data(as_text=True)
+
+            rendered = "\n".join(html_by_tab.values())
+            tab_links = set(re.findall(r'href="\?tab=([^"]+)"', rendered))
+            self.assertEqual(tab_links, expected_tabs)
+
+            rules = {rule.rule.lstrip("/") for rule in web_config.app.url_map.iter_rules() if "<" not in rule.rule}
+            routes_to_ignore = {"", "#"}
+            for attr in ("href", "action"):
+                targets = re.findall(rf'{attr}="([^"]+)"', rendered)
+                for target in targets:
+                    with self.subTest(attr=attr, target=target):
+                        if target.startswith(("?", "#", "http:", "https:", "mailto:", "javascript:")):
+                            continue
+                        path = target.split("?", 1)[0].strip("/")
+                        if path in routes_to_ignore:
+                            continue
+                        self.assertIn(path, rules)
+
+            get_routes = [
+                "export-config.yaml",
+                "download-logs.txt",
+                "export-events.json",
+                "export-events.csv",
+                "download-all-config-backups.zip",
+                "download-diagnostics.json",
+                "download-support-bundle.zip",
+                "api/status",
+                "api/live",
+                "api/history",
+                "api/history/pack/01",
+                "api/history/cells/01",
+                "api/events",
+            ]
+            for route in get_routes:
+                with self.subTest(route=route):
+                    response = client.get(f"/{route}")
+                    self.assertLess(response.status_code, 500)
+
+            with (
+                patch("web_config.test_telegram", return_value=(True, "Telegram OK")),
+                patch("web_config.test_mqtt", return_value=(True, "MQTT OK")),
+                patch("web_config.test_full_monitoring", return_value=(True, "Full monitoring OK")),
+                patch("web_config.create_config_backup", return_value=(True, "backup ok", "options-backup-manual.json")),
+                patch("web_config.restart_addon", return_value=(True, "restart requested")),
+                patch("web_config.append_event"),
+            ):
+                post_routes = [
+                    "test-telegram",
+                    "test-mqtt",
+                    "test-full-monitoring",
+                    "create-config-backup",
+                    "restart-addon",
+                ]
+                for route in post_routes:
+                    with self.subTest(route=route):
+                        response = client.post(f"/{route}")
+                        self.assertLess(response.status_code, 500)
+
     def test_api_status_payload_supports_full_soft_refresh_data(self):
         options = dict(web_config.DEFAULT_OPTION_VALUES)
-        live = {
-            "ok": True,
-            "availability": "online",
-            "monitor_state": "running",
-            "stale": "OFF",
-            "stale_reason": "Fresh",
-            "last_analog_read": "2026-05-19 12:00:00",
-            "last_warn_read": "2026-05-19 12:00:01",
-            "analog_age_seconds": 1,
-            "warn_age_seconds": 1,
-            "overall_status": "Healthy",
-            "overall_class": "healthy",
-            "layout": "1 pack(s), 13 cells total",
-            "bms_sn": "TEST",
-            "base_topic": "pacebms",
-            "fetched_at": "now",
-            "error": "",
-            "severity_summary": {},
-            "pack_count": 1,
-            "total_cells": 13,
-            "warning_count": 0,
-            "packs": [{
-                "id": "01",
-                "cell_count": 13,
-                "role": "Master",
-                "serial": "PACK01",
-                "soc": "98.1",
-                "soh": "90.3",
-                "cycles": "990",
-                "remaining_capacity_ah": "88",
-                "full_capacity_ah": "90",
-                "design_capacity_ah": "100",
-                "voltage": "53.8",
-                "current": "0.0",
-                "delta": "35",
-                "temperatures": [27.0],
-                "warnings": "Normal",
-                "severity_class": "healthy",
-                "severity_label": "Normal",
-                "highest_cell": {"number": "08", "voltage": "4.158"},
-                "lowest_cell": {"number": "01", "voltage": "4.123"},
-            }],
-        }
+        live = self._operational_live_snapshot()
 
         with (
             patch("web_config.load_options", return_value=(options, "")),
@@ -2787,11 +2857,112 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["overall_status"], "Healthy")
         self.assertEqual(payload["packs"][0]["id"], "01")
-        self.assertEqual(payload["packs"][0]["soc"], "98.1")
-        self.assertEqual(payload["packs"][0]["highest_cell"]["voltage"], "4.158")
+        self.assertEqual(payload["packs"][0]["soc"], "94.96")
+        self.assertEqual(payload["packs"][0]["highest_cell"]["voltage"], "4.092")
         self.assertIn("monitoring_health", payload)
         self.assertIn("user_summary", payload)
-        self.assertEqual(payload["user_summary"]["last_updated"], "now")
+        self.assertEqual(payload["user_summary"]["last_updated"], "2026-05-21 12:00:02")
+
+    def test_api_refresh_payload_contract_covers_live_tab_fields(self):
+        options = dict(web_config.DEFAULT_OPTION_VALUES)
+        live = self._operational_live_snapshot()
+
+        with (
+            patch("web_config.load_options", return_value=(options, "")),
+            patch("web_config.refresh_live_snapshot_cache_once", return_value=live),
+            patch("web_config.load_monitor_health", return_value={
+                "updated_at": 1000,
+                "state": "running",
+                "health_timeout_seconds": 60,
+            }),
+            patch("web_config.time.time", return_value=1001),
+        ):
+            client = web_config.app.test_client()
+            status_payload = client.get("/api/status").get_json()
+            live_payload = client.get("/api/live").get_json()
+
+        for payload in (status_payload, live_payload):
+            with self.subTest(source=payload.get("source")):
+                for key in (
+                    "ok", "source", "data_source", "snapshot_id", "overall_status", "overall_class",
+                    "availability", "monitor_state", "stale", "stale_reason", "layout",
+                    "bms_sn", "bms_version", "base_topic", "fetched_at", "last_analog_read",
+                    "last_warn_read", "analog_age_seconds", "warn_age_seconds", "pack_count",
+                    "total_cells", "warning_count", "warning_signature", "monitoring_health",
+                    "user_summary", "packs",
+                ):
+                    self.assertIn(key, payload)
+
+                summary = payload["user_summary"]
+                for key in (
+                    "status", "class", "power_state", "power_state_class", "summary",
+                    "combined_soc", "combined_soh", "total_power_kw", "power_flow",
+                    "power_detail", "power_class", "pack_voltage", "battery_current",
+                    "remaining_capacity_ah", "remaining_energy_kwh", "full_capacity_ah",
+                    "capacity_detail", "runtime_remaining", "runtime_detail", "active_warnings",
+                    "warning_summary", "warning_class", "last_updated",
+                ):
+                    self.assertIn(key, summary)
+
+                self.assertEqual(payload["pack_count"], 2)
+                self.assertEqual(payload["total_cells"], 26)
+                self.assertEqual(payload["warning_count"], 0)
+                self.assertEqual(summary["power_state"], "Discharging")
+                self.assertEqual(summary["combined_soc"], "96.3%")
+                self.assertEqual(summary["remaining_capacity_ah"], "172 Ah")
+                self.assertEqual(summary["battery_current"], "-35.79 A")
+                self.assertEqual(summary["warning_summary"], "No active warnings")
+
+                first_pack = payload["packs"][0]
+                for key in (
+                    "id", "role", "serial", "cell_count", "soc", "soh", "cycles",
+                    "remaining_capacity_ah", "full_capacity_ah", "design_capacity_ah",
+                    "voltage", "current", "power_kw", "delta", "warnings", "severity_class",
+                    "severity_label", "highest_cell", "lowest_cell", "cells", "warning_intelligence",
+                    "reference_checks", "charge_fet", "discharge_fet", "fully",
+                ):
+                    self.assertIn(key, first_pack)
+                self.assertEqual(first_pack["warnings"], "Normal")
+                self.assertEqual(first_pack["severity_label"], "Normal")
+                self.assertEqual(first_pack["highest_cell"]["voltage"], "4.092")
+                self.assertEqual(len(first_pack["cells"]), 13)
+
+    def test_operational_tabs_render_same_live_serial_values(self):
+        options = dict(web_config.DEFAULT_OPTION_VALUES)
+        live = self._operational_live_snapshot()
+
+        with (
+            patch("web_config.load_options", return_value=(options, "")),
+            patch("web_config.get_page_live_snapshot", return_value=live),
+            patch("web_config.load_events", return_value=[]),
+            patch("web_config.list_config_backups", return_value=[]),
+        ):
+            client = web_config.app.test_client()
+            pages = {
+                tab: client.get(f"/?tab={tab}").get_data(as_text=True)
+                for tab in ("dashboard", "status", "diagnostics")
+            }
+
+        for tab, html in pages.items():
+            with self.subTest(tab=tab):
+                self.assertIn("Live serial", html)
+                self.assertIn("HL2107001569", html)
+                self.assertIn("94.96", html)
+                self.assertIn("97.58", html)
+                self.assertIn("52.972", html)
+                self.assertIn("53.004", html)
+                self.assertIn("-18.71", html)
+                self.assertIn("-17.08", html)
+                self.assertIn("33", html)
+                self.assertIn("45", html)
+                self.assertIn("No active BMS warning", html)
+
+        self.assertIn("P13S120A-12290-2.50", pages["diagnostics"])
+        self.assertIn("Operating State", pages["status"])
+        self.assertIn("Discharging", pages["status"])
+        self.assertIn("Operating State", pages["diagnostics"])
+        self.assertIn("Discharging", pages["diagnostics"])
+        self.assertNotIn("retained MQTT snapshot", "\n".join(pages.values()))
 
     def test_discovery_topics_and_unique_ids_are_unique_for_default_padding(self):
         class FakeMqttClient:

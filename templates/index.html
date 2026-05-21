@@ -5725,7 +5725,7 @@ This cannot be undone.`);">
     async function refreshStatus(quiet = false) {
       const msg = document.getElementById("refresh-message");
       if (msg && !quiet) {
-        msg.textContent = "Refreshing live MQTT status...";
+        msg.textContent = "Refreshing live status...";
       }
 
       try {
@@ -7169,7 +7169,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
             warningBox.textContent = `${data.warning_count} pack(s) currently have active BMS warnings. Open the Status tab for the full warning text and reference checks.`;
           } else {
             warningBox.className = "normal-box";
-            warningBox.textContent = "No active BMS warnings reported in the current retained MQTT snapshot.";
+            warningBox.textContent = "No active BMS warnings reported in the current live data snapshot.";
           }
         }
 
@@ -7308,10 +7308,10 @@ Restart the add-on afterwards for runtime changes to apply.`);
         }
 
         updateDiagnosticCard(
-          "MQTT Snapshot",
+          "Live Data",
           "OK",
           "healthy",
-          "Live MQTT retained values were received."
+          `${data.data_source || "Live data"} values were received.`
         );
 
         updateDiagnosticCard(

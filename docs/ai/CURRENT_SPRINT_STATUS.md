@@ -19,6 +19,11 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 
 ## Latest Sprint Outcome
 
+- Version `2.9.48` is prepared but uncommitted for a full operational UI audit sprint.
+- Added regression coverage for all main tab buttons, rendered link/form route reachability, live refresh API payload contracts and stable serial-first values across Dashboard, Tech Status and Diagnostics.
+- Replaced remaining MQTT-specific live-status wording with serial-first live-data wording in Dashboard, Tech Status and Diagnostics refresh/status messages.
+- Operational audit found and fixed an unclosed SQLite connection in the per-pack cell history API used by History refreshes.
+- Validation passed for `2.9.48`: compile, full unit suite (`101` tests), config coverage, rendered template JavaScript syntax check and `git diff --check` with only Windows CRLF normalization warnings.
 - Version `2.9.47` is prepared but uncommitted for Warning Intelligence and BMS Caution UI cleanup.
 - BMS-reported warnings below configured user references now show as `BMS Caution` instead of top-level `Warning`, while reference-exceeded cases still escalate to Warning/Critical.
 - Warning Intelligence now keeps active BMS warning context visible but hides user alert reference rows when measured values are safely inside configured references.
@@ -29,6 +34,7 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 - Live serial Warning Intelligence now uses current add-on options for cell-delta references, alert toggles and BMS warning Telegram policy.
 - The Warning Intelligence Telegram section is labelled BMS Warning Telegram Decision to avoid confusion with SOC/SOH/FET Telegram alerts.
 - Validation passed for `2.9.47`: compile, full unit suite (`98` tests), config coverage and `git diff --check` with only Windows CRLF normalization warnings.
+- Live Home Assistant validation passed for `2.9.47`: Pack 01 showed BMS Caution for BMS-only below-reference warnings, Tech Status/Diagnostics Operating State showed the power-flow state instead of repeating BMS Caution, and Status/Diagnostics cleared warning badges after `/data/pacebms-live.json` reported `"warnings": "Normal"`.
 - Version `2.9.42` prepared Warning Intelligence and Telegram warning-detail row filtering.
 - Warning Intelligence now hides user alert reference rows when the measured value is still safely inside the configured reference, while keeping active BMS warning context and explanation visible.
 - Detailed Telegram warning output now hides non-exceeded high-cell and pack-voltage comparison rows, but still shows rows at the reference boundary or beyond it.
@@ -57,8 +63,8 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 - Standalone Docker smoke validation used `/dev/null` instead of real BMS hardware, so it did not create `/data/pacebms-live.json` from a valid serial read.
 - Daily summaries should keep using SQLite `pack_metrics` and `warning_events` for restart-safe energy movement and warnings.
 - Cell delta reports should keep using SQLite `pack_metrics`, including overnight windows and persisted pack IDs.
-- Warning Intelligence must separate BMS-reported warnings from user alert references.
-- Reference comparison rows should not be shown as warnings when the measured value is safely inside the configured reference; keep active BMS warning context visible separately as BMS Caution.
+- Warning Intelligence must keep separating BMS-reported warnings from user alert references.
+- Reference comparison rows should not be shown as warnings when the measured value is safely inside the configured reference; keep active BMS warning context visible separately as BMS Caution. This was live-validated in `2.9.47`.
 - Home Assistant visible hotfixes require a version bump in `config.yaml`, README Current Version and `CHANGELOG.md`.
 - Do not rename MQTT discovery IDs, topics or Home Assistant entities without explicit migration approval.
 
@@ -70,11 +76,11 @@ python -m unittest discover -s tests -v
 git diff --check
 ```
 
-For live add-on/container validation, run inside the PaceBMS container:
+For future live add-on/container validation, run inside the PaceBMS container:
 
 ```sh
 ls -lh /data/pacebms-live.json
 ls -lh /data/pacebms_metrics.db*
 ```
 
-Next recommended step: install/update the Home Assistant add-on to `2.9.47` on the live Home Assistant host, then confirm three live UI states: Pack 01 shows BMS Caution for BMS-only below-reference warnings, Tech Status/Diagnostics Operating State shows the power-flow state instead of repeating BMS Caution, and Status/Diagnostics clear warning badges after `/data/pacebms-live.json` reports `"warnings": "Normal"`.
+Next recommended step: install/update the Home Assistant add-on to `2.9.48` on the live Home Assistant host and do a final user-facing click-through of Dashboard, Tech Status, Diagnostics, History, Setup, Config, Events, Backups and Logs before committing/uploading the validated sprint.
