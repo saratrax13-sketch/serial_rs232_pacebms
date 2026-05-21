@@ -1,3 +1,17 @@
+## 2.10.0 - 2026-05-21
+
+### Stable Release
+- Marked the project as complete for normal Home Assistant add-on use, with standalone Docker supported as the secondary deployment mode.
+- Added close-off support entrypoints for installation, first-time setup, configuration reference, config backup/restore, final acceptance testing and Docker smoke validation.
+- Added a Docker smoke-test helper for Compose config, build, startup, `/health` and `/api/status` checks.
+- Documented that `/dev/null` Docker serial mapping validates container startup and UI health only, not real BMS serial reads or Pace frame parsing.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+- Monitor polling behavior was not changed.
+- This is a non-breaking normal-use readiness release, not a major migration.
+
 ## 2.9.49 - 2026-05-21
 
 ### Fixed
