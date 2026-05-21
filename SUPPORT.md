@@ -8,11 +8,15 @@ Please collect the following information:
 - Battery model
 - Number of packs
 - Cell count per pack
-- Connection type, for example Serial or TCP
+- Connection type, currently Serial only
 - Whether MQTT is connected
 - Whether the web UI opens
 - Relevant add-on logs
 - `debug_output` level used
+
+TCP/IP BMS support was intentionally removed. RS485/Modbus is not currently
+supported by this monitor unless a future sprint explicitly investigates it
+from raw logs and the maintainer approves the protocol change.
 
 For protocol/debug issues, temporarily set:
 

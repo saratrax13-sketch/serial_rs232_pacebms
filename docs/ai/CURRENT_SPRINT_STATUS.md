@@ -53,6 +53,7 @@ python -m unittest discover -s tests -v
 - Markdown image link validation passed with `all_markdown_images_exist`.
 - `git diff --check` passed with only the known Windows README line-ending warning.
 - Local Docker validation could not run on the Windows host because `docker` was not available on PATH.
+- Standalone Docker startup/UI smoke validation passed on Ubuntu VM `192.168.10.88` using `/dev/null`: image built, container started, `/health` returned `200`, `/api/status` returned `200`, and the temporary container was removed.
 
 ## Recent Focus Areas
 
@@ -66,11 +67,12 @@ python -m unittest discover -s tests -v
 - MQTT discovery stability and duplicate-entity prevention.
 - Standalone Docker startup/UI smoke validation support.
 - Close-off docs and screenshot/manual readiness.
+- Home Assistant packaging review for the working `2.10.0` add-on layout.
 
 ## Known Watch Areas
 
-- Standalone Docker smoke validation should be rerun on a Docker host for `2.10.0`; the Windows workstation used for this handover does not have Docker on PATH.
 - Standalone Docker tests using `/dev/null` validate build, startup, Web UI and health endpoints only. They do not validate real serial reads or Pace frame parsing.
+- If packaging files change, rerun Home Assistant add-on validation and standalone Docker smoke validation.
 - Daily summaries should keep using SQLite `pack_metrics` and `warning_events` for restart-safe energy movement and warnings.
 - Cell delta reports should keep using SQLite `pack_metrics`, including overnight windows and persisted pack IDs.
 - Warning Intelligence must keep separating BMS-reported warnings from user alert references.

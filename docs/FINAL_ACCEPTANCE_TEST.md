@@ -6,6 +6,12 @@ Release: `2.10.0`
 
 ## Static Validation
 
+- [ ] Run the combined local validation script when using PowerShell:
+
+```powershell
+.\scripts\validate.ps1
+```
+
 - [ ] Confirm clean repo state:
 
 ```powershell
