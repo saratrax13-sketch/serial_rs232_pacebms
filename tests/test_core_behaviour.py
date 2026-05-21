@@ -72,6 +72,7 @@ import battery_profiles
 import standalone_config
 import web_config
 import bms_live
+import bms_history
 
 
 def build_pace_response(info: bytes = b"ABCD") -> bytes:
@@ -193,6 +194,32 @@ class MonitorRuntimeResilienceTests(unittest.TestCase):
         self.assertFalse(second)
         self.assertEqual(client.published, [("pacebms/test", "123", 0, True)])
         self.assertEqual(bms_monitor._publish_cache["pacebms/test"], "123")
+
+    def test_serial_receive_failure_returns_error_without_publishing_state(self):
+        class FakeSerial:
+            def write(self, request):
+                self.last_request = request
+
+            def readline(self):
+                return b""
+
+        ok, message = bms_monitor.bms_request(FakeSerial(), {"debug_output": 0})
+
+        self.assertFalse(ok)
+        self.assertEqual(message, "Receive failed")
+        self.assertEqual(bms_monitor._publish_cache, {})
+
+    def test_history_writer_disables_itself_when_database_init_fails(self):
+        writer = bms_history.HistoryWriter({"metrics_enabled": True})
+
+        with (
+            patch("bms_history.init_history_db", side_effect=sqlite3.OperationalError("database is locked")),
+            self.assertLogs("bmspace", level="WARNING") as logs,
+        ):
+            writer.start()
+
+        self.assertFalse(writer.enabled)
+        self.assertIn("History database initialization failed", "\n".join(logs.output))
 
 
 class StandaloneDockerConfigTests(unittest.TestCase):
@@ -648,6 +675,21 @@ class TelegramConfigTests(unittest.TestCase):
             bms_notify.telegram_send(config, "test")
 
         urlopen.assert_not_called()
+
+    def test_telegram_api_failure_is_logged_without_raising(self):
+        config = {
+            "notify_enabled": True,
+            "telegram_bot_token": "123456:real-token",
+            "telegram_chat_id": "12345",
+        }
+
+        with (
+            patch("bms_notify.urllib.request.urlopen", side_effect=TimeoutError("offline")),
+            self.assertLogs("bmspace", level="WARNING") as logs,
+        ):
+            bms_notify.telegram_send(config, "test")
+
+        self.assertIn("Telegram failed: TimeoutError", "\n".join(logs.output))
 
     def test_web_telegram_test_rejects_placeholders(self):
         ok, message = web_config.test_telegram({
@@ -3385,6 +3427,57 @@ class HealthEndpointTests(unittest.TestCase):
                 self.assertEqual(payload["heartbeat_age_seconds"], 100)
             finally:
                 web_config.MONITOR_HEALTH_PATH = original_path
+
+    def test_live_serial_snapshot_from_before_restart_is_marked_stale(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            snapshot_path = Path(tmpdir) / "pacebms-live.json"
+            snapshot_path.write_text(json.dumps({
+                "ok": True,
+                "updated_at_epoch": 1000,
+                "source": "live_serial",
+                "data_source": "Live serial",
+                "packs": [],
+                "pack_count": 0,
+                "total_cells": 0,
+                "warning_count": 0,
+            }), encoding="utf-8")
+
+            with (
+                patch("web_config.LIVE_SNAPSHOT_PATH", snapshot_path),
+                patch("web_config.time.time", return_value=1201),
+            ):
+                snapshot = web_config.fetch_monitor_live_snapshot({"notify_stale_data_seconds": 120})
+
+        self.assertTrue(snapshot["ok"])
+        self.assertEqual(snapshot["stale"], "ON")
+        self.assertEqual(snapshot["data_source"], "Stale live serial")
+        self.assertIn("exceeds 120s", snapshot["stale_reason"])
+
+    def test_history_pack_api_returns_json_error_when_sqlite_fails(self):
+        with (
+            web_config.app.test_request_context("/api/history/pack/01?range_seconds=1800"),
+            patch("web_config.query_history", side_effect=sqlite3.OperationalError("database is locked")),
+            patch("web_config.jsonify", side_effect=lambda payload: payload),
+        ):
+            payload, status = web_config.api_history_pack("01")
+
+        self.assertEqual(status, 500)
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["packs"], [])
+        self.assertIn("database is locked", payload["error"])
+
+    def test_history_cells_api_returns_json_error_when_sqlite_fails(self):
+        with (
+            web_config.app.test_request_context("/api/history/cells/01?range_seconds=1800"),
+            patch("web_config.init_history_db", side_effect=sqlite3.DatabaseError("database disk image is malformed")),
+            patch("web_config.jsonify", side_effect=lambda payload: payload),
+        ):
+            payload, status = web_config.api_history_cells("01")
+
+        self.assertEqual(status, 500)
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["cells"], [])
+        self.assertIn("database disk image is malformed", payload["error"])
 
 
 if __name__ == "__main__":

@@ -4458,9 +4458,12 @@ def api_history_pack(pack_id):
         range_seconds = int(request.args.get("range_seconds", "1800"))
     except Exception:
         range_seconds = 1800
-    history = query_history(range_seconds=range_seconds, db_path=HISTORY_DB_PATH)
-    history["packs"] = [row for row in history.get("packs", []) if str(row.get("pack_id")) == str(pack_id).zfill(2)]
-    return jsonify(history)
+    try:
+        history = query_history(range_seconds=range_seconds, db_path=HISTORY_DB_PATH)
+        history["packs"] = [row for row in history.get("packs", []) if str(row.get("pack_id")) == str(pack_id).zfill(2)]
+        return jsonify(history)
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc), "packs": []}), 500
 
 
 @app.route("/api/history/cells/<pack_id>", methods=["GET"])
@@ -4469,24 +4472,27 @@ def api_history_cells(pack_id):
         range_seconds = int(request.args.get("range_seconds", "1800"))
     except Exception:
         range_seconds = 1800
-    init_history_db(HISTORY_DB_PATH)
-    import sqlite3
-    since = int(time.time()) - max(60, range_seconds)
-    conn = sqlite3.connect(HISTORY_DB_PATH)
     try:
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            """
-            SELECT ts, pack_id, cell_number, voltage
-            FROM cell_metrics
-            WHERE ts >= ? AND pack_id = ?
-            ORDER BY ts ASC, cell_number ASC
-            """,
-            (since, str(pack_id).zfill(2)),
-        ).fetchall()
-    finally:
-        conn.close()
-    return jsonify({"ok": True, "range_seconds": range_seconds, "cells": [dict(row) for row in rows]})
+        init_history_db(HISTORY_DB_PATH)
+        import sqlite3
+        since = int(time.time()) - max(60, range_seconds)
+        conn = sqlite3.connect(HISTORY_DB_PATH)
+        try:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                """
+                SELECT ts, pack_id, cell_number, voltage
+                FROM cell_metrics
+                WHERE ts >= ? AND pack_id = ?
+                ORDER BY ts ASC, cell_number ASC
+                """,
+                (since, str(pack_id).zfill(2)),
+            ).fetchall()
+        finally:
+            conn.close()
+        return jsonify({"ok": True, "range_seconds": range_seconds, "cells": [dict(row) for row in rows]})
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc), "cells": []}), 500
 
 
 @app.route("/api/events", methods=["GET"])

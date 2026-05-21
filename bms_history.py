@@ -10,12 +10,14 @@ import queue
 import sqlite3
 import threading
 import time
+import logging
 from pathlib import Path
 from typing import Any
 
 
 DATA_DIR = Path(os.environ.get("PACEBMS_DATA_DIR", "/data"))
 HISTORY_DB_PATH = DATA_DIR / "pacebms_metrics.db"
+log = logging.getLogger("bmspace")
 
 
 def bool_option(config: dict[str, Any], key: str, default: bool = True) -> bool:
@@ -293,7 +295,12 @@ class HistoryWriter:
     def start(self) -> None:
         if not self.enabled:
             return
-        init_history_db(self.db_path)
+        try:
+            init_history_db(self.db_path)
+        except Exception as exc:
+            log.warning("History database initialization failed; continuing without history writer: %s", exc)
+            self.enabled = False
+            return
         self.thread = threading.Thread(target=self._run, name="pacebms-history-writer", daemon=True)
         self.thread.start()
 
@@ -308,7 +315,7 @@ class HistoryWriter:
         try:
             self.queue.put_nowait(("snapshot", (dict(snapshot), bool(include_cells))))
         except queue.Full:
-            pass
+            log.warning("History writer queue full; dropped snapshot sample")
 
     def record_system_event(self, source: str, severity: str, title: str, message: str = "") -> None:
         if not self.enabled:
@@ -322,7 +329,7 @@ class HistoryWriter:
                 "message": message,
             }))
         except queue.Full:
-            pass
+            log.warning("History writer queue full; dropped system event: %s", title)
 
     def record_warning_event(self, snapshot_id: int | None, pack_id: str, severity: str, title: str, message: str = "") -> None:
         if not self.enabled:
@@ -337,10 +344,15 @@ class HistoryWriter:
                 "message": message,
             }))
         except queue.Full:
-            pass
+            log.warning("History writer queue full; dropped warning event for pack %s: %s", pack_id, title)
 
     def _run(self) -> None:
-        conn = sqlite3.connect(self.db_path, timeout=10)
+        try:
+            conn = sqlite3.connect(self.db_path, timeout=10)
+        except Exception as exc:
+            log.warning("History writer could not open SQLite database; history disabled until restart: %s", exc)
+            self.enabled = False
+            return
         try:
             conn.execute("PRAGMA journal_mode=WAL")
             conn.execute("PRAGMA synchronous=NORMAL")
@@ -374,8 +386,12 @@ class HistoryWriter:
                         cleanup_history(conn, self.raw_retention_days, self.event_retention_days)
                         self.last_cleanup = time.time()
                     conn.commit()
-                except Exception:
-                    conn.rollback()
+                except Exception as exc:
+                    log.warning("History writer failed to store %s sample: %s", item_type, exc)
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
         finally:
             conn.close()
 

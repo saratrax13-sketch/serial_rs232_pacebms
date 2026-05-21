@@ -1,3 +1,15 @@
+## 2.9.49 - 2026-05-21
+
+### Fixed
+- Hardened local SQLite history failure handling so database initialization, writer startup, queue overflow and write failures are logged clearly while serial monitoring continues.
+- Updated pack and cell history API routes to return clear JSON errors when SQLite is locked, corrupt or unavailable.
+- Added regression coverage for serial receive failures, stale live snapshots after restart, Telegram API failures and history API/database failure paths.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+- Monitor polling behavior was not changed.
+
 ## 2.9.48 - 2026-05-21
 
 ### Fixed
