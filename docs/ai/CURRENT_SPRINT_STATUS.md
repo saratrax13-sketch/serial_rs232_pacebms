@@ -27,6 +27,7 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 - Replaced remaining MQTT-specific live-status wording with serial-first live-data wording in Dashboard, Tech Status and Diagnostics refresh/status messages.
 - Operational audit found and fixed an unclosed SQLite connection in the per-pack cell history API used by History refreshes.
 - Validation passed for `2.9.48`: compile, full unit suite (`104` tests), config coverage, rendered template JavaScript syntax check and `git diff --check` with only Windows CRLF normalization warnings.
+- Live Home Assistant validation passed for `2.9.48`: the add-on was installed/updated on the live host, Dashboard, Tech Status, Diagnostics, History, Setup, Config, Events, Backups and Logs passed a user-facing click-through, and no new duplicate Home Assistant MQTT discovery entities or stale retained discovery topics were observed.
 - Version `2.9.47` is prepared but uncommitted for Warning Intelligence and BMS Caution UI cleanup.
 - BMS-reported warnings below configured user references now show as `BMS Caution` instead of top-level `Warning`, while reference-exceeded cases still escalate to Warning/Critical.
 - Warning Intelligence now keeps active BMS warning context visible but hides user alert reference rows when measured values are safely inside configured references.
@@ -86,4 +87,4 @@ ls -lh /data/pacebms-live.json
 ls -lh /data/pacebms_metrics.db*
 ```
 
-Next recommended step: install/update the Home Assistant add-on to `2.9.48` on the live Home Assistant host and do a final user-facing click-through of Dashboard, Tech Status, Diagnostics, History, Setup, Config, Events, Backups and Logs. If MQTT discovery is enabled, confirm no new duplicate entities appear in Home Assistant and old retained discovery topics are not present before committing/uploading the validated sprint.
+Next recommended step: review the uncommitted `2.9.48` changes and commit/upload when ready.
