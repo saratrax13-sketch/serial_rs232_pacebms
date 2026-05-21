@@ -57,6 +57,7 @@ Expected output is all empty lists.
 ## Home Assistant Add-on
 
 - [ ] Home Assistant sees the expected version from `config.yaml`.
+- [ ] Home Assistant add-on page shows release `2.10.0`.
 - [ ] Add-on installs or rebuilds cleanly.
 - [ ] Add-on starts without a crash.
 - [ ] Logs are readable and do not expose secrets.
@@ -70,6 +71,8 @@ Expected output is all empty lists.
 - [ ] Events loads.
 - [ ] Backups loads.
 - [ ] Logs loads.
+- [ ] Tech Status and Diagnostics show power-flow operating state separately from BMS Caution/Warning status.
+- [ ] Warning badges clear after `/data/pacebms-live.json` reports normal warnings for the configured confirmation reads.
 
 ## Serial Connection
 
@@ -143,6 +146,18 @@ Expected output is all empty lists.
 
 For startup-only validation without a BMS, `PACEBMS_SERIAL_DEVICE=/dev/null` can be used. This validates container build, startup, web UI and health endpoints only. It does not validate serial reads or BMS parsing.
 
+## Documentation and Screenshots
+
+- [ ] README screenshots match the current Classic UI.
+- [ ] `docs/screenshots/README.md` lists every committed UI screenshot.
+- [ ] Dashboard, Tech Status, History, Setup, Config, Diagnostics, Events, Backups and Logs screenshots are current.
+- [ ] Screenshots do not expose Telegram bot tokens.
+- [ ] Screenshots do not expose Telegram chat IDs.
+- [ ] Screenshots do not expose MQTT passwords.
+- [ ] Screenshots do not expose Home Assistant usernames.
+- [ ] Screenshots redact real BMS or battery serial numbers.
+- [ ] Markdown image links validate with `all_markdown_images_exist`.
+
 ## Close-Off
 
 - [ ] No BMS write/control commands were added.
@@ -151,3 +166,4 @@ For startup-only validation without a BMS, `PACEBMS_SERIAL_DEVICE=/dev/null` can
 - [ ] README version, `config.yaml` version and `CHANGELOG.md` are aligned.
 - [ ] Live Home Assistant add-on validation is complete.
 - [ ] Standalone Docker smoke validation is complete if Docker mode is part of the release.
+- [ ] `docs/ai/CURRENT_SPRINT_STATUS.md` is current for the next Codex thread.
