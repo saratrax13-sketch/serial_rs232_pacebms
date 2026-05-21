@@ -280,6 +280,12 @@ Use this for technician review: overall monitor state, warning intelligence, per
 
 ![Tech Status comparison charts](docs/screenshots/Tech%20Status%20p3.png)
 
+### History
+
+Use History for local SQLite trend review across the bank or individual packs. The graphs are read-only and refresh while the tab is open.
+
+![History](docs/screenshots/History.png)
+
 ### Setup
 
 Use this for first-run checks and safe external service testing. The Full Monitoring test checks MQTT and Telegram configuration without sending BMS commands.
@@ -330,6 +336,7 @@ For setup/support screenshots, capture the audience-specific tabs:
 
 - **Dashboard**: normal user view with combined battery confidence values.
 - **Tech Status**: live per-pack values, warning intelligence, comparison charts and reference checks.
+- **History**: local SQLite trend graphs for bank and per-pack review.
 - **Setup**: first-run checklist and MQTT/Telegram/Full Monitoring tests.
 - **Diagnostics**: support proof, battery identity and detailed cell data.
 
@@ -338,11 +345,12 @@ Recommended screenshots to include when asking for support:
 - Home Assistant add-on Configuration tab.
 - Pace BMS Dashboard tab showing the User Dashboard.
 - Pace BMS Tech Status tab showing Warning Intelligence, pack details and comparison charts.
+- Pace BMS History tab showing local SQLite trend graphs.
 - Pace BMS Setup tab showing Setup Checklist.
 - Test Full Monitoring result message.
 - Example Telegram alert if notifications are enabled.
 
-Do not share screenshots that expose the full Telegram bot token, Telegram chat ID or MQTT password.
+Do not share screenshots that expose the full Telegram bot token, Telegram chat ID, MQTT password, Home Assistant username or battery serial numbers.
 
 Screenshot naming and privacy guidance is kept in [`docs/screenshots/README.md`](docs/screenshots/README.md). The repository may include example screenshots over time, but users should always hide secrets before sharing images publicly.
 

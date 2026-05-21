@@ -46,6 +46,9 @@ When asking for support, hide secrets and capture:
 - Home Assistant add-on Configuration tab.
 - Dashboard.
 - Tech Status.
+- History.
 - Diagnostics.
 - Setup checklist.
 - Logs tab with the relevant filter.
+
+Redact Telegram tokens, Telegram chat IDs, MQTT passwords, Home Assistant usernames and battery serial numbers before sharing screenshots publicly.

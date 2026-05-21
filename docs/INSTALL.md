@@ -57,6 +57,10 @@ After the add-on has been running for a few minutes:
 3. Open **History** and try the 30 minute and 1 hour range buttons.
 4. Open **Diagnostics** and confirm **Local History Storage** shows row counts and a latest sample time.
 
+The History tab should show local SQLite trend graphs after samples have been collected:
+
+![History](screenshots/History.png)
+
 If the graphs are empty, confirm **Config > History & Live Data > Store local history** is enabled and wait for the next sample interval.
 
 ## Serial Connection Notes

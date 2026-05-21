@@ -83,6 +83,7 @@ Open the web UI and check:
 - Tech Status tab: Overall Status should not be Unknown once the live serial snapshot is available.
 - Tech Status tab: Warning Intelligence should show whether active BMS warnings are normal, watch, warning or critical against the configured references.
 - Tech Status tab: Battery Packs should show per-pack role, SOC, SOH, cycles, capacity, electrical values, cell balance and BMS control state.
+- History tab: local SQLite trend graphs should appear after samples have been collected.
 - Setup tab: Setup Checklist should show Basic Required items as ready.
 - Diagnostics tab: use this when you need a support report or deeper troubleshooting.
 
@@ -96,6 +97,8 @@ Open the web UI and check:
 
 ![Tech Status pack comparisons](screenshots/Tech%20Status%20p3.png)
 
+![History](screenshots/History.png)
+
 ![Diagnostics overview](screenshots/Diagnostics%20p1.png)
 
 ![Diagnostics cell data](screenshots/Diagnostics%20p2.png)
@@ -107,6 +110,7 @@ For support or release notes, capture these screens:
 - Home Assistant add-on Configuration tab, with secrets hidden.
 - Pace BMS Dashboard tab showing Battery Confidence.
 - Pace BMS Tech Status tab showing Overall Status, Warning Intelligence, Battery Packs and Pack Comparisons.
+- Pace BMS History tab showing local trend graphs.
 - Pace BMS Setup tab showing Setup Checklist.
 - Pace BMS Diagnostics tab showing battery configuration and cell data.
 - Test Full Monitoring result.

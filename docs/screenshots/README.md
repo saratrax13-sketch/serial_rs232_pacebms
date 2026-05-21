@@ -10,6 +10,7 @@ Current screenshots:
 | `Tech Status p1.png` | Tech Status warning intelligence and live status |
 | `Tech Status p2.png` | Tech Status per-pack detail cards |
 | `Tech Status p3.png` | Tech Status comparison charts |
+| `History.png` | Local SQLite trend graphs |
 | `Setup.png` | First-run checklist and safe test buttons |
 | `Config.png` | Config tab connection, MQTT, Telegram and notification cards |
 | `Config p2.png` | Config tab thresholds, battery profile and warning detail cards |
@@ -29,5 +30,6 @@ Screenshot safety:
 - Never expose the full Telegram bot token.
 - Never expose the Telegram chat ID if the screenshot is public.
 - Never expose the MQTT password.
+- Never expose Home Assistant usernames.
+- Redact battery serial numbers before committing screenshots.
 - The add-on serial path is normally safe to show and helps troubleshooting.
-

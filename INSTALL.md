@@ -24,6 +24,8 @@ https://github.com/saratrax13-sketch/serial_rs232_pacebms
 
 For the detailed install guide, use [docs/INSTALL.md](docs/INSTALL.md).
 
+Current Web UI screenshots are shown in the README and maintained in [docs/screenshots/README.md](docs/screenshots/README.md). They cover Dashboard, Tech Status, History, Setup, Config, Diagnostics, Events, Backups and Logs.
+
 ## Standalone Docker
 
 1. Copy the example environment file:
