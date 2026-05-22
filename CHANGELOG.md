@@ -1,3 +1,14 @@
+## 2.10.1 - 2026-05-22
+
+### Fixed
+- Reduced occasional Web UI scroll jitter by delaying automatic full-panel soft refreshes until the user has stopped scrolling.
+- Manual refresh buttons and normal live field updates still run immediately.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+- Monitor polling behavior was not changed.
+
 ## 2.10.0 - 2026-05-21
 
 ### Stable Release

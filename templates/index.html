@@ -5557,11 +5557,34 @@ This cannot be undone.`);">
 <script>
     let activeTabTimers = [];
     let softTabLoading = false;
+    let lastUserScrollAt = 0;
+    let pendingSoftReloadTimer = null;
+    const SOFT_RELOAD_SCROLL_IDLE_MS = 1600;
 
-    function reloadTab(tabName) {
+    function noteUserScroll() {
+      lastUserScrollAt = Date.now();
+    }
+
+    function queueSoftReloadWhenScrollIdle(tabName) {
+      const elapsed = Date.now() - lastUserScrollAt;
+      const waitMs = Math.max(SOFT_RELOAD_SCROLL_IDLE_MS - elapsed, 0);
+      if (pendingSoftReloadTimer) {
+        window.clearTimeout(pendingSoftReloadTimer);
+      }
+      pendingSoftReloadTimer = window.setTimeout(function () {
+        pendingSoftReloadTimer = null;
+        openTabSoft(tabName, false);
+      }, waitMs);
+    }
+
+    function reloadTab(tabName, waitForScrollIdle = false) {
       if (tabName === "dashboard") {
         refreshDashboard(false);
         refreshLiveTrends(true);
+        return;
+      }
+      if (waitForScrollIdle) {
+        queueSoftReloadWhenScrollIdle(tabName);
         return;
       }
       openTabSoft(tabName, false);
@@ -5572,6 +5595,10 @@ This cannot be undone.`);">
         window.clearInterval(timerId);
       });
       activeTabTimers = [];
+      if (pendingSoftReloadTimer) {
+        window.clearTimeout(pendingSoftReloadTimer);
+        pendingSoftReloadTimer = null;
+      }
     }
 
     function addActiveTabTimer(callback, milliseconds) {
@@ -5669,7 +5696,7 @@ This cannot be undone.`);">
     }
 
     function refreshActiveTabSoft() {
-      openTabSoft(getActiveTabName(), false);
+      queueSoftReloadWhenScrollIdle(getActiveTabName());
     }
 
     function setText(id, value) {
@@ -5701,7 +5728,8 @@ This cannot be undone.`);">
       const previous = marker.dataset.warningSignature || "";
       const next = warningSignatureFromData(data);
       if (previous && next !== previous) {
-        reloadTab(tabName);
+        marker.dataset.warningSignature = next;
+        reloadTab(tabName, true);
         return true;
       }
       marker.dataset.warningSignature = next;
@@ -7529,6 +7557,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
     }
 
     document.addEventListener("DOMContentLoaded", function () {
+      window.addEventListener("scroll", noteUserScroll, { passive: true });
       setupSoftTabs();
       initializeConfigForm();
       initializeReportScheduleFields();
