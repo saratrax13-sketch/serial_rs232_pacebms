@@ -5636,16 +5636,6 @@ This cannot be undone.`);">
               </div>
               <div class="pack-detail-row">
                 <div class="pack-detail-cell">
-                  <span class="pack-detail-label">Cell High Ref</span>
-                  <span class="pack-detail-value" data-diagnostics-pack-field="{{ pack.id }}-cell-high-ref">{{ pack.cell_high_ref }} V</span>
-                </div>
-                <div class="pack-detail-cell">
-                  <span class="pack-detail-label">Pack High Ref</span>
-                  <span class="pack-detail-value" data-diagnostics-pack-field="{{ pack.id }}-pack-high-ref">{{ pack.pack_high_ref }} V</span>
-                </div>
-              </div>
-              <div class="pack-detail-row">
-                <div class="pack-detail-cell">
                   <span class="pack-detail-label">Balancing Cells</span>
                   <span class="pack-detail-value" data-diagnostics-pack-field="{{ pack.id }}-balancing-summary">{{ pack.balancing_summary|default('None active') }}</span>
                 </div>
@@ -7673,8 +7663,6 @@ Restart the add-on afterwards for runtime changes to apply.`);
         setDiagnosticsPackText(id, "lowest", diagnosticsCellLabel(pack.lowest_cell));
         setDiagnosticsPackText(id, "cycles", pack.cycles ?? "Unknown");
         setDiagnosticsPackText(id, "delta", `${pack.delta ?? "Unknown"} mV`);
-        setDiagnosticsPackText(id, "cell-high-ref", `${pack.cell_high_ref ?? "Unknown"} V`);
-        setDiagnosticsPackText(id, "pack-high-ref", `${pack.pack_high_ref ?? "Unknown"} V`);
         setDiagnosticsPackText(id, "balancing-summary", pack.balancing_summary || "None active");
         setDiagnosticsPackText(id, "balancing-state", (pack.balancing_cells || []).length ? "Active" : "None active");
 

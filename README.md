@@ -30,7 +30,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.10.7"
+version: "2.10.8"
 ```
 
 ---
@@ -312,6 +312,8 @@ cell table also includes a read-only `Balance` column decoded from the BMS
 warning/status read, plus a pack-level balancing summary. These indicators
 show which cells the BMS reports as balancing; the add-on does not start,
 stop or control balancing.
+Static high-reference values are kept in Tech Status and Config reference
+views, not repeated inside each Diagnostics pack card.
 
 ![Diagnostics overview](docs/screenshots/Diagnostics%20p1.png)
 

@@ -3506,6 +3506,8 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"diagnosticsSnapshotAgeText", response.data)
         self.assertIn(b'data-diagnostics-pack="01"', response.data)
         self.assertIn(b'data-diagnostics-pack-field="01-voltage"', response.data)
+        self.assertNotIn(b'data-diagnostics-pack-field="01-cell-high-ref"', response.data)
+        self.assertNotIn(b'data-diagnostics-pack-field="01-pack-high-ref"', response.data)
         self.assertIn(b'data-diagnostics-topology-field="pack-count"', response.data)
         self.assertIn(b'id="diagnostics-topology-body"', response.data)
         self.assertIn(b'data-diagnostics-cell-row="01-01"', response.data)

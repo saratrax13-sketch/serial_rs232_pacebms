@@ -1,3 +1,15 @@
+## 2.10.8 - 2026-05-23
+
+### Changed
+- Removed the repeated `Cell High Ref` / `Pack High Ref` row from Diagnostics Detailed Pack & Cell Data pack cards.
+- Kept the underlying reference calculations, Warning Intelligence, Telegram warning context and Tech Status reference display unchanged.
+
+### Notes
+- The existing cell `Status`, `OCV Ref` and read-only `Balance` columns were not changed.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+- Monitor polling behavior was not changed.
+
 ## 2.10.7 - 2026-05-23
 
 ### Added
