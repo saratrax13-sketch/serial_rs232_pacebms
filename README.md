@@ -30,7 +30,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.10.5"
+version: "2.10.6"
 ```
 
 ---
@@ -305,6 +305,9 @@ Use Config to edit Home Assistant add-on options. The tab is grouped into requir
 ### Diagnostics
 
 Use Diagnostics for support proof, battery identity, health checks and detailed cell data.
+For Hubble AM2/P13S packs, Detailed Pack & Cell Data also shows a display-only
+`OCV Ref` band beside the existing cell `Status` column. The info button in
+that header opens the Hubble AM2 NMC voltage/SOC reference table.
 
 ![Diagnostics overview](docs/screenshots/Diagnostics%20p1.png)
 
@@ -697,6 +700,11 @@ Cell 08: 4.160 V | Ref: 4.13 V | Margin: 0.030 V above ref | Exceeded | Notify: 
 ```
 
 These are display and notification reference values only. They do not configure the BMS.
+
+For P13S / Hubble AM2, the Diagnostics cell table also shows a display-only
+`OCV Ref` band such as `83%-88%` from the Hubble AM2 NMC voltage/SOC reference
+table. This is open-circuit-voltage guidance only; live BMS SOC remains
+authoritative, and the existing cell `Status` labels are unchanged.
 
 ---
 

@@ -1216,6 +1216,100 @@
       background: rgba(14, 165, 233, 0.10);
     }
 
+    .ocv-ref-header {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .ocv-info-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      border: 1px solid rgba(56, 189, 248, 0.65);
+      background: rgba(14, 165, 233, 0.16);
+      color: #bae6fd;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .ocv-ref-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 54px;
+      border-radius: 999px;
+      padding: 3px 7px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: rgba(30, 41, 59, 0.72);
+      color: #cbd5e1;
+      font-size: 11px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .ocv-ref-badge.normal {
+      color: #bbf7d0;
+      border-color: rgba(34, 197, 94, 0.35);
+      background: rgba(34, 197, 94, 0.10);
+    }
+
+    .ocv-ref-badge.caution {
+      color: #fef3c7;
+      border-color: rgba(245, 158, 11, 0.45);
+      background: rgba(245, 158, 11, 0.12);
+    }
+
+    .ocv-ref-badge.warning,
+    .ocv-ref-badge.critical,
+    .ocv-ref-badge.protection,
+    .ocv-ref-badge.danger,
+    .ocv-ref-badge.dead {
+      color: #fecaca;
+      border-color: rgba(248, 113, 113, 0.45);
+      background: rgba(248, 113, 113, 0.12);
+    }
+
+    .ocv-ref-badge.unknown {
+      color: #cbd5e1;
+      border-color: rgba(148, 163, 184, 0.22);
+      background: rgba(30, 41, 59, 0.72);
+    }
+
+    .ocv-modal-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    .ocv-modal-table th,
+    .ocv-modal-table td {
+      padding: 8px 7px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .ocv-modal-table th {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .ocv-modal-note {
+      margin-top: 10px;
+      color: #cbd5e1;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
     .cell-alert .cell-voltage {
       color: #fecaca;
     }
@@ -5186,6 +5280,40 @@ This cannot be undone.`);">
       </div>
     </div>
 
+    <div id="ocv-reference-modal-backdrop" class="help-modal-backdrop" onclick="closeOcvReferenceModal(event)">
+      <div class="help-modal" role="dialog" aria-modal="true" aria-labelledby="ocv-reference-modal-title" onclick="event.stopPropagation()">
+        <div class="help-modal-header">
+          <h2 id="ocv-reference-modal-title" class="help-modal-title">Hubble AM2 NMC Voltage Reference</h2>
+          <button class="help-close-button" type="button" onclick="closeOcvReferenceModal()">Close</button>
+        </div>
+        <div class="help-content">
+          <table class="ocv-modal-table">
+            <thead>
+              <tr>
+                <th>Cell V</th>
+                <th>OCV Ref</th>
+                <th>Status</th>
+                <th>Risk</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in hubble_ocv_reference_table %}
+              <tr>
+                <td>{{ row.voltage }}</td>
+                <td><span class="ocv-ref-badge {{ row.class }}">{{ row.soc }}</span></td>
+                <td>{{ row.status }}</td>
+                <td>{{ row.risk }}</td>
+                <td>{{ row.note }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <p class="ocv-modal-note">Reference only. Live BMS SOC remains authoritative. Under load, cell voltage can read about 50-100 mV lower than resting open-circuit voltage. This table does not affect BMS warnings, Telegram policy, MQTT entities or the existing Status column.</p>
+        </div>
+      </div>
+    </div>
+
     <section class="tab-panel {% if active_tab == 'diagnostics' %}active{% endif %}">
       <section class="card wide-card status-header-card {% if diagnostics %}{{ diagnostics.live.overall_class }}{% endif %}">
         <h2>Diagnostics</h2>
@@ -5518,6 +5646,12 @@ This cannot be undone.`);">
                   <th>Cell</th>
                   <th>Voltage</th>
                   <th>Status</th>
+                  <th>
+                    <span class="ocv-ref-header">
+                      OCV Ref
+                      <button class="ocv-info-button" type="button" onclick="openOcvReferenceModal()" aria-label="Open Hubble AM2 OCV reference table" title="Hubble AM2 OCV reference">i</button>
+                    </span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -5534,6 +5668,13 @@ This cannot be undone.`);">
                     </div>
                     {% else %}
                     <span class="cell-label">Normal</span>
+                    {% endif %}
+                  </td>
+                  <td data-diagnostics-cell-ocv-ref="{{ pack.id }}-{{ cell.number }}">
+                    {% if cell.ocv_ref %}
+                    <span class="ocv-ref-badge {{ cell.ocv_ref.class|default('unknown') }}" title="{{ cell.ocv_ref.status|default('Reference only') }}: {{ cell.ocv_ref.note|default('Voltage-table guidance only.') }}">{{ cell.ocv_ref.label|default('Unknown') }}</span>
+                    {% else %}
+                    <span class="ocv-ref-badge unknown">Unknown</span>
                     {% endif %}
                   </td>
                 </tr>
@@ -6573,9 +6714,21 @@ Restart the add-on afterwards for runtime changes to apply.`);
       if (modal) modal.classList.remove("show");
     }
 
+    function openOcvReferenceModal() {
+      const modal = document.getElementById("ocv-reference-modal-backdrop");
+      if (modal) modal.classList.add("show");
+    }
+
+    function closeOcvReferenceModal(event) {
+      const modal = document.getElementById("ocv-reference-modal-backdrop");
+      if (event && event.target !== modal) return;
+      if (modal) modal.classList.remove("show");
+    }
+
     document.addEventListener("keydown", function (event) {
       if (event.key === "Escape") {
         closeConfigHelp();
+        closeOcvReferenceModal();
       }
     });
 
@@ -7433,6 +7586,16 @@ Restart the add-on afterwards for runtime changes to apply.`);
       container.appendChild(wrap);
     }
 
+    function renderDiagnosticsOcvRef(container, ocvRef) {
+      container.replaceChildren();
+      const ref = ocvRef && typeof ocvRef === "object" ? ocvRef : {};
+      const span = document.createElement("span");
+      span.className = "ocv-ref-badge " + (ref.class || "unknown");
+      span.textContent = ref.label || "Unknown";
+      span.title = `${ref.status || "Reference only"}: ${ref.note || "Voltage-table guidance only."}`;
+      container.appendChild(span);
+    }
+
     function refreshDiagnosticsPackCards(packs) {
       refreshLivePackCards(packs, "diagnostics", "diagnostics");
       let missingStructure = false;
@@ -7474,13 +7637,15 @@ Restart the add-on afterwards for runtime changes to apply.`);
           const row = document.querySelector(`[data-diagnostics-cell-row="${key}"]`);
           const voltage = document.querySelector(`[data-diagnostics-cell-voltage="${key}"]`);
           const labels = document.querySelector(`[data-diagnostics-cell-labels="${key}"]`);
-          if (!row || !voltage || !labels) {
+          const ocvRef = document.querySelector(`[data-diagnostics-cell-ocv-ref="${key}"]`);
+          if (!row || !voltage || !labels || !ocvRef) {
             missingStructure = true;
             return;
           }
           row.className = cell.class || "cell-normal";
           voltage.textContent = `${cell.voltage ?? "Unknown"} V`;
           renderDiagnosticsCellLabels(labels, cell.labels || []);
+          renderDiagnosticsOcvRef(ocvRef, cell.ocv_ref);
         });
       });
       if (missingStructure) {

@@ -19,7 +19,13 @@ from flask import Flask, Response, jsonify, render_template, request, send_file,
 import paho.mqtt.client as mqtt
 import yaml
 from bms_notify import telegram_value_configured
-from battery_profiles import BATTERY_PROFILE_CHOICES, effective_warning_references, normalize_profile
+from battery_profiles import (
+    BATTERY_PROFILE_CHOICES,
+    cell_ocv_reference,
+    effective_warning_references,
+    hubble_am2_ocv_reference_table,
+    normalize_profile,
+)
 from bms_live import LIVE_SNAPSHOT_PATH, load_live_snapshot
 from bms_history import HISTORY_DB_PATH, init_history_db, query_history
 
@@ -1444,6 +1450,17 @@ def normalize_live_snapshot_for_template(live, options=None):
             "temperatures": pack.get("temperatures") if isinstance(pack.get("temperatures"), list) else [],
             "reference_checks": pack.get("reference_checks") if isinstance(pack.get("reference_checks"), list) else [],
         })
+        refs_for_cells = effective_warning_references(options, pack.get("cell_count"))
+        ocv_profile = refs_for_cells.get("effective_profile")
+        normalized_cells = []
+        for cell in pack.get("cells") or []:
+            if not isinstance(cell, dict):
+                continue
+            cell_copy = dict(cell)
+            if not isinstance(cell_copy.get("ocv_ref"), dict):
+                cell_copy["ocv_ref"] = cell_ocv_reference(cell_copy.get("voltage"), ocv_profile)
+            normalized_cells.append(cell_copy)
+        pack["cells"] = normalized_cells
         if not pack.get("warning_intelligence"):
             cell_values = []
             for cell in pack.get("cells") or []:
@@ -2160,6 +2177,7 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
         design_capacity_ah = messages.get(f"{pfx}/i_design_cap", "Unknown")
 
         refs = effective_warning_references(options, cell_count)
+        ocv_profile = refs.get("effective_profile")
         cell_high_ref = refs["cell_high"]
         cell_low_ref = refs["cell_low"]
 
@@ -2195,6 +2213,7 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
                     "voltage": f"{cell_v:.3f}",
                     "labels": labels,
                     "class": "cell-alert" if has_reference_label else ("cell-caution" if has_bms_label else ("cell-highlow" if labels else "cell-normal")),
+                    "ocv_ref": cell_ocv_reference(cell_v, ocv_profile),
                 })
 
         pack_v = _to_float(voltage)
@@ -3780,6 +3799,7 @@ def render_index(action_result="", action_message="", active_tab="dashboard", co
         history_status=history_status,
         log_view=build_log_view(runtime_options) if runtime_options and active_tab == "logs" else None,
         battery_reference_table=build_battery_reference_table(config_options, config_live) if config_options and active_tab == "config" else None,
+        hubble_ocv_reference_table=hubble_am2_ocv_reference_table(),
         setup_checklist=setup_checklist,
         pending_options=pending_options,
         card_help=CARD_HELP,

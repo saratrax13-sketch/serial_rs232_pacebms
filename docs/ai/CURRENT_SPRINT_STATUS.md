@@ -6,14 +6,14 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 
 ## Current State
 
-- Release version is `2.10.5`.
+- Release version is `2.10.6`.
 - Home Assistant add-on is the primary deployment mode.
 - Standalone Docker is supported as a secondary deployment mode.
 - Classic UI is the active UI.
 - Serial-first monitoring is the active architecture.
 - MQTT is optional output/fallback, not the primary UI source.
 - The monitor owns `/data/pacebms-live.json` and `/data/pacebms_metrics.db`.
-- Main and dev were previously aligned at the `2.10.0` normal-use release commit. Main now carries Home Assistant visible UI refresh hotfixes through `2.10.5`.
+- Main and dev were previously aligned at the `2.10.0` normal-use release commit. Main now carries Home Assistant visible UI/reference hotfixes through `2.10.6`.
 
 ## Open Sprint
 
@@ -21,7 +21,11 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 
 ## Latest Sprint Outcome
 
-- `2.10.5` is the latest Home Assistant visible Diagnostics live-source clarity hotfix.
+- `2.10.6` is the latest Home Assistant visible Diagnostics cell reference hotfix.
+- Detailed Pack & Cell Data now includes a display-only `OCV Ref` column beside the existing cell `Status` column for Hubble AM2/P13S NMC cell voltage reference bands.
+- The Hubble AM2 NMC voltage/SOC reference table is available in a popup from the `OCV Ref` header and is color-coded by reference risk band.
+- Existing cell `Status` labels, BMS warning labels, Telegram policy, MQTT discovery/entity names and monitor polling behavior were not changed.
+- `2.10.5` added Diagnostics live-source clarity fields.
 - Diagnostics Detailed Pack & Cell Data now shows the live data source, serial snapshot age, last analog read and last warning read directly on the card.
 - Those live-source fields refresh from `/api/status` alongside the per-pack and per-cell values while the Diagnostics tab is open.
 - `2.10.4` fixed generic BMS high/low warning candidate cell labels.
@@ -116,4 +120,4 @@ For standalone Docker validation on a Docker host:
 .\scripts\docker_smoke_test.ps1
 ```
 
-Next recommended step: install/update the Home Assistant add-on to `2.10.5`, set `ui_data_source` to `monitor_live` if pure serial-only UI data is required, then confirm Detailed Pack & Cell Data snapshot age and read timestamps update while the card values change.
+Next recommended step: install/update the Home Assistant add-on to `2.10.6`, set `ui_data_source` to `monitor_live` if pure serial-only UI data is required, then confirm Detailed Pack & Cell Data keeps the existing Status column while showing OCV Ref bands and the Hubble reference popup.

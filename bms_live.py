@@ -14,7 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from battery_profiles import effective_warning_references
+from battery_profiles import cell_ocv_reference, effective_warning_references
 
 
 DATA_DIR = Path(os.environ.get("PACEBMS_DATA_DIR", "/data"))
@@ -191,6 +191,7 @@ def build_live_snapshot(
         total_cells += cell_count
 
         refs = effective_warning_references(config, cell_count)
+        ocv_profile = refs.get("effective_profile")
         cell_high_ref = _safe_float(refs.get("cell_high"))
         cell_low_ref = _safe_float(refs.get("cell_low"))
         pack_high_ref = _safe_float(refs.get("pack_high"))
@@ -231,6 +232,7 @@ def build_live_snapshot(
                 "voltage": f"{cell_v:.3f}",
                 "labels": labels,
                 "class": "cell-alert" if has_reference_label else ("cell-caution" if has_bms_label else ("cell-highlow" if labels else "cell-normal")),
+                "ocv_ref": cell_ocv_reference(cell_v, ocv_profile),
             })
 
         has_warning = warning_text != "Normal"

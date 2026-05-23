@@ -39,6 +39,110 @@ BATTERY_PROFILE_DEFAULTS = {
     },
 }
 
+HUBBLE_AM2_OCV_REFERENCE = [
+    {
+        "voltage": "> 4.20",
+        "soc": "Over",
+        "status": "Overvoltage",
+        "risk": "Danger",
+        "class": "danger",
+        "note": "Above BMS high protection; cell damage risk.",
+    },
+    {
+        "voltage": "4.18",
+        "soc": "100%",
+        "status": "At limit",
+        "risk": "Caution",
+        "class": "caution",
+        "note": "Absolute full charge; only at end of charge current taper.",
+    },
+    {
+        "voltage": "4.15",
+        "soc": "99%",
+        "status": "Very high",
+        "risk": "Caution",
+        "class": "caution",
+        "note": "Prolonged time here stresses cells.",
+    },
+    {
+        "voltage": "4.13",
+        "soc": "98%",
+        "status": "High",
+        "risk": "Caution",
+        "class": "caution",
+        "note": "Top of charge range after full cycle.",
+    },
+    {
+        "voltage": "4.10",
+        "soc": "97%",
+        "status": "Normal",
+        "risk": "Normal",
+        "class": "normal",
+        "note": "Top of practical charge range.",
+    },
+    {"voltage": "4.05", "soc": "95%", "status": "Normal", "risk": "Normal", "class": "normal", "note": "Healthy full-charge point."},
+    {"voltage": "4.00", "soc": "92%", "status": "Normal", "risk": "Normal", "class": "normal", "note": ""},
+    {"voltage": "3.95", "soc": "88%", "status": "Normal", "risk": "Normal", "class": "normal", "note": ""},
+    {"voltage": "3.90", "soc": "83%", "status": "Normal", "risk": "Normal", "class": "normal", "note": ""},
+    {"voltage": "3.85", "soc": "77%", "status": "Normal", "risk": "Normal", "class": "normal", "note": ""},
+    {"voltage": "3.80", "soc": "70%", "status": "Normal", "risk": "Normal", "class": "normal", "note": ""},
+    {"voltage": "3.75", "soc": "62%", "status": "Normal", "risk": "Normal", "class": "normal", "note": ""},
+    {"voltage": "3.70", "soc": "53%", "status": "Normal", "risk": "Normal", "class": "normal", "note": "Nominal voltage."},
+    {"voltage": "3.65", "soc": "45%", "status": "Normal", "risk": "Normal", "class": "normal", "note": "Flat plateau region."},
+    {"voltage": "3.60", "soc": "37%", "status": "Normal", "risk": "Normal", "class": "normal", "note": ""},
+    {"voltage": "3.50", "soc": "25%", "status": "Normal", "risk": "Normal", "class": "normal", "note": ""},
+    {
+        "voltage": "3.40",
+        "soc": "15%",
+        "status": "Caution",
+        "risk": "Caution",
+        "class": "caution",
+        "note": "Approaching cutoff territory.",
+    },
+    {
+        "voltage": "3.30",
+        "soc": "10%",
+        "status": "Warning",
+        "risk": "Warning",
+        "class": "warning",
+        "note": "BMS low-voltage warning zone.",
+    },
+    {"voltage": "3.20", "soc": "6%", "status": "Critical", "risk": "Critical", "class": "critical", "note": ""},
+    {
+        "voltage": "3.00",
+        "soc": "2-3%",
+        "status": "Protection",
+        "risk": "Protection",
+        "class": "protection",
+        "note": "BMS discharge FET cutoff.",
+    },
+    {"voltage": "2.92", "soc": "0%", "status": "Danger", "risk": "Danger", "class": "danger", "note": "Irreversible damage zone."},
+    {"voltage": "< 2.50", "soc": "Dead", "status": "Dead cell", "risk": "Dead", "class": "dead", "note": "Below absolute minimum."},
+]
+
+_HUBBLE_AM2_OCV_POINTS = [
+    (4.18, "100%", "At limit", "caution"),
+    (4.15, "99%", "Very high", "caution"),
+    (4.13, "98%", "High", "caution"),
+    (4.10, "97%", "Normal", "normal"),
+    (4.05, "95%", "Normal", "normal"),
+    (4.00, "92%", "Normal", "normal"),
+    (3.95, "88%", "Normal", "normal"),
+    (3.90, "83%", "Normal", "normal"),
+    (3.85, "77%", "Normal", "normal"),
+    (3.80, "70%", "Normal", "normal"),
+    (3.75, "62%", "Normal", "normal"),
+    (3.70, "53%", "Normal", "normal"),
+    (3.65, "45%", "Normal", "normal"),
+    (3.60, "37%", "Normal", "normal"),
+    (3.50, "25%", "Normal", "normal"),
+    (3.40, "15%", "Caution", "caution"),
+    (3.30, "10%", "Warning", "warning"),
+    (3.20, "6%", "Critical", "critical"),
+    (3.00, "2-3%", "Protection", "protection"),
+    (2.92, "0%", "Danger", "danger"),
+]
+
 
 def normalize_profile(value):
     profile = str(value or PROFILE_AUTO).strip().lower()
@@ -72,6 +176,83 @@ def _as_float(value, default):
         return float(value)
     except Exception:
         return float(default)
+
+
+def hubble_am2_ocv_reference_table():
+    """Return read-only Hubble AM2 voltage/SOC reference rows for UI help."""
+    return [dict(row) for row in HUBBLE_AM2_OCV_REFERENCE]
+
+
+def cell_ocv_reference(voltage, profile):
+    """Return a Hubble AM2 OCV reference band for display only.
+
+    This is not live pack SOC and never changes BMS behavior, alerts or
+    existing cell status labels.
+    """
+    if normalize_profile(profile) != PROFILE_P13S_AM2:
+        return {
+            "label": "N/A",
+            "status": "No profile table",
+            "class": "unknown",
+            "note": "No OCV reference table is configured for this battery profile.",
+        }
+
+    try:
+        value = float(voltage)
+    except Exception:
+        return {
+            "label": "Unknown",
+            "status": "Unknown",
+            "class": "unknown",
+            "note": "Cell voltage is unavailable.",
+        }
+
+    if value > 4.20:
+        return {"label": "Over", "status": "Overvoltage", "class": "danger", "note": "Above Hubble AM2 OCV reference table."}
+    if value > 4.18:
+        return {"label": "100%", "status": "At limit", "class": "caution", "note": "Between 4.18 V and 4.20 V OCV reference rows."}
+    if value < 2.50:
+        return {"label": "Dead", "status": "Dead cell", "class": "dead", "note": "Below Hubble AM2 OCV reference table."}
+    if value < 2.92:
+        return {"label": "0%", "status": "Danger", "class": "danger", "note": "Below the 2.92 V reference row."}
+
+    points = _HUBBLE_AM2_OCV_POINTS
+    for point_v, point_soc, point_status, point_class in points:
+        if abs(value - point_v) < 0.0005:
+            return {
+                "label": point_soc,
+                "status": point_status,
+                "class": point_class,
+                "note": f"Matches {point_v:.2f} V OCV reference row.",
+            }
+
+    for index in range(len(points) - 1):
+        upper_v, upper_soc, upper_status, upper_class = points[index]
+        lower_v, lower_soc, lower_status, lower_class = points[index + 1]
+        if upper_v > value > lower_v:
+            label = f"{lower_soc}-{upper_soc}"
+            risk_order = {"normal": 0, "caution": 1, "warning": 2, "critical": 3, "protection": 4, "danger": 5, "dead": 6}
+            band_class = upper_class if risk_order.get(upper_class, 0) >= risk_order.get(lower_class, 0) else lower_class
+            if band_class == "normal":
+                status = "Normal"
+            elif band_class == "caution":
+                status = "Caution"
+            elif band_class == "warning":
+                status = "Warning"
+            elif band_class == "critical":
+                status = "Critical"
+            elif band_class == "protection":
+                status = "Protection"
+            else:
+                status = "Danger"
+            return {
+                "label": label,
+                "status": status,
+                "class": band_class,
+                "note": f"Between {lower_v:.2f} V and {upper_v:.2f} V OCV reference rows.",
+            }
+
+    return {"label": "Unknown", "status": "Unknown", "class": "unknown", "note": "Outside known OCV reference rows."}
 
 
 def effective_warning_references(config, cell_count=None):

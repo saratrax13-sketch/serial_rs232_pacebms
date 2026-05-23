@@ -1,3 +1,16 @@
+## 2.10.6 - 2026-05-23
+
+### Added
+- Detailed Pack & Cell Data now includes a display-only `OCV Ref` column beside the existing cell `Status` column for Hubble AM2/P13S NMC cell voltage reference bands.
+- Added a Hubble AM2 NMC voltage reference popup table from the supplied voltage/SOC spreadsheet, including color-coded reference bands.
+
+### Notes
+- The existing cell `Status` column and warning labels were not changed.
+- OCV reference values are UI explanation only; live BMS SOC remains authoritative.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+- Monitor polling behavior was not changed.
+
 ## 2.10.5 - 2026-05-23
 
 ### Fixed

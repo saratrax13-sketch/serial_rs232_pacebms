@@ -460,6 +460,26 @@ class WarningNormalizationTests(unittest.TestCase):
         self.assertAlmostEqual(refs["profile_cell_high"], 4.20)
         self.assertAlmostEqual(refs["profile_pack_high"], 54.60)
 
+    def test_hubble_am2_ocv_reference_bands_are_display_only(self):
+        high_normal = battery_profiles.cell_ocv_reference(3.915, battery_profiles.PROFILE_P13S_AM2)
+        low_normal = battery_profiles.cell_ocv_reference(3.862, battery_profiles.PROFILE_P13S_AM2)
+        top_limit = battery_profiles.cell_ocv_reference(4.20, battery_profiles.PROFILE_P13S_AM2)
+        high_caution = battery_profiles.cell_ocv_reference(4.13, battery_profiles.PROFILE_P13S_AM2)
+        low_warning = battery_profiles.cell_ocv_reference(3.30, battery_profiles.PROFILE_P13S_AM2)
+        unsupported = battery_profiles.cell_ocv_reference(3.915, battery_profiles.PROFILE_P16S_MANA)
+
+        self.assertEqual(high_normal["label"], "83%-88%")
+        self.assertEqual(high_normal["class"], "normal")
+        self.assertEqual(low_normal["label"], "77%-83%")
+        self.assertEqual(low_normal["class"], "normal")
+        self.assertEqual(top_limit["label"], "100%")
+        self.assertEqual(top_limit["class"], "caution")
+        self.assertEqual(high_caution["label"], "98%")
+        self.assertEqual(high_caution["class"], "caution")
+        self.assertEqual(low_warning["label"], "10%")
+        self.assertEqual(low_warning["class"], "warning")
+        self.assertEqual(unsupported["label"], "N/A")
+
     def test_warning_telegram_policy_allows_user_reference_crossing(self):
         pack = bms_monitor.PackData(
             pack_number=1,
@@ -3447,6 +3467,12 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b'id="diagnostics-topology-body"', response.data)
         self.assertIn(b'data-diagnostics-cell-row="01-01"', response.data)
         self.assertIn(b'data-diagnostics-cell-voltage="01-01"', response.data)
+        self.assertIn(b'data-diagnostics-cell-labels="01-01"', response.data)
+        self.assertIn(b'data-diagnostics-cell-ocv-ref="01-01"', response.data)
+        self.assertIn(b"OCV Ref", response.data)
+        self.assertIn(b"Hubble AM2 NMC Voltage Reference", response.data)
+        self.assertIn(b"At limit", response.data)
+        self.assertIn(b"Reference only. Live BMS SOC remains authoritative.", response.data)
         self.assertIn(b"refreshDiagnosticsPackCards", response.data)
         self.assertIn(b"refreshDiagnosticsTopology", response.data)
 
