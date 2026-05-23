@@ -1,3 +1,15 @@
+## 2.10.9 - 2026-05-23
+
+### Changed
+- Stabilized Diagnostics Detailed Pack & Cell Data table spacing with fixed cell, voltage, status, OCV Ref and Balance column proportions.
+- Kept Status pills wrapping within the Status column while OCV Ref and Balance badges keep stable pill sizing.
+
+### Notes
+- The existing cell `Status`, `OCV Ref` and read-only `Balance` behavior was not changed.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+- Monitor polling behavior was not changed.
+
 ## 2.10.8 - 2026-05-23
 
 ### Changed

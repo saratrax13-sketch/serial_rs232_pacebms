@@ -6,14 +6,14 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 
 ## Current State
 
-- Release version is `2.10.8`.
+- Release version is `2.10.9`.
 - Home Assistant add-on is the primary deployment mode.
 - Standalone Docker is supported as a secondary deployment mode.
 - Classic UI is the active UI.
 - Serial-first monitoring is the active architecture.
 - MQTT is optional output/fallback, not the primary UI source.
 - The monitor owns `/data/pacebms-live.json` and `/data/pacebms_metrics.db`.
-- Main and dev were previously aligned at the `2.10.0` normal-use release commit. Main now carries Home Assistant visible UI/reference hotfixes through `2.10.8`.
+- Main and dev were previously aligned at the `2.10.0` normal-use release commit. Main now carries Home Assistant visible UI/reference hotfixes through `2.10.9`.
 
 ## Open Sprint
 
@@ -21,7 +21,10 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 
 ## Latest Sprint Outcome
 
-- `2.10.8` is the latest Home Assistant visible Diagnostics pack-card cleanup hotfix.
+- `2.10.9` is the latest Home Assistant visible Diagnostics cell-table spacing hotfix.
+- Diagnostics Detailed Pack & Cell Data now uses fixed column proportions for Cell, Voltage, Status, OCV Ref and Balance so warning pills do not shift the OCV Ref and Balance columns.
+- Status pills can still wrap within the Status column when multiple warnings are active.
+- `2.10.8` removed the repeated Diagnostics pack-card reference row.
 - Diagnostics Detailed Pack & Cell Data no longer repeats the static `Cell High Ref` / `Pack High Ref` row inside every pack card.
 - The underlying reference calculations, Warning Intelligence, Telegram warning context and Tech Status reference display remain unchanged.
 - `2.10.7` added the Diagnostics balancing display hotfix.
@@ -126,4 +129,4 @@ For standalone Docker validation on a Docker host:
 .\scripts\docker_smoke_test.ps1
 ```
 
-Next recommended step: install/update the Home Assistant add-on to `2.10.8`, set `ui_data_source` to `monitor_live` if pure serial-only UI data is required, then confirm Detailed Pack & Cell Data keeps the existing Status, OCV Ref and Balance columns while the repeated Cell High Ref / Pack High Ref row is gone from each Diagnostics pack card.
+Next recommended step: install/update the Home Assistant add-on to `2.10.9`, set `ui_data_source` to `monitor_live` if pure serial-only UI data is required, then confirm Detailed Pack & Cell Data keeps stable Status, OCV Ref and Balance column spacing when warning pills appear.

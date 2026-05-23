@@ -1156,8 +1156,15 @@
     .cell-table {
       width: 100%;
       border-collapse: collapse;
+      table-layout: fixed;
       margin-top: 10px;
     }
+
+    .cell-table-col-cell { width: 14%; }
+    .cell-table-col-voltage { width: 19%; }
+    .cell-table-col-status { width: 22%; }
+    .cell-table-col-ocv { width: 23%; }
+    .cell-table-col-balance { width: 22%; }
 
     .cell-table th {
       color: var(--muted);
@@ -1174,28 +1181,38 @@
       padding: 8px 6px;
       border-bottom: 1px solid rgba(148, 163, 184, 0.12);
       vertical-align: top;
+      overflow-wrap: anywhere;
     }
 
     .cell-voltage {
       font-weight: 900;
       color: #f8fafc;
+      white-space: nowrap;
     }
 
     .cell-labels {
       display: flex;
       flex-wrap: wrap;
       gap: 5px;
+      align-items: center;
+      min-height: 22px;
     }
 
     .cell-label {
       display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 54px;
+      min-height: 20px;
       border-radius: 999px;
       padding: 3px 7px;
       font-size: 11px;
       font-weight: 900;
+      line-height: 1.1;
       border: 1px solid rgba(148, 163, 184, 0.22);
       color: #cbd5e1;
       background: rgba(30, 41, 59, 0.72);
+      white-space: nowrap;
     }
 
     .cell-label.highlow {
@@ -1244,6 +1261,7 @@
       align-items: center;
       justify-content: center;
       min-width: 54px;
+      min-height: 20px;
       border-radius: 999px;
       padding: 3px 7px;
       border: 1px solid rgba(148, 163, 184, 0.22);
@@ -1251,6 +1269,7 @@
       color: #cbd5e1;
       font-size: 11px;
       font-weight: 900;
+      line-height: 1.1;
       white-space: nowrap;
     }
 
@@ -1287,6 +1306,7 @@
       align-items: center;
       justify-content: center;
       min-width: 54px;
+      min-height: 20px;
       border-radius: 999px;
       padding: 3px 7px;
       border: 1px solid rgba(148, 163, 184, 0.22);
@@ -1294,6 +1314,7 @@
       color: #94a3b8;
       font-size: 11px;
       font-weight: 800;
+      line-height: 1.1;
       white-space: nowrap;
     }
 
@@ -5668,6 +5689,13 @@ This cannot be undone.`);">
               <div class="metric-section-title">Cell Data</div>
             {% if pack.cells %}
             <table class="cell-table">
+              <colgroup>
+                <col class="cell-table-col-cell">
+                <col class="cell-table-col-voltage">
+                <col class="cell-table-col-status">
+                <col class="cell-table-col-ocv">
+                <col class="cell-table-col-balance">
+              </colgroup>
               <thead>
                 <tr>
                   <th>Cell</th>

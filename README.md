@@ -30,7 +30,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.10.8"
+version: "2.10.9"
 ```
 
 ---
@@ -314,6 +314,8 @@ show which cells the BMS reports as balancing; the add-on does not start,
 stop or control balancing.
 Static high-reference values are kept in Tech Status and Config reference
 views, not repeated inside each Diagnostics pack card.
+The cell table uses fixed column proportions so warning pills can appear in
+the Status column without shifting the OCV Ref and Balance columns.
 
 ![Diagnostics overview](docs/screenshots/Diagnostics%20p1.png)
 
