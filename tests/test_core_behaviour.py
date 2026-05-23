@@ -1307,6 +1307,8 @@ class HealthEndpointTests(unittest.TestCase):
             "source": "live_serial",
             "data_source": "Live serial",
             "snapshot_id": 123456789,
+            "snapshot_age_seconds": 1,
+            "updated_at_epoch": 1780000000,
             "availability": "online",
             "monitor_state": "running",
             "stale": "OFF",
@@ -2944,7 +2946,7 @@ class HealthEndpointTests(unittest.TestCase):
                     "availability", "monitor_state", "stale", "stale_reason", "layout",
                     "bms_sn", "bms_version", "base_topic", "fetched_at", "last_analog_read",
                     "last_warn_read", "analog_age_seconds", "warn_age_seconds", "pack_count",
-                    "total_cells", "warning_count", "warning_signature", "monitoring_health",
+                    "total_cells", "warning_count", "warning_signature", "snapshot_age_seconds", "updated_at_epoch", "monitoring_health",
                     "user_summary", "packs",
                 ):
                     self.assertIn(key, payload)
@@ -3227,6 +3229,10 @@ class HealthEndpointTests(unittest.TestCase):
             "bms_sn": "TEST",
             "base_topic": "pacebms",
             "fetched_at": "now",
+            "source": "live_serial",
+            "data_source": "Live serial",
+            "snapshot_age_seconds": 2,
+            "updated_at_epoch": 999,
             "error": "",
             "packs": [],
         }
@@ -3430,6 +3436,11 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"Operating State", response.data)
         self.assertIn(b"Charging", response.data)
         self.assertIn(b"Charging at 0.05 kW", response.data)
+        self.assertIn(b"Live serial source:", response.data)
+        self.assertIn(b'data-diagnostics-live-field="source"', response.data)
+        self.assertIn(b'data-diagnostics-live-field="snapshot-age"', response.data)
+        self.assertIn(b'data-diagnostics-live-field="last-analog"', response.data)
+        self.assertIn(b"diagnosticsSnapshotAgeText", response.data)
         self.assertIn(b'data-diagnostics-pack="01"', response.data)
         self.assertIn(b'data-diagnostics-pack-field="01-voltage"', response.data)
         self.assertIn(b'data-diagnostics-topology-field="pack-count"', response.data)

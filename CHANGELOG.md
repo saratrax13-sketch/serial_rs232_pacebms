@@ -1,3 +1,15 @@
+## 2.10.5 - 2026-05-23
+
+### Fixed
+- Diagnostics Detailed Pack & Cell Data now shows the live data source, serial snapshot age, last analog read and last warning read directly on the card.
+- Those live-source fields refresh from `/api/status` alongside the per-pack and per-cell values while the Diagnostics tab is open.
+
+### Notes
+- Set `ui_data_source: monitor_live` to make the card use only the monitor-owned live serial snapshot with no MQTT fallback.
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+- Monitor polling behavior was not changed.
+
 ## 2.10.4 - 2026-05-23
 
 ### Fixed

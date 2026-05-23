@@ -5356,6 +5356,16 @@ This cannot be undone.`);">
           <h2>Detailed Pack & Cell Data</h2>
           <p>Per-pack diagnostic context with individual cell readings below each pack.</p>
         </div>
+        <div class="helper-note diagnostics-live-source">
+          <strong>Live serial source:</strong>
+          <span data-diagnostics-live-field="source">{{ live.data_source|default('Unknown') }}</span>
+          | Snapshot age:
+          <span data-diagnostics-live-field="snapshot-age">{{ live.snapshot_age_seconds|default('Unknown') }}{% if live.snapshot_age_seconds is defined %}s{% endif %}</span>
+          | Last analog read:
+          <span data-diagnostics-live-field="last-analog">{{ live.last_analog_read|default('Unknown') }}</span>
+          | Last warning read:
+          <span data-diagnostics-live-field="last-warning">{{ live.last_warn_read|default('Unknown') }}</span>
+        </div>
 
         {% if live and live.packs %}
         <div class="pack-grid">
@@ -7356,6 +7366,22 @@ Restart the add-on afterwards for runtime changes to apply.`);
       return Boolean(el);
     }
 
+    function setDiagnosticsLiveText(field, value) {
+      const el = document.querySelector(`[data-diagnostics-live-field="${field}"]`);
+      if (el) el.textContent = value ?? "Unknown";
+      return Boolean(el);
+    }
+
+    function diagnosticsSnapshotAgeText(data) {
+      const age = Number(data.snapshot_age_seconds);
+      if (Number.isFinite(age)) return `${age}s`;
+      if (data.updated_at_epoch) {
+        const calculated = Math.max(0, Math.floor(Date.now() / 1000 - Number(data.updated_at_epoch)));
+        return Number.isFinite(calculated) ? `${calculated}s` : "Unknown";
+      }
+      return "Unknown";
+    }
+
     function diagnosticsCellLabel(cell) {
       if (!cell) return "Unknown";
       return `C${cell.number ?? "Unknown"} - ${cell.voltage ?? "Unknown"} V`;
@@ -7773,6 +7799,10 @@ Restart the add-on afterwards for runtime changes to apply.`);
         setDiagnosticsText("#diagnostics-layout", data.layout);
         setDiagnosticsText("#diagnostics-last-analog", data.last_analog_read);
         setDiagnosticsText("#diagnostics-last-warning", data.last_warn_read);
+        setDiagnosticsLiveText("source", data.data_source || "Unknown");
+        setDiagnosticsLiveText("snapshot-age", diagnosticsSnapshotAgeText(data));
+        setDiagnosticsLiveText("last-analog", data.last_analog_read || "Unknown");
+        setDiagnosticsLiveText("last-warning", data.last_warn_read || "Unknown");
 
         if (data.user_summary) {
           setDiagnosticsText("#diagnostics-operating-state", data.user_summary.power_state || data.user_summary.status);

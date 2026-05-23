@@ -6,14 +6,14 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 
 ## Current State
 
-- Release version is `2.10.4`.
+- Release version is `2.10.5`.
 - Home Assistant add-on is the primary deployment mode.
 - Standalone Docker is supported as a secondary deployment mode.
 - Classic UI is the active UI.
 - Serial-first monitoring is the active architecture.
 - MQTT is optional output/fallback, not the primary UI source.
 - The monitor owns `/data/pacebms-live.json` and `/data/pacebms_metrics.db`.
-- Main and dev were previously aligned at the `2.10.0` normal-use release commit. Main now carries Home Assistant visible UI refresh hotfixes through `2.10.4`.
+- Main and dev were previously aligned at the `2.10.0` normal-use release commit. Main now carries Home Assistant visible UI refresh hotfixes through `2.10.5`.
 
 ## Open Sprint
 
@@ -21,7 +21,10 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 
 ## Latest Sprint Outcome
 
-- `2.10.4` is the latest Home Assistant visible warning-cell detail hotfix.
+- `2.10.5` is the latest Home Assistant visible Diagnostics live-source clarity hotfix.
+- Diagnostics Detailed Pack & Cell Data now shows the live data source, serial snapshot age, last analog read and last warning read directly on the card.
+- Those live-source fields refresh from `/api/status` alongside the per-pack and per-cell values while the Diagnostics tab is open.
+- `2.10.4` fixed generic BMS high/low warning candidate cell labels.
 - Generic BMS high-cell and low-cell warnings now mark the relevant high-side or low-side candidate cell group in Detailed Pack & Cell Data instead of only marking the single highest or lowest cell.
 - Exact BMS warning text that names specific cells still marks only those reported cells.
 - MQTT-fallback cell detail normalization now keeps all rendered cell rows when building pack cell details.
@@ -113,4 +116,4 @@ For standalone Docker validation on a Docker host:
 .\scripts\docker_smoke_test.ps1
 ```
 
-Next recommended step: install/update the Home Assistant add-on to `2.10.4`, then confirm Detailed Pack & Cell Data marks the high-side or low-side BMS warning candidate cells while preserving exact reported cell labels when the BMS names specific cells.
+Next recommended step: install/update the Home Assistant add-on to `2.10.5`, set `ui_data_source` to `monitor_live` if pure serial-only UI data is required, then confirm Detailed Pack & Cell Data snapshot age and read timestamps update while the card values change.
