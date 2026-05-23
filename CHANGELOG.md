@@ -1,3 +1,15 @@
+## 2.10.3 - 2026-05-23
+
+### Fixed
+- Tech Status Warning Intelligence now refreshes live quick metrics, BMS warning detail rows, reference checks, Telegram decision text, interpretation and suggested action from `/api/status` while the tab is open.
+- Tech Status Battery Packs now refresh live per-pack values, capacity, cell balance, reference and FET state fields from `/api/status`.
+- Diagnostics Battery Configuration now refreshes topology summary tiles and the pack topology table from `/api/status`.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+- Monitor polling behavior was not changed.
+
 ## 2.10.2 - 2026-05-23
 
 ### Fixed

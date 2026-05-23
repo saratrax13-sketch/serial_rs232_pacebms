@@ -6,14 +6,14 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 
 ## Current State
 
-- Release version is `2.10.0`.
+- Release version is `2.10.3`.
 - Home Assistant add-on is the primary deployment mode.
 - Standalone Docker is supported as a secondary deployment mode.
 - Classic UI is the active UI.
 - Serial-first monitoring is the active architecture.
 - MQTT is optional output/fallback, not the primary UI source.
 - The monitor owns `/data/pacebms-live.json` and `/data/pacebms_metrics.db`.
-- Main and dev were previously aligned at the `2.10.0` normal-use release commit.
+- Main and dev were previously aligned at the `2.10.0` normal-use release commit. Main now carries Home Assistant visible UI refresh hotfixes through `2.10.3`.
 
 ## Open Sprint
 
@@ -21,6 +21,11 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 
 ## Latest Sprint Outcome
 
+- `2.10.3` is the latest Home Assistant visible UI refresh hotfix.
+- Tech Status Warning Intelligence now refreshes live quick metrics, BMS warning details, reference checks, Telegram decision text, interpretation and suggested action from `/api/status` while the tab is open.
+- Tech Status Battery Packs now refresh live per-pack values, capacity, cell balance, reference and FET state fields from `/api/status`.
+- Diagnostics Battery Configuration now refreshes topology summary tiles and the pack topology table from `/api/status`.
+- `2.10.2` fixed Diagnostics Detailed Pack & Cell Data live updates.
 - `2.10.0` was marked as the normal-use release.
 - Added close-off documentation:
   - `INSTALL.md`
@@ -104,4 +109,4 @@ For standalone Docker validation on a Docker host:
 .\scripts\docker_smoke_test.ps1
 ```
 
-Next recommended step: push `main`, then confirm Home Assistant sees the current `2.10.0` release and run the final live acceptance checklist in `docs/FINAL_ACCEPTANCE_TEST.md`.
+Next recommended step: install/update the Home Assistant add-on to `2.10.3`, then confirm Dashboard, Tech Status and Diagnostics live fields update in place without tab switching.

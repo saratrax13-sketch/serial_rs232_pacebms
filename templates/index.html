@@ -3784,13 +3784,13 @@
 
           <div class="warning-intel-grid">
             {% for pack in live.packs %}
-            <article class="warning-intel-card {% if pack.warnings != 'Normal' %}{{ pack.severity_class }}{% endif %}">
+            <article class="warning-intel-card {% if pack.warnings != 'Normal' %}{{ pack.severity_class }}{% endif %}" data-warning-intel-pack="{{ pack.id }}">
               <div class="warning-intel-header">
                 <div>
                   <div class="warning-intel-title">Pack {{ pack.id }} — {% if pack.role %}{{ pack.role }}{% elif pack.id == '01' %}Master{% else %}Slave{% endif %}</div>
-                  <div class="warning-intel-subtitle">{{ pack.cell_count }} cells detected</div>
+                  <div class="warning-intel-subtitle" data-warning-intel-field="{{ pack.id }}-subtitle">{{ pack.cell_count }} cells detected</div>
                 </div>
-                <span class="warning-intel-status {% if pack.warnings != 'Normal' %}{{ pack.severity_class }}{% endif %}">
+                <span class="warning-intel-status {% if pack.warnings != 'Normal' %}{{ pack.severity_class }}{% endif %}" data-warning-intel-field="{{ pack.id }}-status">
                   {% if pack.warnings == 'Normal' %}Normal{% else %}{{ pack.severity_label }}{% endif %}
                 </span>
               </div>
@@ -3801,44 +3801,46 @@
               <div class="warning-intel-metrics expanded">
                 <div class="warning-intel-metric">
                   <div class="warning-intel-label">Highest Cell</div>
-                  <div class="warning-intel-value">Cell {{ pack.highest_cell.number }} = {{ pack.highest_cell.voltage }} V</div>
+                  <div class="warning-intel-value" data-warning-intel-field="{{ pack.id }}-highest">Cell {{ pack.highest_cell.number }} = {{ pack.highest_cell.voltage }} V</div>
                 </div>
                 <div class="warning-intel-metric">
                   <div class="warning-intel-label">Lowest Cell</div>
-                  <div class="warning-intel-value">Cell {{ pack.lowest_cell.number }} = {{ pack.lowest_cell.voltage }} V</div>
+                  <div class="warning-intel-value" data-warning-intel-field="{{ pack.id }}-lowest">Cell {{ pack.lowest_cell.number }} = {{ pack.lowest_cell.voltage }} V</div>
                 </div>
                 <div class="warning-intel-metric">
                   <div class="warning-intel-label">Cell Delta</div>
-                  <div class="warning-intel-value">{{ pack.delta }} mV</div>
+                  <div class="warning-intel-value" data-warning-intel-field="{{ pack.id }}-delta">{{ pack.delta }} mV</div>
                 </div>
                 <div class="warning-intel-metric">
                   <div class="warning-intel-label">Pack Voltage</div>
-                  <div class="warning-intel-value">{{ pack.voltage }} V</div>
+                  <div class="warning-intel-value" data-warning-intel-field="{{ pack.id }}-voltage">{{ pack.voltage }} V</div>
                 </div>
                 <div class="warning-intel-metric">
                   <div class="warning-intel-label">SOC</div>
-                  <div class="warning-intel-value">{{ pack.soc }}%</div>
+                  <div class="warning-intel-value" data-warning-intel-field="{{ pack.id }}-soc">{{ pack.soc }}%</div>
                 </div>
                 <div class="warning-intel-metric">
                   <div class="warning-intel-label">SOH</div>
-                  <div class="warning-intel-value">{{ pack.soh }}%</div>
+                  <div class="warning-intel-value" data-warning-intel-field="{{ pack.id }}-soh">{{ pack.soh }}%</div>
                 </div>
                 <div class="warning-intel-metric">
                   <div class="warning-intel-label">Cycles</div>
-                  <div class="warning-intel-value">{{ pack.cycles }}</div>
+                  <div class="warning-intel-value" data-warning-intel-field="{{ pack.id }}-cycles">{{ pack.cycles }}</div>
                 </div>
               </div>
 
               <div class="warning-intel-section">
                 <strong>BMS Reported Warning</strong>
+                <div data-warning-intel-field="{{ pack.id }}-warning-text">
                 {% if pack.warnings == 'Normal' %}
                   <div class="warning-detail-empty">No active BMS warning reported for this pack.</div>
                 {% else %}
                   <div class="warning-detail-empty">{{ pack.warnings }}</div>
                 {% endif %}
+                </div>
               </div>
 
-              <div class="warning-intel-section">
+              <div class="warning-intel-section" data-warning-intel-user-refs="{{ pack.id }}">
                 <strong>User Alert Reference Check</strong>
                 {% if pack.warning_intelligence and not pack.warning_intelligence.show_user_reference_details %}
                   <div class="warning-detail-empty">{{ pack.warning_intelligence.user_reference_summary }}</div>
@@ -3858,7 +3860,7 @@
                 {% endif %}
               </div>
 
-              <div class="warning-intel-section">
+              <div class="warning-intel-section" data-warning-intel-bms-details="{{ pack.id }}">
                 <strong>BMS Reported Warning Details</strong>
                 {% if pack.warnings == 'Normal' %}
                   <div class="warning-detail-empty">No BMS warning rows to compare.</div>
@@ -3885,7 +3887,7 @@
                 {% endif %}
               </div>
 
-              <div class="warning-intel-section">
+              <div class="warning-intel-section" data-warning-intel-reference-checks="{{ pack.id }}">
                 <strong>Reference Check</strong>
                 <ul class="warning-intel-list">
                   {% if pack.warning_intelligence %}
@@ -3900,7 +3902,7 @@
                 </ul>
               </div>
 
-              <div class="warning-intel-section">
+              <div class="warning-intel-section" data-warning-intel-telegram="{{ pack.id }}">
                 <strong>BMS Warning Telegram Decision</strong><br>
                 {% if pack.warning_intelligence %}
                   <span class="warning-detail-status {{ pack.warning_intelligence.telegram_decision_class }}">{{ pack.warning_intelligence.telegram_decision }}</span><br>
@@ -3910,7 +3912,7 @@
                 {% endif %}
               </div>
 
-              <div class="warning-intel-section">
+              <div class="warning-intel-section" data-warning-intel-interpretation="{{ pack.id }}">
                 <strong>Interpretation</strong><br>
                 {% if pack.warning_intelligence %}
                   {{ pack.warning_intelligence.interpretation }}
@@ -3921,7 +3923,7 @@
                 {% endif %}
               </div>
 
-              <div class="warning-intel-section">
+              <div class="warning-intel-section" data-warning-intel-suggestion="{{ pack.id }}">
                 <strong>Suggested Action</strong><br>
                 {% if pack.warning_intelligence %}
                   {{ pack.warning_intelligence.suggested_action }}
@@ -3952,34 +3954,34 @@
           {% set pack_power = (pack_voltage * pack_current) / 1000 %}
           {% set runtime_hours = (pack_voltage * pack_remaining / 1000) / (-pack_power) if pack_power < -0.05 and pack_remaining > 0 else none %}
           {% set charge_hours = (pack_voltage * (pack_full - pack_remaining) / 1000) / pack_power if pack_power > 0.05 and pack_full > pack_remaining else none %}
-          <article class="pack-card">
+          <article class="pack-card" data-tech-pack="{{ pack.id }}">
             <div class="pack-header">
               <div>
                 <div class="pack-title">Pack {{ pack.id }}</div>
-                <div class="summary-meta">{{ pack_role }} · {{ pack.cell_count }} cells detected</div>
+                <div class="summary-meta" data-tech-pack-field="{{ pack.id }}-summary">{{ pack_role }} · {{ pack.cell_count }} cells detected</div>
               </div>
-              <span class="pill {{ pack.severity_class }}">{{ pack.severity_label }}</span>
+              <span class="pill {{ pack.severity_class }}" data-tech-pack-field="{{ pack.id }}-status-pill">{{ pack.severity_label }}</span>
             </div>
 
             <div class="pack-quick-strip">
               <div class="pack-quick-item">
                 <div class="pack-quick-label">SOC</div>
-                <div class="pack-quick-value">{{ pack.soc }}%</div>
+                <div class="pack-quick-value" data-tech-pack-field="{{ pack.id }}-soc">{{ pack.soc }}%</div>
                 <span class="pack-quick-icon">↻</span>
               </div>
               <div class="pack-quick-item">
                 <div class="pack-quick-label">SOH</div>
-                <div class="pack-quick-value">{{ pack.soh }}%</div>
+                <div class="pack-quick-value" data-tech-pack-field="{{ pack.id }}-soh">{{ pack.soh }}%</div>
                 <span class="pack-quick-icon">◇</span>
               </div>
               <div class="pack-quick-item">
                 <div class="pack-quick-label">Voltage</div>
-                <div class="pack-quick-value">{{ pack.voltage }} V</div>
+                <div class="pack-quick-value" data-tech-pack-field="{{ pack.id }}-voltage">{{ pack.voltage }} V</div>
                 <span class="pack-quick-icon">⚡</span>
               </div>
               <div class="pack-quick-item">
                 <div class="pack-quick-label">Current</div>
-                <div class="pack-quick-value">{{ pack.current }} A</div>
+                <div class="pack-quick-value" data-tech-pack-field="{{ pack.id }}-current">{{ pack.current }} A</div>
                 <span class="pack-quick-icon">⌁</span>
               </div>
             </div>
@@ -3988,41 +3990,41 @@
               <div class="pack-detail-row">
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Role</span>
-                  <span class="pack-detail-value">{{ pack_role }}</span>
+                  <span class="pack-detail-value" data-tech-pack-field="{{ pack.id }}-role">{{ pack_role }}</span>
                 </div>
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Serial</span>
-                  <span class="pack-detail-value">{{ pack.serial|default('N/A') }}</span>
+                  <span class="pack-detail-value" data-tech-pack-field="{{ pack.id }}-serial">{{ pack.serial|default('N/A') }}</span>
                 </div>
               </div>
               <div class="pack-detail-row">
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Cells</span>
-                  <span class="pack-detail-value">{{ pack.cell_count }}</span>
+                  <span class="pack-detail-value" data-tech-pack-field="{{ pack.id }}-cells">{{ pack.cell_count }}</span>
                 </div>
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Power</span>
-                  <span class="pack-detail-value">{{ pack.power_kw|default('Unknown') }} kW</span>
+                  <span class="pack-detail-value" data-tech-pack-field="{{ pack.id }}-power">{{ pack.power_kw|default('Unknown') }} kW</span>
                 </div>
               </div>
               <div class="pack-detail-row">
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Remaining Capacity</span>
-                  <span class="pack-detail-value">{{ pack.remaining_capacity_ah }} Ah</span>
+                  <span class="pack-detail-value" data-tech-pack-field="{{ pack.id }}-remaining">{{ pack.remaining_capacity_ah }} Ah</span>
                 </div>
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Full Capacity</span>
-                  <span class="pack-detail-value">{{ pack.full_capacity_ah }} Ah</span>
+                  <span class="pack-detail-value" data-tech-pack-field="{{ pack.id }}-full">{{ pack.full_capacity_ah }} Ah</span>
                 </div>
               </div>
               <div class="pack-detail-row">
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Design Capacity</span>
-                  <span class="pack-detail-value">{{ pack.design_capacity_ah }} Ah</span>
+                  <span class="pack-detail-value" data-tech-pack-field="{{ pack.id }}-design">{{ pack.design_capacity_ah }} Ah</span>
                 </div>
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Projected Runtime</span>
-                  <span class="pack-detail-value">
+                  <span class="pack-detail-value" data-tech-pack-field="{{ pack.id }}-runtime">
                     {% if runtime_hours is not none %}
                       {{ ((runtime_hours * 60)|round(0, 'floor') // 60)|int }}h {{ ((runtime_hours * 60)|round(0, 'floor') % 60)|int }}m
                     {% elif charge_hours is not none %}
@@ -4036,31 +4038,31 @@
               <div class="pack-detail-row">
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Highest Cell</span>
-                  <span class="pack-detail-value">C{{ pack.highest_cell.number }} · {{ pack.highest_cell.voltage }} V</span>
+                  <span class="pack-detail-value" data-tech-pack-field="{{ pack.id }}-highest">C{{ pack.highest_cell.number }} · {{ pack.highest_cell.voltage }} V</span>
                 </div>
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Lowest Cell</span>
-                  <span class="pack-detail-value">C{{ pack.lowest_cell.number }} · {{ pack.lowest_cell.voltage }} V</span>
+                  <span class="pack-detail-value" data-tech-pack-field="{{ pack.id }}-lowest">C{{ pack.lowest_cell.number }} · {{ pack.lowest_cell.voltage }} V</span>
                 </div>
               </div>
               <div class="pack-detail-row">
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Cycles</span>
-                  <span class="pack-detail-value">{{ pack.cycles }}</span>
+                  <span class="pack-detail-value" data-tech-pack-field="{{ pack.id }}-cycles">{{ pack.cycles }}</span>
                 </div>
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Cell Delta</span>
-                  <span class="pack-detail-value">{{ pack.delta }} mV</span>
+                  <span class="pack-detail-value" data-tech-pack-field="{{ pack.id }}-delta">{{ pack.delta }} mV</span>
                 </div>
               </div>
               <div class="pack-detail-row">
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Cell High Ref</span>
-                  <span class="pack-detail-value">{{ pack.cell_high_ref }} V</span>
+                  <span class="pack-detail-value" data-tech-pack-field="{{ pack.id }}-cell-high-ref">{{ pack.cell_high_ref }} V</span>
                 </div>
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Pack High Ref</span>
-                  <span class="pack-detail-value">{{ pack.pack_high_ref }} V</span>
+                  <span class="pack-detail-value" data-tech-pack-field="{{ pack.id }}-pack-high-ref">{{ pack.pack_high_ref }} V</span>
                 </div>
               </div>
             </div>
@@ -4069,17 +4071,17 @@
               <div class="metric-section-title">BMS Control State</div>
               <div class="fet-row">
               {% if pack.power_kw is defined and pack.power_kw != 'Unknown' and pack_power > 0.05 %}
-              <span class="pill ok">State: Charging</span>
+              <span class="pill ok" data-tech-pack-field="{{ pack.id }}-power-state">State: Charging</span>
               {% elif pack.power_kw is defined and pack.power_kw != 'Unknown' and pack_power < -0.05 %}
-              <span class="pill warning">State: Discharging</span>
+              <span class="pill warning" data-tech-pack-field="{{ pack.id }}-power-state">State: Discharging</span>
               {% elif pack.power_kw is defined and pack.power_kw != 'Unknown' %}
-              <span class="pill off">State: Idle</span>
+              <span class="pill off" data-tech-pack-field="{{ pack.id }}-power-state">State: Idle</span>
               {% else %}
-              <span class="pill off">State: Unknown</span>
+              <span class="pill off" data-tech-pack-field="{{ pack.id }}-power-state">State: Unknown</span>
               {% endif %}
-              <span class="pill {% if pack.charge_fet == 'ON' %}ok{% else %}off{% endif %}">Charge FET: {{ pack.charge_fet }}</span>
-              <span class="pill {% if pack.discharge_fet == 'ON' %}ok{% else %}danger{% endif %}">Discharge FET: {{ pack.discharge_fet }}</span>
-              <span class="pill {% if pack.fully == 'ON' %}ok{% else %}off{% endif %}">Full: {{ pack.fully }}</span>
+              <span class="pill {% if pack.charge_fet == 'ON' %}ok{% else %}off{% endif %}" data-tech-pack-field="{{ pack.id }}-charge-fet">Charge FET: {{ pack.charge_fet }}</span>
+              <span class="pill {% if pack.discharge_fet == 'ON' %}ok{% else %}danger{% endif %}" data-tech-pack-field="{{ pack.id }}-discharge-fet">Discharge FET: {{ pack.discharge_fet }}</span>
+              <span class="pill {% if pack.fully == 'ON' %}ok{% else %}off{% endif %}" data-tech-pack-field="{{ pack.id }}-full-state">Full: {{ pack.fully }}</span>
               </div>
             </div>
 
@@ -5257,47 +5259,47 @@ This cannot be undone.`);">
         <div class="status-grid">
           <div class="status-tile">
             <div class="tile-label">Connection Type</div>
-            <div class="tile-value">{{ diagnostics.battery_topology.connection_type }}</div>
+            <div class="tile-value" data-diagnostics-topology-field="connection-type">{{ diagnostics.battery_topology.connection_type }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Configuration</div>
-            <div class="tile-value">{{ diagnostics.battery_topology.configuration }}</div>
+            <div class="tile-value" data-diagnostics-topology-field="configuration">{{ diagnostics.battery_topology.configuration }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Detected Packs</div>
-            <div class="tile-value">{{ diagnostics.battery_topology.pack_count }}</div>
+            <div class="tile-value" data-diagnostics-topology-field="pack-count">{{ diagnostics.battery_topology.pack_count }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Total Cells</div>
-            <div class="tile-value">{{ diagnostics.battery_topology.total_cells }}</div>
+            <div class="tile-value" data-diagnostics-topology-field="total-cells">{{ diagnostics.battery_topology.total_cells }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Max Cycles</div>
-            <div class="tile-value">{{ diagnostics.battery_topology.max_cycles }}</div>
+            <div class="tile-value" data-diagnostics-topology-field="max-cycles">{{ diagnostics.battery_topology.max_cycles }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Lowest SOH</div>
-            <div class="tile-value">{{ diagnostics.battery_topology.min_soh }}</div>
+            <div class="tile-value" data-diagnostics-topology-field="min-soh">{{ diagnostics.battery_topology.min_soh }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Average SOC</div>
-            <div class="tile-value">{{ diagnostics.battery_topology.avg_soc }}</div>
+            <div class="tile-value" data-diagnostics-topology-field="avg-soc">{{ diagnostics.battery_topology.avg_soc }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Master Pack</div>
-            <div class="tile-value">{{ diagnostics.battery_topology.master_pack }}</div>
+            <div class="tile-value" data-diagnostics-topology-field="master-pack">{{ diagnostics.battery_topology.master_pack }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">Slave Pack(s)</div>
-            <div class="tile-value">{{ diagnostics.battery_topology.slave_packs }}</div>
+            <div class="tile-value" data-diagnostics-topology-field="slave-packs">{{ diagnostics.battery_topology.slave_packs }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">BMS Serial</div>
-            <div class="tile-value">{{ diagnostics.battery_topology.bms_serial }}</div>
+            <div class="tile-value" data-diagnostics-topology-field="bms-serial">{{ diagnostics.battery_topology.bms_serial }}</div>
           </div>
           <div class="status-tile">
             <div class="tile-label">BMS Version</div>
-            <div class="tile-value">{{ diagnostics.battery_topology.bms_version }}</div>
+            <div class="tile-value" data-diagnostics-topology-field="bms-version">{{ diagnostics.battery_topology.bms_version }}</div>
           </div>
         </div>
 
@@ -5318,7 +5320,7 @@ This cannot be undone.`);">
               <th>Status</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody id="diagnostics-topology-body">
             {% for row in diagnostics.battery_topology.rows %}
             <tr>
               <td data-label="Role"><span class="topology-role">{{ row.role }}</span></td>
@@ -5813,6 +5815,8 @@ This cannot be undone.`);">
         }
 
         const packs = data.packs || [];
+        refreshWarningIntelligenceCards(packs);
+        refreshLivePackCards(packs, "tech", "status");
         const maxVoltage = Math.max(...packs.map(p => Number(p.voltage) || 0), 0);
         const maxDelta = Math.max(...packs.map(p => Number(p.delta) || 0), 0);
 
@@ -7284,6 +7288,64 @@ Restart the add-on afterwards for runtime changes to apply.`);
       return text.replaceAll("*", "").trim() || text;
     }
 
+    function livePackField(prefix, packId, field) {
+      return document.querySelector(`[data-${prefix}-pack-field="${packId}-${field}"]`);
+    }
+
+    function setLivePackText(prefix, packId, field, value) {
+      const el = livePackField(prefix, packId, field);
+      if (el) el.textContent = value ?? "Unknown";
+      return Boolean(el);
+    }
+
+    function setLivePackPill(prefix, packId, field, text, className) {
+      const el = livePackField(prefix, packId, field);
+      if (!el) return false;
+      el.textContent = text;
+      el.className = "pill " + (className || "off");
+      return true;
+    }
+
+    function refreshLivePackCards(packs, prefix, tabName) {
+      let missingStructure = false;
+      (packs || []).forEach(function (pack) {
+        const id = String(pack.id);
+        const role = pack.role || (id === "01" || id === "1" ? "Master" : "Slave");
+        const statusText = pack.warnings === "Normal" ? "Normal" : (pack.severity_label || "Warning");
+        const statusClass = pack.warnings === "Normal" ? "ok" : (pack.severity_class || "warning");
+
+        missingStructure = !setLivePackText(prefix, id, "summary", `${role} - ${pack.cell_count ?? "Unknown"} cells detected`) || missingStructure;
+        setLivePackPill(prefix, id, "status-pill", statusText, statusClass);
+        setLivePackText(prefix, id, "soc", `${pack.soc ?? "Unknown"}%`);
+        setLivePackText(prefix, id, "soh", `${pack.soh ?? "Unknown"}%`);
+        setLivePackText(prefix, id, "voltage", `${pack.voltage ?? "Unknown"} V`);
+        setLivePackText(prefix, id, "current", `${pack.current ?? "Unknown"} A`);
+        setLivePackText(prefix, id, "role", role);
+        setLivePackText(prefix, id, "serial", pack.serial ?? "N/A");
+        setLivePackText(prefix, id, "cells", pack.cell_count ?? "Unknown");
+        setLivePackText(prefix, id, "power", `${pack.power_kw ?? "Unknown"} kW`);
+        setLivePackText(prefix, id, "remaining", `${pack.remaining_capacity_ah ?? "Unknown"} Ah`);
+        setLivePackText(prefix, id, "full", `${pack.full_capacity_ah ?? "Unknown"} Ah`);
+        setLivePackText(prefix, id, "design", `${pack.design_capacity_ah ?? "Unknown"} Ah`);
+        setLivePackText(prefix, id, "runtime", packTimeEstimate(pack));
+        setLivePackText(prefix, id, "highest", diagnosticsCellLabel(pack.highest_cell));
+        setLivePackText(prefix, id, "lowest", diagnosticsCellLabel(pack.lowest_cell));
+        setLivePackText(prefix, id, "cycles", pack.cycles ?? "Unknown");
+        setLivePackText(prefix, id, "delta", `${pack.delta ?? "Unknown"} mV`);
+        setLivePackText(prefix, id, "cell-high-ref", `${pack.cell_high_ref ?? "Unknown"} V`);
+        setLivePackText(prefix, id, "pack-high-ref", `${pack.pack_high_ref ?? "Unknown"} V`);
+
+        const powerState = diagnosticsPowerState(pack);
+        setLivePackPill(prefix, id, "power-state", powerState.text, powerState.className);
+        setLivePackPill(prefix, id, "charge-fet", `Charge FET: ${pack.charge_fet ?? "Unknown"}`, pack.charge_fet === "ON" ? "ok" : "off");
+        setLivePackPill(prefix, id, "discharge-fet", `Discharge FET: ${pack.discharge_fet ?? "Unknown"}`, pack.discharge_fet === "ON" ? "ok" : "danger");
+        setLivePackPill(prefix, id, "full-state", `Full: ${pack.fully ?? "Unknown"}`, pack.fully === "ON" ? "ok" : "off");
+      });
+      if (missingStructure && tabName) {
+        queueSoftReloadWhenScrollIdle(tabName);
+      }
+    }
+
     function diagnosticsPackField(packId, field) {
       return document.querySelector(`[data-diagnostics-pack-field="${packId}-${field}"]`);
     }
@@ -7346,6 +7408,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
     }
 
     function refreshDiagnosticsPackCards(packs) {
+      refreshLivePackCards(packs, "diagnostics", "diagnostics");
       let missingStructure = false;
       (packs || []).forEach(function (pack) {
         const id = String(pack.id);
@@ -7397,6 +7460,277 @@ Restart the add-on afterwards for runtime changes to apply.`);
       if (missingStructure) {
         queueSoftReloadWhenScrollIdle("diagnostics");
       }
+    }
+
+    function warningIntelField(packId, field) {
+      return document.querySelector(`[data-warning-intel-field="${packId}-${field}"]`);
+    }
+
+    function setWarningIntelText(packId, field, value) {
+      const el = warningIntelField(packId, field);
+      if (el) el.textContent = value ?? "Unknown";
+      return Boolean(el);
+    }
+
+    function warningTextElement(text) {
+      const div = document.createElement("div");
+      div.className = "warning-detail-empty";
+      div.textContent = text;
+      return div;
+    }
+
+    function warningDetailStatus(text, className) {
+      const span = document.createElement("span");
+      span.className = "warning-detail-status " + (className || "");
+      span.textContent = text ?? "Unknown";
+      return span;
+    }
+
+    function warningDetailLabel(text) {
+      const span = document.createElement("span");
+      span.className = "warning-detail-label";
+      span.textContent = `${text ?? "Unknown"}:`;
+      return span;
+    }
+
+    function appendWarningRow(list, row, notifyLabel) {
+      const item = document.createElement("li");
+      item.appendChild(warningDetailLabel(row.label));
+      item.append(` ${row.value ?? "Unknown"} | Ref: ${row.ref ?? "Unknown"} | Margin: ${row.margin ?? "Unknown"} | `);
+      item.appendChild(warningDetailStatus(row.status, row.class));
+      item.append(` | ${notifyLabel}: `);
+      item.appendChild(warningDetailStatus(row.notify, row.notify_class));
+      list.appendChild(item);
+    }
+
+    function renderWarningUserRefs(pack, section) {
+      section.replaceChildren();
+      const strong = document.createElement("strong");
+      strong.textContent = "User Alert Reference Check";
+      section.appendChild(strong);
+      const wi = pack.warning_intelligence || {};
+      if (wi && wi.show_user_reference_details === false) {
+        section.appendChild(warningTextElement(wi.user_reference_summary || "All configured user alert references are within limits."));
+      } else if (wi && Array.isArray(wi.user_reference_rows) && wi.user_reference_rows.length) {
+        const list = document.createElement("ul");
+        list.className = "warning-intel-list detail-list";
+        wi.user_reference_rows.forEach((row) => appendWarningRow(list, row, "Telegram"));
+        section.appendChild(list);
+      } else {
+        section.appendChild(warningTextElement("No user reference data is available for this pack."));
+      }
+    }
+
+    function renderWarningBmsDetails(pack, section) {
+      section.replaceChildren();
+      const strong = document.createElement("strong");
+      strong.textContent = "BMS Reported Warning Details";
+      section.appendChild(strong);
+      const wi = pack.warning_intelligence || {};
+      if ((pack.warnings || "Normal") === "Normal") {
+        section.appendChild(warningTextElement("No BMS warning rows to compare."));
+        return;
+      }
+      if (!wi.groups || !wi.groups.length) {
+        section.appendChild(warningTextElement("No configured reference comparison matched this warning text."));
+        return;
+      }
+      wi.groups.forEach(function (group) {
+        const groupEl = document.createElement("div");
+        groupEl.className = "warning-detail-group";
+        const title = document.createElement("div");
+        title.className = "warning-detail-title";
+        title.textContent = `${group.title ?? "Warning detail"}:`;
+        const list = document.createElement("ul");
+        list.className = "warning-intel-list detail-list";
+        (group.rows || []).forEach((row) => appendWarningRow(list, row, "Notify"));
+        groupEl.append(title, list);
+        section.appendChild(groupEl);
+      });
+    }
+
+    function renderWarningReferenceChecks(pack, section) {
+      section.replaceChildren();
+      const strong = document.createElement("strong");
+      strong.textContent = "Reference Check";
+      const list = document.createElement("ul");
+      list.className = "warning-intel-list";
+      const checks = (pack.warning_intelligence && pack.warning_intelligence.reference_checks) || pack.reference_checks || [];
+      checks.forEach(function (check) {
+        const item = document.createElement("li");
+        item.textContent = check;
+        list.appendChild(item);
+      });
+      section.append(strong, list);
+    }
+
+    function renderWarningTelegram(pack, section) {
+      section.replaceChildren();
+      const strong = document.createElement("strong");
+      strong.textContent = "BMS Warning Telegram Decision";
+      section.appendChild(strong);
+      section.appendChild(document.createElement("br"));
+      const wi = pack.warning_intelligence || {};
+      if (pack.warning_intelligence) {
+        section.appendChild(warningDetailStatus(wi.telegram_decision, wi.telegram_decision_class));
+        section.appendChild(document.createElement("br"));
+        const policy = document.createElement("span");
+        policy.className = "summary-meta";
+        policy.textContent = `Policy: ${wi.telegram_policy || "Unknown"}`;
+        section.appendChild(policy);
+      } else {
+        section.append("Telegram decision data is unavailable.");
+      }
+    }
+
+    function renderWarningPlainSection(pack, selector, title, fallbackNormal, fallbackWarning, valueKey) {
+      const section = document.querySelector(`${selector}="${pack.id}"]`);
+      if (!section) return false;
+      section.replaceChildren();
+      const strong = document.createElement("strong");
+      strong.textContent = title;
+      section.appendChild(strong);
+      section.appendChild(document.createElement("br"));
+      const wi = pack.warning_intelligence || {};
+      if (pack.warning_intelligence && wi[valueKey]) {
+        section.append(wi[valueKey]);
+      } else if ((pack.warnings || "Normal") === "Normal") {
+        section.append(fallbackNormal);
+      } else {
+        section.append(fallbackWarning);
+      }
+      return true;
+    }
+
+    function refreshWarningIntelligenceCards(packs) {
+      let missingStructure = false;
+      (packs || []).forEach(function (pack) {
+        const id = String(pack.id);
+        const card = document.querySelector(`[data-warning-intel-pack="${id}"]`);
+        if (!card) {
+          missingStructure = true;
+          return;
+        }
+        const statusText = (pack.warnings || "Normal") === "Normal" ? "Normal" : (pack.severity_label || "Warning");
+        const statusClass = (pack.warnings || "Normal") === "Normal" ? "" : (pack.severity_class || "warning");
+        card.className = "warning-intel-card" + (statusClass ? " " + statusClass : "");
+        const status = warningIntelField(id, "status");
+        if (status) {
+          status.textContent = statusText;
+          status.className = "warning-intel-status" + (statusClass ? " " + statusClass : "");
+        }
+        setWarningIntelText(id, "subtitle", `${pack.cell_count ?? "Unknown"} cells detected`);
+        setWarningIntelText(id, "highest", `Cell ${pack.highest_cell?.number ?? "Unknown"} = ${pack.highest_cell?.voltage ?? "Unknown"} V`);
+        setWarningIntelText(id, "lowest", `Cell ${pack.lowest_cell?.number ?? "Unknown"} = ${pack.lowest_cell?.voltage ?? "Unknown"} V`);
+        setWarningIntelText(id, "delta", `${pack.delta ?? "Unknown"} mV`);
+        setWarningIntelText(id, "voltage", `${pack.voltage ?? "Unknown"} V`);
+        setWarningIntelText(id, "soc", `${pack.soc ?? "Unknown"}%`);
+        setWarningIntelText(id, "soh", `${pack.soh ?? "Unknown"}%`);
+        setWarningIntelText(id, "cycles", pack.cycles ?? "Unknown");
+
+        const warningText = warningIntelField(id, "warning-text");
+        if (warningText) {
+          warningText.replaceChildren(warningTextElement((pack.warnings || "Normal") === "Normal" ? "No active BMS warning reported for this pack." : pack.warnings));
+        }
+        const userRefs = document.querySelector(`[data-warning-intel-user-refs="${id}"]`);
+        const bmsDetails = document.querySelector(`[data-warning-intel-bms-details="${id}"]`);
+        const referenceChecks = document.querySelector(`[data-warning-intel-reference-checks="${id}"]`);
+        const telegram = document.querySelector(`[data-warning-intel-telegram="${id}"]`);
+        if (userRefs) renderWarningUserRefs(pack, userRefs);
+        if (bmsDetails) renderWarningBmsDetails(pack, bmsDetails);
+        if (referenceChecks) renderWarningReferenceChecks(pack, referenceChecks);
+        if (telegram) renderWarningTelegram(pack, telegram);
+        missingStructure = missingStructure || !userRefs || !bmsDetails || !referenceChecks || !telegram;
+        missingStructure = !renderWarningPlainSection(pack, "[data-warning-intel-interpretation", "Interpretation", "No active BMS warning is reported for this pack.", "Review the warning text, highest/lowest cell values and cell delta.", "interpretation") || missingStructure;
+        missingStructure = !renderWarningPlainSection(pack, "[data-warning-intel-suggestion", "Suggested Action", "Continue normal monitoring.", "Verify the BMS warning against the configured references and manufacturer limits.", "suggested_action") || missingStructure;
+      });
+      if (missingStructure) {
+        queueSoftReloadWhenScrollIdle("status");
+      }
+    }
+
+    function setDiagnosticsTopologyText(field, value) {
+      const el = document.querySelector(`[data-diagnostics-topology-field="${field}"]`);
+      if (el) el.textContent = value ?? "Unknown";
+      return Boolean(el);
+    }
+
+    function numericPackValue(pack, field) {
+      const value = Number(pack[field]);
+      return Number.isFinite(value) ? value : null;
+    }
+
+    function formatPackList(start, end) {
+      const labels = [];
+      for (let i = start; i <= end; i += 1) {
+        labels.push(`Pack ${String(i).padStart(2, "0")}`);
+      }
+      return labels.length ? labels.join(", ") : "None";
+    }
+
+    function refreshDiagnosticsTopology(data) {
+      const packs = data.packs || [];
+      const packCount = Number(data.pack_count || packs.length || 0);
+      const totalCells = Number(data.total_cells || packs.reduce((sum, pack) => sum + (Number(pack.cell_count) || 0), 0));
+      const cycles = packs.map((pack) => numericPackValue(pack, "cycles")).filter((value) => value !== null);
+      const sohs = packs.map((pack) => numericPackValue(pack, "soh")).filter((value) => value !== null);
+      const socs = packs.map((pack) => numericPackValue(pack, "soc")).filter((value) => value !== null);
+      const configuration = packCount <= 0 ? "No packs detected" : (packCount === 1 ? "Single Pack" : "Master + Slave");
+
+      setDiagnosticsTopologyText("configuration", configuration);
+      setDiagnosticsTopologyText("pack-count", packCount || "0");
+      setDiagnosticsTopologyText("total-cells", totalCells || "0");
+      setDiagnosticsTopologyText("max-cycles", cycles.length ? Math.max(...cycles) : "Unknown");
+      setDiagnosticsTopologyText("min-soh", sohs.length ? `${Math.min(...sohs).toFixed(1)}%` : "Unknown");
+      setDiagnosticsTopologyText("avg-soc", socs.length ? `${(socs.reduce((sum, value) => sum + value, 0) / socs.length).toFixed(1)}%` : "Unknown");
+      setDiagnosticsTopologyText("master-pack", packCount >= 1 ? "Pack 01" : "None");
+      setDiagnosticsTopologyText("slave-packs", packCount > 1 ? formatPackList(2, packCount) : "None");
+      setDiagnosticsTopologyText("bms-serial", cleanDiagnosticsSerial(data.bms_sn));
+      setDiagnosticsTopologyText("bms-version", cleanDiagnosticsVersion(data.bms_version, data.bms_sn));
+
+      const body = document.getElementById("diagnostics-topology-body");
+      if (!body) return;
+      body.replaceChildren();
+      packs.forEach(function (pack) {
+        const id = String(pack.id);
+        const row = document.createElement("tr");
+        const role = pack.role || (id === "01" || id === "1" ? "Master" : "Slave");
+        const serial = role === "Master" ? cleanDiagnosticsSerial(data.pack_sn || data.bms_sn) : "N/A";
+        const serialNote = role === "Master" && serial !== "Unknown" ? "Reported by BMS" : (role === "Master" ? "Not reported" : "Current BMS read does not expose a separate serial for this pack");
+        const status = (pack.warnings || "Normal") === "Normal" ? "Normal" : (pack.severity_label || "Warning");
+        [
+          ["Role", role, "topology-role"],
+          ["Pack", `Pack ${id}`],
+          ["Serial", serial],
+          ["Cells", pack.cell_count ?? "Unknown"],
+          ["SOC", `${pack.soc ?? "Unknown"}%`],
+          ["SOH", `${pack.soh ?? "Unknown"}%`],
+          ["Cycles", pack.cycles ?? "Unknown"],
+          ["Voltage", `${pack.voltage ?? "Unknown"} V`],
+          ["Current", `${pack.current ?? "Unknown"} A`],
+          ["Delta", `${pack.delta ?? "Unknown"} mV`],
+          ["Status", status],
+        ].forEach(function ([label, value, className]) {
+          const cell = document.createElement("td");
+          cell.dataset.label = label;
+          if (className) {
+            const span = document.createElement("span");
+            span.className = className;
+            span.textContent = value;
+            cell.appendChild(span);
+          } else {
+            cell.textContent = value;
+          }
+          if (label === "Serial") {
+            const note = document.createElement("div");
+            note.className = "topology-note";
+            note.textContent = serialNote;
+            cell.appendChild(note);
+          }
+          row.appendChild(cell);
+        });
+        body.appendChild(row);
+      });
     }
 
     function updateDiagnosticCard(title, status, className, detail) {
@@ -7451,6 +7785,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
         }
 
         refreshDiagnosticsPackCards(data.packs || []);
+        refreshDiagnosticsTopology(data);
 
         updateDiagnosticCard(
           "Live Data",

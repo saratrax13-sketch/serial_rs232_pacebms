@@ -1854,6 +1854,12 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"Warning Intelligence", response.data)
         self.assertIn(b"pack-quick-icon", response.data)
         self.assertIn(b"pack-detail-rows", response.data)
+        self.assertIn(b'data-warning-intel-pack="01"', response.data)
+        self.assertIn(b'data-warning-intel-field="01-voltage"', response.data)
+        self.assertIn(b'data-tech-pack="01"', response.data)
+        self.assertIn(b'data-tech-pack-field="01-voltage"', response.data)
+        self.assertIn(b"refreshWarningIntelligenceCards", response.data)
+        self.assertIn(b"refreshLivePackCards", response.data)
         self.assertIn(b"Remaining Capacity", response.data)
         self.assertIn(b"Full Capacity", response.data)
         self.assertIn(b"Projected Runtime", response.data)
@@ -3418,9 +3424,12 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"Charging at 0.05 kW", response.data)
         self.assertIn(b'data-diagnostics-pack="01"', response.data)
         self.assertIn(b'data-diagnostics-pack-field="01-voltage"', response.data)
+        self.assertIn(b'data-diagnostics-topology-field="pack-count"', response.data)
+        self.assertIn(b'id="diagnostics-topology-body"', response.data)
         self.assertIn(b'data-diagnostics-cell-row="01-01"', response.data)
         self.assertIn(b'data-diagnostics-cell-voltage="01-01"', response.data)
         self.assertIn(b"refreshDiagnosticsPackCards", response.data)
+        self.assertIn(b"refreshDiagnosticsTopology", response.data)
 
     def test_health_endpoint_fails_when_monitor_heartbeat_is_stale(self):
         with tempfile.TemporaryDirectory() as tmpdir:
