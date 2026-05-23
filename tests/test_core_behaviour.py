@@ -2147,21 +2147,27 @@ class HealthEndpointTests(unittest.TestCase):
             "Warning State 1: Above cell volt warn | Above total volt warn",
             highest_cell_num=8,
             lowest_cell_num=1,
+            cell_values=[(1, 4.144), (2, 4.165), (3, 4.161), (8, 4.180), (13, 4.164)],
         )
 
+        self.assertEqual(labels[2], ["BMS High Warning"])
+        self.assertEqual(labels[3], ["BMS High Warning"])
         self.assertEqual(labels[8], ["BMS High Warning"])
+        self.assertEqual(labels[13], ["BMS High Warning"])
         self.assertNotIn(1, labels)
 
         labels = web_config._warning_cell_label_map(
             "Low cell voltage | Low power warning",
             highest_cell_num=8,
             lowest_cell_num=7,
+            cell_values=[(1, 3.020), (7, 2.984), (8, 3.465), (13, 2.999)],
         )
 
         self.assertEqual(labels[7], ["BMS Low Warning"])
+        self.assertEqual(labels[13], ["BMS Low Warning"])
         self.assertNotIn(8, labels)
 
-    def test_live_snapshot_marks_generic_bms_warning_cell_extreme(self):
+    def test_live_snapshot_marks_generic_bms_warning_cell_candidates(self):
         pack = types.SimpleNamespace(
             pack_number=1,
             cells=3,
@@ -2183,7 +2189,9 @@ class HealthEndpointTests(unittest.TestCase):
         snapshot = bms_live.build_live_snapshot({}, analog_data=analog_data, warn_list=[warn])
 
         cells = snapshot["packs"][0]["cells"]
+        self.assertIn("BMS High Warning", cells[1]["labels"])
         self.assertIn("BMS High Warning", cells[2]["labels"])
+        self.assertEqual(cells[1]["class"], "cell-caution")
         self.assertEqual(cells[2]["class"], "cell-caution")
         self.assertNotIn("BMS High Warning", cells[0]["labels"])
 

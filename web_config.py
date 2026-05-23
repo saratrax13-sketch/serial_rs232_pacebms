@@ -49,6 +49,7 @@ _LIVE_SNAPSHOT_CACHE = {
     "error": "",
 }
 _LIVE_SNAPSHOT_WORKER_STARTED = False
+GENERIC_BMS_CELL_WARNING_BAND_V = 0.020
 
 
 def load_addon_version():
@@ -1579,20 +1580,42 @@ def _has_bms_low_cell_warning(warnings):
     )
 
 
-def _warning_cell_label_map(warnings, highest_cell_num=None, lowest_cell_num=None):
+def _generic_warning_candidate_cells(cell_values, direction):
+    if not cell_values:
+        return []
+    if direction == "high":
+        highest = max(value for _, value in cell_values)
+        threshold = highest - GENERIC_BMS_CELL_WARNING_BAND_V
+        return sorted(cell_num for cell_num, value in cell_values if value >= threshold)
+    lowest = min(value for _, value in cell_values)
+    threshold = lowest + GENERIC_BMS_CELL_WARNING_BAND_V
+    return sorted(cell_num for cell_num, value in cell_values if value <= threshold)
+
+
+def _append_warning_label(labels, cell_num, label):
+    labels.setdefault(cell_num, [])
+    if label not in labels[cell_num]:
+        labels[cell_num].append(label)
+
+
+def _warning_cell_label_map(warnings, highest_cell_num=None, lowest_cell_num=None, cell_values=None):
     labels = {}
     for cell_num in _extract_warning_cell_numbers(warnings, "above upper limit"):
         labels.setdefault(cell_num, []).append("BMS High Warning")
     for cell_num in _extract_warning_cell_numbers(warnings, "below lower limit"):
         labels.setdefault(cell_num, []).append("BMS Low Warning")
     if _has_bms_high_cell_warning(warnings) and highest_cell_num is not None:
-        labels.setdefault(highest_cell_num, [])
-        if "BMS High Warning" not in labels[highest_cell_num]:
-            labels[highest_cell_num].append("BMS High Warning")
+        high_candidates = []
+        if not any("BMS High Warning" in cell_labels for cell_labels in labels.values()):
+            high_candidates = _generic_warning_candidate_cells(cell_values or [], "high")
+        for cell_num in high_candidates or [highest_cell_num]:
+            _append_warning_label(labels, cell_num, "BMS High Warning")
     if _has_bms_low_cell_warning(warnings) and lowest_cell_num is not None:
-        labels.setdefault(lowest_cell_num, [])
-        if "BMS Low Warning" not in labels[lowest_cell_num]:
-            labels[lowest_cell_num].append("BMS Low Warning")
+        low_candidates = []
+        if not any("BMS Low Warning" in cell_labels for cell_labels in labels.values()):
+            low_candidates = _generic_warning_candidate_cells(cell_values or [], "low")
+        for cell_num in low_candidates or [lowest_cell_num]:
+            _append_warning_label(labels, cell_num, "BMS Low Warning")
     return labels
 
 
@@ -2151,7 +2174,7 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
             low_num, lowest_cell_v = min(cell_values, key=lambda item: item[1])
             highest_cell = {"number": f"{high_num:02d}", "voltage": f"{highest_cell_v:.3f}"}
             lowest_cell = {"number": f"{low_num:02d}", "voltage": f"{lowest_cell_v:.3f}"}
-            bms_cell_warning_labels = _warning_cell_label_map(warnings, high_num, low_num)
+            bms_cell_warning_labels = _warning_cell_label_map(warnings, high_num, low_num, cell_values)
 
             for cell_num, cell_v in sorted(cell_values, key=lambda item: item[0]):
                 labels = []
@@ -2165,14 +2188,14 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
                 if cell_v < cell_low_ref:
                     labels.append("Below low reference")
 
-            has_reference_label = any("reference" in label for label in labels)
-            has_bms_label = any(label.startswith("BMS ") for label in labels)
-            detailed_cells.append({
-                "number": f"{cell_num:02d}",
-                "voltage": f"{cell_v:.3f}",
-                "labels": labels,
-                "class": "cell-alert" if has_reference_label else ("cell-caution" if has_bms_label else ("cell-highlow" if labels else "cell-normal")),
-            })
+                has_reference_label = any("reference" in label for label in labels)
+                has_bms_label = any(label.startswith("BMS ") for label in labels)
+                detailed_cells.append({
+                    "number": f"{cell_num:02d}",
+                    "voltage": f"{cell_v:.3f}",
+                    "labels": labels,
+                    "class": "cell-alert" if has_reference_label else ("cell-caution" if has_bms_label else ("cell-highlow" if labels else "cell-normal")),
+                })
 
         pack_v = _to_float(voltage)
         pack_current = _to_float(current)

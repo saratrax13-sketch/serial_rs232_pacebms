@@ -1,3 +1,15 @@
+## 2.10.4 - 2026-05-23
+
+### Fixed
+- Generic BMS high-cell and low-cell warnings now mark the relevant high-side or low-side candidate cell group in Detailed Pack & Cell Data instead of only marking the single highest or lowest cell.
+- Exact BMS warning text that names specific cells still marks only those reported cells.
+- MQTT-fallback cell detail normalization now keeps all rendered cell rows when building pack cell details.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+- Monitor polling behavior was not changed.
+
 ## 2.10.3 - 2026-05-23
 
 ### Fixed

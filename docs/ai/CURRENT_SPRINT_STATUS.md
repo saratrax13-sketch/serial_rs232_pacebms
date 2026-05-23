@@ -6,14 +6,14 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 
 ## Current State
 
-- Release version is `2.10.3`.
+- Release version is `2.10.4`.
 - Home Assistant add-on is the primary deployment mode.
 - Standalone Docker is supported as a secondary deployment mode.
 - Classic UI is the active UI.
 - Serial-first monitoring is the active architecture.
 - MQTT is optional output/fallback, not the primary UI source.
 - The monitor owns `/data/pacebms-live.json` and `/data/pacebms_metrics.db`.
-- Main and dev were previously aligned at the `2.10.0` normal-use release commit. Main now carries Home Assistant visible UI refresh hotfixes through `2.10.3`.
+- Main and dev were previously aligned at the `2.10.0` normal-use release commit. Main now carries Home Assistant visible UI refresh hotfixes through `2.10.4`.
 
 ## Open Sprint
 
@@ -21,7 +21,11 @@ Update it when a sprint is started, paused, completed or handed over. Keep it sh
 
 ## Latest Sprint Outcome
 
-- `2.10.3` is the latest Home Assistant visible UI refresh hotfix.
+- `2.10.4` is the latest Home Assistant visible warning-cell detail hotfix.
+- Generic BMS high-cell and low-cell warnings now mark the relevant high-side or low-side candidate cell group in Detailed Pack & Cell Data instead of only marking the single highest or lowest cell.
+- Exact BMS warning text that names specific cells still marks only those reported cells.
+- MQTT-fallback cell detail normalization now keeps all rendered cell rows when building pack cell details.
+- `2.10.3` fixed remaining Tech Status and Diagnostics live refresh gaps.
 - Tech Status Warning Intelligence now refreshes live quick metrics, BMS warning details, reference checks, Telegram decision text, interpretation and suggested action from `/api/status` while the tab is open.
 - Tech Status Battery Packs now refresh live per-pack values, capacity, cell balance, reference and FET state fields from `/api/status`.
 - Diagnostics Battery Configuration now refreshes topology summary tiles and the pack topology table from `/api/status`.
@@ -109,4 +113,4 @@ For standalone Docker validation on a Docker host:
 .\scripts\docker_smoke_test.ps1
 ```
 
-Next recommended step: install/update the Home Assistant add-on to `2.10.3`, then confirm Dashboard, Tech Status and Diagnostics live fields update in place without tab switching.
+Next recommended step: install/update the Home Assistant add-on to `2.10.4`, then confirm Detailed Pack & Cell Data marks the high-side or low-side BMS warning candidate cells while preserving exact reported cell labels when the BMS names specific cells.

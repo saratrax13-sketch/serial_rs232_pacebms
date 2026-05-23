@@ -19,6 +19,7 @@ from battery_profiles import effective_warning_references
 
 DATA_DIR = Path(os.environ.get("PACEBMS_DATA_DIR", "/data"))
 LIVE_SNAPSHOT_PATH = DATA_DIR / "pacebms-live.json"
+GENERIC_BMS_CELL_WARNING_BAND_V = 0.020
 
 
 def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -115,15 +116,43 @@ def _has_bms_low_cell_warning(warnings: str) -> bool:
     )
 
 
-def _add_warning_fallback_labels(labels: dict[int, list[str]], warnings: str, highest_cell_num: int | None, lowest_cell_num: int | None) -> dict[int, list[str]]:
+def _generic_warning_candidate_cells(cell_values: list[tuple[int, float]], direction: str) -> list[int]:
+    if not cell_values:
+        return []
+    if direction == "high":
+        highest = max(value for _, value in cell_values)
+        threshold = highest - GENERIC_BMS_CELL_WARNING_BAND_V
+        return sorted(cell_num for cell_num, value in cell_values if value >= threshold)
+    lowest = min(value for _, value in cell_values)
+    threshold = lowest + GENERIC_BMS_CELL_WARNING_BAND_V
+    return sorted(cell_num for cell_num, value in cell_values if value <= threshold)
+
+
+def _append_warning_label(labels: dict[int, list[str]], cell_num: int, label: str) -> None:
+    labels.setdefault(cell_num, [])
+    if label not in labels[cell_num]:
+        labels[cell_num].append(label)
+
+
+def _add_warning_fallback_labels(
+    labels: dict[int, list[str]],
+    warnings: str,
+    highest_cell_num: int | None,
+    lowest_cell_num: int | None,
+    cell_values: list[tuple[int, float]] | None = None,
+) -> dict[int, list[str]]:
     if _has_bms_high_cell_warning(warnings) and highest_cell_num is not None:
-        labels.setdefault(highest_cell_num, [])
-        if "BMS High Warning" not in labels[highest_cell_num]:
-            labels[highest_cell_num].append("BMS High Warning")
+        high_candidates = []
+        if not any("BMS High Warning" in cell_labels for cell_labels in labels.values()):
+            high_candidates = _generic_warning_candidate_cells(cell_values or [], "high")
+        for cell_num in high_candidates or [highest_cell_num]:
+            _append_warning_label(labels, cell_num, "BMS High Warning")
     if _has_bms_low_cell_warning(warnings) and lowest_cell_num is not None:
-        labels.setdefault(lowest_cell_num, [])
-        if "BMS Low Warning" not in labels[lowest_cell_num]:
-            labels[lowest_cell_num].append("BMS Low Warning")
+        low_candidates = []
+        if not any("BMS Low Warning" in cell_labels for cell_labels in labels.values()):
+            low_candidates = _generic_warning_candidate_cells(cell_values or [], "low")
+        for cell_num in low_candidates or [lowest_cell_num]:
+            _append_warning_label(labels, cell_num, "BMS Low Warning")
     return labels
 
 
@@ -180,6 +209,7 @@ def build_live_snapshot(
             warning_text,
             high_num if high_num > 0 else None,
             low_num if low_num > 0 else None,
+            cell_values,
         )
 
         detailed_cells = []
