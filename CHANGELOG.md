@@ -1,3 +1,15 @@
+## 2.10.7 - 2026-05-23
+
+### Added
+- Diagnostics Detailed Pack & Cell Data now shows read-only BMS balancing status beside the existing `OCV Ref` column.
+- Added pack-level balancing summary fields so active balancing cells are visible at the pack level and per-cell level.
+- Added live snapshot and MQTT fallback normalization for the existing `balancing1` / `balancing2` status bytes.
+
+### Notes
+- Balancing is display-only. No balancing control, BMS write or FET control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+- Monitor polling behavior was not changed.
+
 ## 2.10.6 - 2026-05-23
 
 ### Added

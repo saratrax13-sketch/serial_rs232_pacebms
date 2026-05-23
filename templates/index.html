@@ -1282,6 +1282,33 @@
       background: rgba(30, 41, 59, 0.72);
     }
 
+    .balance-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 54px;
+      border-radius: 999px;
+      padding: 3px 7px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: rgba(30, 41, 59, 0.72);
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .balance-badge.active {
+      color: #bae6fd;
+      border-color: rgba(56, 189, 248, 0.42);
+      background: rgba(14, 165, 233, 0.14);
+    }
+
+    .balance-badge.unknown {
+      color: #cbd5e1;
+      border-color: rgba(148, 163, 184, 0.22);
+      background: rgba(30, 41, 59, 0.72);
+    }
+
     .ocv-modal-table {
       width: 100%;
       border-collapse: collapse;
@@ -5617,6 +5644,16 @@ This cannot be undone.`);">
                   <span class="pack-detail-value" data-diagnostics-pack-field="{{ pack.id }}-pack-high-ref">{{ pack.pack_high_ref }} V</span>
                 </div>
               </div>
+              <div class="pack-detail-row">
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Balancing Cells</span>
+                  <span class="pack-detail-value" data-diagnostics-pack-field="{{ pack.id }}-balancing-summary">{{ pack.balancing_summary|default('None active') }}</span>
+                </div>
+                <div class="pack-detail-cell">
+                  <span class="pack-detail-label">Balancing State</span>
+                  <span class="pack-detail-value" data-diagnostics-pack-field="{{ pack.id }}-balancing-state">{% if pack.balancing_cells %}Active{% else %}None active{% endif %}</span>
+                </div>
+              </div>
             </div>
 
             <div class="metric-section">
@@ -5652,6 +5689,7 @@ This cannot be undone.`);">
                       <button class="ocv-info-button" type="button" onclick="openOcvReferenceModal()" aria-label="Open Hubble AM2 OCV reference table" title="Hubble AM2 OCV reference">i</button>
                     </span>
                   </th>
+                  <th>Balance</th>
                 </tr>
               </thead>
               <tbody>
@@ -5676,6 +5714,9 @@ This cannot be undone.`);">
                     {% else %}
                     <span class="ocv-ref-badge unknown">Unknown</span>
                     {% endif %}
+                  </td>
+                  <td data-diagnostics-cell-balancing="{{ pack.id }}-{{ cell.number }}">
+                    <span class="balance-badge {{ cell.balancing_class|default('off') }}">{{ cell.balancing_label|default('-') }}</span>
                   </td>
                 </tr>
                 {% endfor %}
@@ -7596,6 +7637,15 @@ Restart the add-on afterwards for runtime changes to apply.`);
       container.appendChild(span);
     }
 
+    function renderDiagnosticsBalance(container, cell) {
+      container.replaceChildren();
+      const span = document.createElement("span");
+      span.className = "balance-badge " + (cell && cell.balancing_class ? cell.balancing_class : "off");
+      span.textContent = cell && cell.balancing_label ? cell.balancing_label : "-";
+      span.title = cell && cell.balancing ? "BMS reports balancing active for this cell." : "No balancing reported for this cell.";
+      container.appendChild(span);
+    }
+
     function refreshDiagnosticsPackCards(packs) {
       refreshLivePackCards(packs, "diagnostics", "diagnostics");
       let missingStructure = false;
@@ -7625,6 +7675,8 @@ Restart the add-on afterwards for runtime changes to apply.`);
         setDiagnosticsPackText(id, "delta", `${pack.delta ?? "Unknown"} mV`);
         setDiagnosticsPackText(id, "cell-high-ref", `${pack.cell_high_ref ?? "Unknown"} V`);
         setDiagnosticsPackText(id, "pack-high-ref", `${pack.pack_high_ref ?? "Unknown"} V`);
+        setDiagnosticsPackText(id, "balancing-summary", pack.balancing_summary || "None active");
+        setDiagnosticsPackText(id, "balancing-state", (pack.balancing_cells || []).length ? "Active" : "None active");
 
         const powerState = diagnosticsPowerState(pack);
         setDiagnosticsPill(id, "power-state", powerState.text, powerState.className);
@@ -7638,7 +7690,8 @@ Restart the add-on afterwards for runtime changes to apply.`);
           const voltage = document.querySelector(`[data-diagnostics-cell-voltage="${key}"]`);
           const labels = document.querySelector(`[data-diagnostics-cell-labels="${key}"]`);
           const ocvRef = document.querySelector(`[data-diagnostics-cell-ocv-ref="${key}"]`);
-          if (!row || !voltage || !labels || !ocvRef) {
+          const balancing = document.querySelector(`[data-diagnostics-cell-balancing="${key}"]`);
+          if (!row || !voltage || !labels || !ocvRef || !balancing) {
             missingStructure = true;
             return;
           }
@@ -7646,6 +7699,7 @@ Restart the add-on afterwards for runtime changes to apply.`);
           voltage.textContent = `${cell.voltage ?? "Unknown"} V`;
           renderDiagnosticsCellLabels(labels, cell.labels || []);
           renderDiagnosticsOcvRef(ocvRef, cell.ocv_ref);
+          renderDiagnosticsBalance(balancing, cell);
         });
       });
       if (missingStructure) {

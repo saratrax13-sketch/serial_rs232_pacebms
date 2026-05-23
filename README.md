@@ -30,7 +30,7 @@ The add-on includes:
 ## Current Version
 
 ```yaml
-version: "2.10.6"
+version: "2.10.7"
 ```
 
 ---
@@ -176,7 +176,7 @@ The monitor reads and publishes:
 - Warning/status states
 - FET states
 - Protection states
-- Balancing states
+- Balancing states, including decoded read-only balancing cell indicators where the BMS reports them
 
 ### MQTT
 
@@ -307,7 +307,11 @@ Use Config to edit Home Assistant add-on options. The tab is grouped into requir
 Use Diagnostics for support proof, battery identity, health checks and detailed cell data.
 For Hubble AM2/P13S packs, Detailed Pack & Cell Data also shows a display-only
 `OCV Ref` band beside the existing cell `Status` column. The info button in
-that header opens the Hubble AM2 NMC voltage/SOC reference table.
+that header opens the Hubble AM2 NMC voltage/SOC reference table. The same
+cell table also includes a read-only `Balance` column decoded from the BMS
+warning/status read, plus a pack-level balancing summary. These indicators
+show which cells the BMS reports as balancing; the add-on does not start,
+stop or control balancing.
 
 ![Diagnostics overview](docs/screenshots/Diagnostics%20p1.png)
 

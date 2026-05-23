@@ -60,6 +60,32 @@ def _safe_int(value: Any, default: int = 0) -> int:
         return default
 
 
+def decode_balancing_cells(balancing1: Any, balancing2: Any, cell_count: int) -> list[int]:
+    """Decode read-only BMS balancing bit fields into active cell numbers.
+
+    Pace warning frames expose two balancing bytes. The monitor stores them as
+    8-character binary strings. We display them MSB-first so the first visible
+    bit maps to the first cell in that byte group.
+    """
+    count = max(_safe_int(cell_count, 0), 0)
+    if count <= 0:
+        return []
+
+    active: list[int] = []
+    for group_index, raw_bits in enumerate((balancing1, balancing2)):
+        bits = str(raw_bits or "").strip()
+        if len(bits) != 8 or any(bit not in "01" for bit in bits):
+            continue
+        start_cell = group_index * 8 + 1
+        for offset, bit in enumerate(bits):
+            cell_num = start_cell + offset
+            if cell_num > count:
+                break
+            if bit == "1":
+                active.append(cell_num)
+    return active
+
+
 def _onoff(value: Any) -> str:
     return "ON" if bool(value) else "OFF"
 
@@ -212,6 +238,15 @@ def build_live_snapshot(
             low_num if low_num > 0 else None,
             cell_values,
         )
+        balancing1 = getattr(warn, "balancing1", "") if warn is not None else ""
+        balancing2 = getattr(warn, "balancing2", "") if warn is not None else ""
+        balancing_cells = decode_balancing_cells(balancing1, balancing2, cell_count)
+        balancing_cell_set = set(balancing_cells)
+        balancing_summary = (
+            ", ".join(f"Cell {cell_num:02d}" for cell_num in balancing_cells)
+            if balancing_cells
+            else "None active"
+        )
 
         detailed_cells = []
         for cell_num, cell_v in cell_values:
@@ -233,6 +268,9 @@ def build_live_snapshot(
                 "labels": labels,
                 "class": "cell-alert" if has_reference_label else ("cell-caution" if has_bms_label else ("cell-highlow" if labels else "cell-normal")),
                 "ocv_ref": cell_ocv_reference(cell_v, ocv_profile),
+                "balancing": cell_num in balancing_cell_set,
+                "balancing_label": "Balancing" if cell_num in balancing_cell_set else "-",
+                "balancing_class": "active" if cell_num in balancing_cell_set else "off",
             })
 
         has_warning = warning_text != "Normal"
@@ -286,6 +324,10 @@ def build_live_snapshot(
             "battery_profile": refs.get("profile_label", "Unknown"),
             "reference_source": "user-defined alert references" if refs.get("source") == "user_configured" else "user custom settings",
             "reference_checks": reference_checks,
+            "balancing1": str(balancing1 or ""),
+            "balancing2": str(balancing2 or ""),
+            "balancing_cells": balancing_cells,
+            "balancing_summary": balancing_summary,
             "charge_fet": _onoff(getattr(warn, "charge_fet", False)) if warn is not None else "Unknown",
             "discharge_fet": _onoff(getattr(warn, "discharge_fet", False)) if warn is not None else "Unknown",
             "fully": _onoff(getattr(warn, "fully", False)) if warn is not None else "Unknown",

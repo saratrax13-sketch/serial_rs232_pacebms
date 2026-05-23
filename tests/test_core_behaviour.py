@@ -2217,6 +2217,49 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertEqual(cells[2]["class"], "cell-caution")
         self.assertNotIn("BMS High Warning", cells[0]["labels"])
 
+    def test_balancing_bits_are_decoded_for_live_cell_rows(self):
+        self.assertEqual(
+            bms_live.decode_balancing_cells("10000001", "01000000", 13),
+            [1, 8, 10],
+        )
+
+        pack = types.SimpleNamespace(
+            pack_number=1,
+            cells=13,
+            v_cells=[4100] * 13,
+            t_cells=[],
+            v_pack=53300,
+            i_pack=0,
+            i_remain_cap=88000,
+            i_full_cap=89000,
+            i_design_cap=100000,
+            cycles=992,
+            soc=99.77,
+            soh=88.54,
+            cell_max_diff=0,
+        )
+        analog_data = types.SimpleNamespace(pack_data=[pack])
+        warn = types.SimpleNamespace(
+            pack_number=1,
+            warnings="Normal",
+            balancing1="10000001",
+            balancing2="01000000",
+            charge_fet=1,
+            discharge_fet=1,
+            fully=0,
+        )
+
+        snapshot = bms_live.build_live_snapshot({}, analog_data=analog_data, warn_list=[warn])
+
+        pack_data = snapshot["packs"][0]
+        self.assertEqual(pack_data["balancing_cells"], [1, 8, 10])
+        self.assertEqual(pack_data["balancing_summary"], "Cell 01, Cell 08, Cell 10")
+        self.assertTrue(pack_data["cells"][0]["balancing"])
+        self.assertEqual(pack_data["cells"][0]["balancing_label"], "Balancing")
+        self.assertEqual(pack_data["cells"][7]["balancing_label"], "Balancing")
+        self.assertEqual(pack_data["cells"][9]["balancing_label"], "Balancing")
+        self.assertEqual(pack_data["cells"][1]["balancing_label"], "-")
+
     def test_live_snapshot_clears_bms_warning_after_normal_warn_read(self):
         options = dict(web_config.DEFAULT_OPTION_VALUES)
         pack = types.SimpleNamespace(

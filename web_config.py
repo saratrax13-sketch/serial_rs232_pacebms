@@ -26,7 +26,7 @@ from battery_profiles import (
     hubble_am2_ocv_reference_table,
     normalize_profile,
 )
-from bms_live import LIVE_SNAPSHOT_PATH, load_live_snapshot
+from bms_live import LIVE_SNAPSHOT_PATH, decode_balancing_cells, load_live_snapshot
 from bms_history import HISTORY_DB_PATH, init_history_db, query_history
 
 app = Flask(__name__)
@@ -1450,6 +1450,19 @@ def normalize_live_snapshot_for_template(live, options=None):
             "temperatures": pack.get("temperatures") if isinstance(pack.get("temperatures"), list) else [],
             "reference_checks": pack.get("reference_checks") if isinstance(pack.get("reference_checks"), list) else [],
         })
+        balancing_cells = pack.get("balancing_cells") if isinstance(pack.get("balancing_cells"), list) else []
+        balancing_cell_set = set()
+        for cell_num in balancing_cells:
+            try:
+                balancing_cell_set.add(int(cell_num))
+            except Exception:
+                pass
+        pack["balancing_cells"] = sorted(balancing_cell_set)
+        pack["balancing_summary"] = (
+            ", ".join(f"Cell {cell_num:02d}" for cell_num in pack["balancing_cells"])
+            if pack["balancing_cells"]
+            else pack.get("balancing_summary", "None active")
+        )
         refs_for_cells = effective_warning_references(options, pack.get("cell_count"))
         ocv_profile = refs_for_cells.get("effective_profile")
         normalized_cells = []
@@ -1457,6 +1470,13 @@ def normalize_live_snapshot_for_template(live, options=None):
             if not isinstance(cell, dict):
                 continue
             cell_copy = dict(cell)
+            cell_num = _to_float(cell_copy.get("number"))
+            cell_balancing = bool(cell_copy.get("balancing"))
+            if cell_num is not None and int(cell_num) in balancing_cell_set:
+                cell_balancing = True
+            cell_copy["balancing"] = cell_balancing
+            cell_copy["balancing_label"] = "Balancing" if cell_balancing else cell_copy.get("balancing_label", "-")
+            cell_copy["balancing_class"] = "active" if cell_balancing else cell_copy.get("balancing_class", "off")
             if not isinstance(cell_copy.get("ocv_ref"), dict):
                 cell_copy["ocv_ref"] = cell_ocv_reference(cell_copy.get("voltage"), ocv_profile)
             normalized_cells.append(cell_copy)
@@ -2175,6 +2195,15 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
         remaining_capacity_ah = messages.get(f"{pfx}/i_remain_cap", "Unknown")
         full_capacity_ah = messages.get(f"{pfx}/i_full_cap", "Unknown")
         design_capacity_ah = messages.get(f"{pfx}/i_design_cap", "Unknown")
+        balancing1 = messages.get(f"{pfx}/balancing1", "")
+        balancing2 = messages.get(f"{pfx}/balancing2", "")
+        balancing_cells = decode_balancing_cells(balancing1, balancing2, cell_count)
+        balancing_cell_set = set(balancing_cells)
+        balancing_summary = (
+            ", ".join(f"Cell {cell_num:02d}" for cell_num in balancing_cells)
+            if balancing_cells
+            else "None active"
+        )
 
         refs = effective_warning_references(options, cell_count)
         ocv_profile = refs.get("effective_profile")
@@ -2214,6 +2243,9 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
                     "labels": labels,
                     "class": "cell-alert" if has_reference_label else ("cell-caution" if has_bms_label else ("cell-highlow" if labels else "cell-normal")),
                     "ocv_ref": cell_ocv_reference(cell_v, ocv_profile),
+                    "balancing": cell_num in balancing_cell_set,
+                    "balancing_label": "Balancing" if cell_num in balancing_cell_set else "-",
+                    "balancing_class": "active" if cell_num in balancing_cell_set else "off",
                 })
 
         pack_v = _to_float(voltage)
@@ -2310,6 +2342,10 @@ def fetch_mqtt_snapshot(options, timeout=0.45):
             "battery_profile": refs["profile_label"],
             "reference_source": _reference_source_label(refs),
             "reference_checks": reference_checks,
+            "balancing1": str(balancing1 or ""),
+            "balancing2": str(balancing2 or ""),
+            "balancing_cells": balancing_cells,
+            "balancing_summary": balancing_summary,
             "charge_fet": messages.get(f"{pfx}/charge_fet", "Unknown"),
             "discharge_fet": messages.get(f"{pfx}/discharge_fet", "Unknown"),
             "fully": messages.get(f"{pfx}/fully", "Unknown"),
