@@ -1,3 +1,14 @@
+## 2.10.2 - 2026-05-23
+
+### Fixed
+- Diagnostics Detailed Pack & Cell Data now refreshes pack values and cell rows from `/api/status` while the tab is open.
+- Cell voltage, cell status labels, pack quick metrics, FET state and power-state pills now update in place without requiring a tab switch or manual refresh.
+
+### Notes
+- No BMS write/control commands were added.
+- MQTT topics and Home Assistant discovery entity names were not changed.
+- Monitor polling behavior was not changed.
+
 ## 2.10.1 - 2026-05-22
 
 ### Fixed

@@ -5366,34 +5366,34 @@ This cannot be undone.`);">
           {% set pack_power = (pack_voltage * pack_current) / 1000 %}
           {% set runtime_hours = (pack_voltage * pack_remaining / 1000) / (-pack_power) if pack_power < -0.05 and pack_remaining > 0 else none %}
           {% set charge_hours = (pack_voltage * (pack_full - pack_remaining) / 1000) / pack_power if pack_power > 0.05 and pack_full > pack_remaining else none %}
-          <article class="pack-card">
+          <article class="pack-card" data-diagnostics-pack="{{ pack.id }}">
             <div class="pack-header">
               <div>
                 <div class="pack-title">Pack {{ pack.id }}</div>
-                <div class="summary-meta">{{ pack_role }} - {{ pack.cell_count }} cells detected</div>
+                <div class="summary-meta" data-diagnostics-pack-field="{{ pack.id }}-summary">{{ pack_role }} - {{ pack.cell_count }} cells detected</div>
               </div>
-              <span class="pill {{ pack.severity_class }}">{{ pack.severity_label }}</span>
+              <span class="pill {{ pack.severity_class }}" data-diagnostics-pack-field="{{ pack.id }}-status-pill">{{ pack.severity_label }}</span>
             </div>
 
             <div class="pack-quick-strip">
               <div class="pack-quick-item">
                 <div class="pack-quick-label">SOC</div>
-                <div class="pack-quick-value">{{ pack.soc }}%</div>
+                <div class="pack-quick-value" data-diagnostics-pack-field="{{ pack.id }}-soc">{{ pack.soc }}%</div>
                 <span class="pack-quick-icon">↻</span>
               </div>
               <div class="pack-quick-item">
                 <div class="pack-quick-label">SOH</div>
-                <div class="pack-quick-value">{{ pack.soh }}%</div>
+                <div class="pack-quick-value" data-diagnostics-pack-field="{{ pack.id }}-soh">{{ pack.soh }}%</div>
                 <span class="pack-quick-icon">◇</span>
               </div>
               <div class="pack-quick-item">
                 <div class="pack-quick-label">Voltage</div>
-                <div class="pack-quick-value">{{ pack.voltage }} V</div>
+                <div class="pack-quick-value" data-diagnostics-pack-field="{{ pack.id }}-voltage">{{ pack.voltage }} V</div>
                 <span class="pack-quick-icon">⚡</span>
               </div>
               <div class="pack-quick-item">
                 <div class="pack-quick-label">Current</div>
-                <div class="pack-quick-value">{{ pack.current }} A</div>
+                <div class="pack-quick-value" data-diagnostics-pack-field="{{ pack.id }}-current">{{ pack.current }} A</div>
                 <span class="pack-quick-icon">⌁</span>
               </div>
             </div>
@@ -5402,41 +5402,41 @@ This cannot be undone.`);">
               <div class="pack-detail-row">
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Role</span>
-                  <span class="pack-detail-value">{{ pack_role }}</span>
+                  <span class="pack-detail-value" data-diagnostics-pack-field="{{ pack.id }}-role">{{ pack_role }}</span>
                 </div>
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Serial</span>
-                  <span class="pack-detail-value">{{ pack.serial|default('N/A') }}</span>
+                  <span class="pack-detail-value" data-diagnostics-pack-field="{{ pack.id }}-serial">{{ pack.serial|default('N/A') }}</span>
                 </div>
               </div>
               <div class="pack-detail-row">
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Cells</span>
-                  <span class="pack-detail-value">{{ pack.cell_count }}</span>
+                  <span class="pack-detail-value" data-diagnostics-pack-field="{{ pack.id }}-cells">{{ pack.cell_count }}</span>
                 </div>
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Power</span>
-                  <span class="pack-detail-value">{{ pack.power_kw|default('Unknown') }} kW</span>
+                  <span class="pack-detail-value" data-diagnostics-pack-field="{{ pack.id }}-power">{{ pack.power_kw|default('Unknown') }} kW</span>
                 </div>
               </div>
               <div class="pack-detail-row">
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Remaining Capacity</span>
-                  <span class="pack-detail-value">{{ pack.remaining_capacity_ah }} Ah</span>
+                  <span class="pack-detail-value" data-diagnostics-pack-field="{{ pack.id }}-remaining">{{ pack.remaining_capacity_ah }} Ah</span>
                 </div>
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Full Capacity</span>
-                  <span class="pack-detail-value">{{ pack.full_capacity_ah }} Ah</span>
+                  <span class="pack-detail-value" data-diagnostics-pack-field="{{ pack.id }}-full">{{ pack.full_capacity_ah }} Ah</span>
                 </div>
               </div>
               <div class="pack-detail-row">
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Design Capacity</span>
-                  <span class="pack-detail-value">{{ pack.design_capacity_ah }} Ah</span>
+                  <span class="pack-detail-value" data-diagnostics-pack-field="{{ pack.id }}-design">{{ pack.design_capacity_ah }} Ah</span>
                 </div>
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Projected Runtime</span>
-                  <span class="pack-detail-value">
+                  <span class="pack-detail-value" data-diagnostics-pack-field="{{ pack.id }}-runtime">
                     {% if runtime_hours is not none %}
                       {{ ((runtime_hours * 60)|round(0, 'floor') // 60)|int }}h {{ ((runtime_hours * 60)|round(0, 'floor') % 60)|int }}m
                     {% elif charge_hours is not none %}
@@ -5450,31 +5450,31 @@ This cannot be undone.`);">
               <div class="pack-detail-row">
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Highest Cell</span>
-                  <span class="pack-detail-value">C{{ pack.highest_cell.number }} - {{ pack.highest_cell.voltage }} V</span>
+                  <span class="pack-detail-value" data-diagnostics-pack-field="{{ pack.id }}-highest">C{{ pack.highest_cell.number }} - {{ pack.highest_cell.voltage }} V</span>
                 </div>
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Lowest Cell</span>
-                  <span class="pack-detail-value">C{{ pack.lowest_cell.number }} - {{ pack.lowest_cell.voltage }} V</span>
+                  <span class="pack-detail-value" data-diagnostics-pack-field="{{ pack.id }}-lowest">C{{ pack.lowest_cell.number }} - {{ pack.lowest_cell.voltage }} V</span>
                 </div>
               </div>
               <div class="pack-detail-row">
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Cycles</span>
-                  <span class="pack-detail-value">{{ pack.cycles }}</span>
+                  <span class="pack-detail-value" data-diagnostics-pack-field="{{ pack.id }}-cycles">{{ pack.cycles }}</span>
                 </div>
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Cell Delta</span>
-                  <span class="pack-detail-value">{{ pack.delta }} mV</span>
+                  <span class="pack-detail-value" data-diagnostics-pack-field="{{ pack.id }}-delta">{{ pack.delta }} mV</span>
                 </div>
               </div>
               <div class="pack-detail-row">
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Cell High Ref</span>
-                  <span class="pack-detail-value">{{ pack.cell_high_ref }} V</span>
+                  <span class="pack-detail-value" data-diagnostics-pack-field="{{ pack.id }}-cell-high-ref">{{ pack.cell_high_ref }} V</span>
                 </div>
                 <div class="pack-detail-cell">
                   <span class="pack-detail-label">Pack High Ref</span>
-                  <span class="pack-detail-value">{{ pack.pack_high_ref }} V</span>
+                  <span class="pack-detail-value" data-diagnostics-pack-field="{{ pack.id }}-pack-high-ref">{{ pack.pack_high_ref }} V</span>
                 </div>
               </div>
             </div>
@@ -5483,17 +5483,17 @@ This cannot be undone.`);">
               <div class="metric-section-title">BMS Control State</div>
               <div class="fet-row">
                 {% if pack.power_kw is defined and pack.power_kw != 'Unknown' and pack_power > 0.05 %}
-                <span class="pill ok">State: Charging</span>
+                <span class="pill ok" data-diagnostics-pack-field="{{ pack.id }}-power-state">State: Charging</span>
                 {% elif pack.power_kw is defined and pack.power_kw != 'Unknown' and pack_power < -0.05 %}
-                <span class="pill warning">State: Discharging</span>
+                <span class="pill warning" data-diagnostics-pack-field="{{ pack.id }}-power-state">State: Discharging</span>
                 {% elif pack.power_kw is defined and pack.power_kw != 'Unknown' %}
-                <span class="pill off">State: Idle</span>
+                <span class="pill off" data-diagnostics-pack-field="{{ pack.id }}-power-state">State: Idle</span>
                 {% else %}
-                <span class="pill off">State: Unknown</span>
+                <span class="pill off" data-diagnostics-pack-field="{{ pack.id }}-power-state">State: Unknown</span>
                 {% endif %}
-                <span class="pill {% if pack.charge_fet == 'ON' %}ok{% else %}off{% endif %}">Charge FET: {{ pack.charge_fet }}</span>
-                <span class="pill {% if pack.discharge_fet == 'ON' %}ok{% else %}danger{% endif %}">Discharge FET: {{ pack.discharge_fet }}</span>
-                <span class="pill {% if pack.fully == 'ON' %}ok{% else %}off{% endif %}">Full: {{ pack.fully }}</span>
+                <span class="pill {% if pack.charge_fet == 'ON' %}ok{% else %}off{% endif %}" data-diagnostics-pack-field="{{ pack.id }}-charge-fet">Charge FET: {{ pack.charge_fet }}</span>
+                <span class="pill {% if pack.discharge_fet == 'ON' %}ok{% else %}danger{% endif %}" data-diagnostics-pack-field="{{ pack.id }}-discharge-fet">Discharge FET: {{ pack.discharge_fet }}</span>
+                <span class="pill {% if pack.fully == 'ON' %}ok{% else %}off{% endif %}" data-diagnostics-pack-field="{{ pack.id }}-full-state">Full: {{ pack.fully }}</span>
               </div>
             </div>
 
@@ -5510,10 +5510,10 @@ This cannot be undone.`);">
               </thead>
               <tbody>
                 {% for cell in pack.cells %}
-                <tr class="{{ cell.class }}">
+                <tr class="{{ cell.class }}" data-diagnostics-cell-row="{{ pack.id }}-{{ cell.number }}">
                   <td>Cell {{ cell.number }}</td>
-                  <td class="cell-voltage">{{ cell.voltage }} V</td>
-                  <td>
+                  <td class="cell-voltage" data-diagnostics-cell-voltage="{{ pack.id }}-{{ cell.number }}">{{ cell.voltage }} V</td>
+                  <td data-diagnostics-cell-labels="{{ pack.id }}-{{ cell.number }}">
                     {% if cell.labels %}
                     <div class="cell-labels">
                       {% for label in cell.labels %}
@@ -7284,6 +7284,121 @@ Restart the add-on afterwards for runtime changes to apply.`);
       return text.replaceAll("*", "").trim() || text;
     }
 
+    function diagnosticsPackField(packId, field) {
+      return document.querySelector(`[data-diagnostics-pack-field="${packId}-${field}"]`);
+    }
+
+    function setDiagnosticsPackText(packId, field, value) {
+      const el = diagnosticsPackField(packId, field);
+      if (el) el.textContent = value ?? "Unknown";
+      return Boolean(el);
+    }
+
+    function diagnosticsCellLabel(cell) {
+      if (!cell) return "Unknown";
+      return `C${cell.number ?? "Unknown"} - ${cell.voltage ?? "Unknown"} V`;
+    }
+
+    function diagnosticsPowerState(pack) {
+      const voltage = Number(pack.voltage);
+      const current = Number(pack.current);
+      let powerKw = Number.isFinite(voltage) && Number.isFinite(current) ? (voltage * current) / 1000 : Number(pack.power_kw);
+      if (!Number.isFinite(powerKw)) return { text: "State: Unknown", className: "off" };
+      if (powerKw > 0.05) return { text: "State: Charging", className: "ok" };
+      if (powerKw < -0.05) return { text: "State: Discharging", className: "warning" };
+      return { text: "State: Idle", className: "off" };
+    }
+
+    function diagnosticsCellLabelClass(label) {
+      const text = String(label || "");
+      if (text.includes("reference")) return "alert";
+      if (text.startsWith("BMS ")) return "caution";
+      return "highlow";
+    }
+
+    function setDiagnosticsPill(packId, field, text, className) {
+      const el = diagnosticsPackField(packId, field);
+      if (!el) return false;
+      el.textContent = text;
+      el.className = "pill " + (className || "off");
+      return true;
+    }
+
+    function renderDiagnosticsCellLabels(container, labels) {
+      container.replaceChildren();
+      const safeLabels = Array.isArray(labels) ? labels : [];
+      if (!safeLabels.length) {
+        const normal = document.createElement("span");
+        normal.className = "cell-label";
+        normal.textContent = "Normal";
+        container.appendChild(normal);
+        return;
+      }
+      const wrap = document.createElement("div");
+      wrap.className = "cell-labels";
+      safeLabels.forEach(function (label) {
+        const span = document.createElement("span");
+        span.className = "cell-label " + diagnosticsCellLabelClass(label);
+        span.textContent = label;
+        wrap.appendChild(span);
+      });
+      container.appendChild(wrap);
+    }
+
+    function refreshDiagnosticsPackCards(packs) {
+      let missingStructure = false;
+      (packs || []).forEach(function (pack) {
+        const id = String(pack.id);
+        const role = pack.role || (id === "01" || id === "1" ? "Master" : "Slave");
+        const statusText = pack.warnings === "Normal" ? "Normal" : (pack.severity_label || "Warning");
+        const statusClass = pack.warnings === "Normal" ? "ok" : (pack.severity_class || "warning");
+
+        missingStructure = !setDiagnosticsPackText(id, "summary", `${role} - ${pack.cell_count ?? "Unknown"} cells detected`) || missingStructure;
+        setDiagnosticsPill(id, "status-pill", statusText, statusClass);
+        setDiagnosticsPackText(id, "soc", `${pack.soc ?? "Unknown"}%`);
+        setDiagnosticsPackText(id, "soh", `${pack.soh ?? "Unknown"}%`);
+        setDiagnosticsPackText(id, "voltage", `${pack.voltage ?? "Unknown"} V`);
+        setDiagnosticsPackText(id, "current", `${pack.current ?? "Unknown"} A`);
+        setDiagnosticsPackText(id, "role", role);
+        setDiagnosticsPackText(id, "serial", pack.serial ?? "N/A");
+        setDiagnosticsPackText(id, "cells", pack.cell_count ?? "Unknown");
+        setDiagnosticsPackText(id, "power", `${pack.power_kw ?? "Unknown"} kW`);
+        setDiagnosticsPackText(id, "remaining", `${pack.remaining_capacity_ah ?? "Unknown"} Ah`);
+        setDiagnosticsPackText(id, "full", `${pack.full_capacity_ah ?? "Unknown"} Ah`);
+        setDiagnosticsPackText(id, "design", `${pack.design_capacity_ah ?? "Unknown"} Ah`);
+        setDiagnosticsPackText(id, "runtime", packTimeEstimate(pack));
+        setDiagnosticsPackText(id, "highest", diagnosticsCellLabel(pack.highest_cell));
+        setDiagnosticsPackText(id, "lowest", diagnosticsCellLabel(pack.lowest_cell));
+        setDiagnosticsPackText(id, "cycles", pack.cycles ?? "Unknown");
+        setDiagnosticsPackText(id, "delta", `${pack.delta ?? "Unknown"} mV`);
+        setDiagnosticsPackText(id, "cell-high-ref", `${pack.cell_high_ref ?? "Unknown"} V`);
+        setDiagnosticsPackText(id, "pack-high-ref", `${pack.pack_high_ref ?? "Unknown"} V`);
+
+        const powerState = diagnosticsPowerState(pack);
+        setDiagnosticsPill(id, "power-state", powerState.text, powerState.className);
+        setDiagnosticsPill(id, "charge-fet", `Charge FET: ${pack.charge_fet ?? "Unknown"}`, pack.charge_fet === "ON" ? "ok" : "off");
+        setDiagnosticsPill(id, "discharge-fet", `Discharge FET: ${pack.discharge_fet ?? "Unknown"}`, pack.discharge_fet === "ON" ? "ok" : "danger");
+        setDiagnosticsPill(id, "full-state", `Full: ${pack.fully ?? "Unknown"}`, pack.fully === "ON" ? "ok" : "off");
+
+        (pack.cells || []).forEach(function (cell) {
+          const key = `${id}-${cell.number}`;
+          const row = document.querySelector(`[data-diagnostics-cell-row="${key}"]`);
+          const voltage = document.querySelector(`[data-diagnostics-cell-voltage="${key}"]`);
+          const labels = document.querySelector(`[data-diagnostics-cell-labels="${key}"]`);
+          if (!row || !voltage || !labels) {
+            missingStructure = true;
+            return;
+          }
+          row.className = cell.class || "cell-normal";
+          voltage.textContent = `${cell.voltage ?? "Unknown"} V`;
+          renderDiagnosticsCellLabels(labels, cell.labels || []);
+        });
+      });
+      if (missingStructure) {
+        queueSoftReloadWhenScrollIdle("diagnostics");
+      }
+    }
+
     function updateDiagnosticCard(title, status, className, detail) {
       const statusEl = document.querySelector(`[data-diagnostic-status="${title}"]`);
       const detailEl = document.querySelector(`[data-diagnostic-detail="${title}"]`);
@@ -7334,6 +7449,8 @@ Restart the add-on afterwards for runtime changes to apply.`);
           setDiagnosticsText("#diagnostics-battery-current", data.user_summary.battery_current);
           setDiagnosticsText("#diagnostics-battery-time", data.user_summary.runtime_remaining);
         }
+
+        refreshDiagnosticsPackCards(data.packs || []);
 
         updateDiagnosticCard(
           "Live Data",

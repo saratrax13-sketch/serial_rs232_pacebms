@@ -3364,11 +3364,24 @@ class HealthEndpointTests(unittest.TestCase):
                 "voltage": "54.0",
                 "current": "1.0",
                 "delta": "12",
+                "remaining_capacity_ah": "95",
+                "full_capacity_ah": "100",
+                "design_capacity_ah": "100",
+                "power_kw": "0.05",
+                "cell_high_ref": "3.51",
+                "pack_high_ref": "56.16",
+                "charge_fet": "ON",
+                "discharge_fet": "ON",
+                "fully": "OFF",
                 "warnings": "Normal",
                 "severity_class": "healthy",
                 "severity_label": "Normal",
                 "highest_cell": {"number": "01", "voltage": "3.400"},
                 "lowest_cell": {"number": "02", "voltage": "3.388"},
+                "cells": [
+                    {"number": "01", "voltage": "3.400", "labels": ["Highest"], "class": "cell-highlow"},
+                    {"number": "02", "voltage": "3.388", "labels": ["Lowest"], "class": "cell-highlow"},
+                ],
             }],
         }
 
@@ -3403,6 +3416,11 @@ class HealthEndpointTests(unittest.TestCase):
         self.assertIn(b"Operating State", response.data)
         self.assertIn(b"Charging", response.data)
         self.assertIn(b"Charging at 0.05 kW", response.data)
+        self.assertIn(b'data-diagnostics-pack="01"', response.data)
+        self.assertIn(b'data-diagnostics-pack-field="01-voltage"', response.data)
+        self.assertIn(b'data-diagnostics-cell-row="01-01"', response.data)
+        self.assertIn(b'data-diagnostics-cell-voltage="01-01"', response.data)
+        self.assertIn(b"refreshDiagnosticsPackCards", response.data)
 
     def test_health_endpoint_fails_when_monitor_heartbeat_is_stale(self):
         with tempfile.TemporaryDirectory() as tmpdir:
